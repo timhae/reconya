@@ -1,0 +1,241 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Importing Bootstrap SCSS file. */
+@import "bootstrap/scss/bootstrap";
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap');
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 500;
+  background-color: $black;
+}
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.orbitron {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.bg-very-dark {
+  background: #111;
+}
+
+.bg-black {
+  background: #000;
+}
+
+.table-very-dark {
+  background: #111111 !important;
+}
+
+.table-black {
+  background: #000000 !important;
+}
+
+.table-text {
+  font-weight: 500;
+}
+
+// Generic rules
+
+.w-20 {
+  width: 20% !important;
+}
+
+.device-container {
+  flex-flow: row wrap;
+}
+
+.device-box-btn {
+  min-width: 140px;
+  width: calc(10% - 8px);
+  min-height: 100px;
+  &:active {
+    background: $success !important;
+    color: $dark !important;
+  }
+  &:hover {
+    background: $success !important;
+    color: $dark !important;
+  }
+}
+
+.device-container {
+  flex-flow: row wrap;
+}
+
+.device-mini-box {
+  width: 18px;
+  min-height: 18px;
+  padding-top: 3px;
+}
+
+.deviceFadeInAndOut {
+  opacity: 1;
+  animation: fade 1.5s linear infinite;
+}
+
+@keyframes fade {
+0%,100% { opacity: 0 }
+50% { opacity: 1 }
+}
+
+.deviceBlink {
+  opacity: 1;
+  animation: blinker 1.8s step-start infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+
+// Device modal 
+.device-modal {
+  min-height: 500px;
+}
+
+// Progress
+
+.progress{
+  width: 130px;
+  height: 130px;
+  line-height: 130px;
+  background: none;
+  margin: 0 auto;
+  box-shadow: none;
+  position: relative;
+}
+.progress:after{
+  content: "";
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 10px solid $dark;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.progress > span{
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  z-index: 1;
+}
+.progress .progress-left{
+  left: 0;
+}
+.progress .progress-bar{
+  width: 100%;
+  height: 100%;
+  background: none;
+  border-width: 10px;
+  border-style: solid;
+  position: absolute;
+  top: 0;
+}
+.progress .progress-left .progress-bar{
+  left: 100%;
+  border-top-right-radius: 80px;
+  border-bottom-right-radius: 80px;
+  border-left: 0;
+  -webkit-transform-origin: center left;
+  transform-origin: center left;
+}
+.progress .progress-right{
+  right: 0;
+}
+.progress .progress-right .progress-bar{
+  left: -100%;
+  border-top-left-radius: 80px;
+  border-bottom-left-radius: 80px;
+  border-right: 0;
+  -webkit-transform-origin: center right;
+  transform-origin: center right;
+  transform: rotate(180deg);
+  // animation: loading-1 1.8s linear forwards;
+}
+.progress .progress-value{
+  width: 100%;
+  height: 100%;
+  font-size: 15px;
+  color: #777;
+  text-align: center;
+  position: absolute;
+}
+.progress.green .progress-bar{
+  border-color: $green;
+}
+.progress.green .progress-left .progress-bar{
+  // animation: loading-5 1.2s linear forwards 1.8s;
+  transform: rotate(126deg);
+}
+@keyframes loading-1{
+  0%{
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+  }
+  100%{
+      -webkit-transform: rotate(180deg);
+      transform: rotate(180deg);
+  }
+}
+@keyframes loading-5{
+  0%{
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+  }
+  100%{
+      -webkit-transform: rotate(126deg);
+      transform: rotate(126deg);
+  }
+}
+@media only screen and (max-width: 990px){
+  .progress{ margin-bottom: 20px; }
+}
+
+
+
+///////
+
+
+.progress-circle {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.progress-circle__svg {
+  transform: rotate(-90deg);
+}
+
+.progress-circle__background {
+  fill: none;
+  stroke: #ddd;
+  stroke-width: 10;
+}
+
+.progress-circle__circle {
+  fill: none;
+  stroke: #007bff;
+  stroke-width: 10;
+  stroke-dasharray: 502;
+  stroke-linecap: round;
+}
+
+.progress-circle__text {
+  fill: #007bff;
+  font-size: 30px;
+  font-weight: bold;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
