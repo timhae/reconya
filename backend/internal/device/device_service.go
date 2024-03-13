@@ -69,11 +69,22 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 				if len(parts) == 6 {
 					hostname := strings.Trim(parts[4], "()")
 					if hostname != ipAddress {
-						device.Hostname = hostname
+						// If hostname is not equal to the IP address, update the device hostname.
+						device.Hostname = &hostname
+					} else {
+						// If hostname equals the IP address, consider it as no hostname provided.
+						// To explicitly clear out an existing hostname, point to an empty string instead of nil.
+						empty := ""
+						device.Hostname = &empty
 					}
 				}
 
-				log.Printf("Found device - IP: %s, Hostname: %s", device.IPv4, device.Hostname)
+				if device.Hostname != nil {
+					log.Printf("Found device - IP: %s, Hostname: %s", device.IPv4, *device.Hostname)
+				} else {
+					log.Printf("Found device - IP: %s, Hostname: <nil>", device.IPv4)
+				}
+
 			}
 
 			// Check for the MAC address in the following lines

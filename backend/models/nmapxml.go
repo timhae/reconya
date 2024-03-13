@@ -15,10 +15,17 @@ type NmapXMLAddress struct {
 	Vendor   string `xml:"vendor,attr"`   // The vendor of the device (optional)
 }
 
+// NmapXMLHostname represents a hostname in the Nmap XML output
+type NmapXMLHostname struct {
+	Name string `xml:"name,attr"`
+	Type string `xml:"type,attr"`
+}
+
 // Update NmapXMLHost to include Addresses
 type NmapXMLHost struct {
-	Addresses []NmapXMLAddress `xml:"address"` // Add this line to include address information
-	Ports     []NmapXMLPort    `xml:"ports>port"`
+	Addresses []NmapXMLAddress  `xml:"address"` // Add this line to include address information
+	Ports     []NmapXMLPort     `xml:"ports>port"`
+	Hostnames []NmapXMLHostname `xml:"hostnames>hostname"`
 }
 
 // NmapXMLPort represents a port in the Nmap XML output

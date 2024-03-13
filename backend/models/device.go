@@ -24,7 +24,7 @@ type Device struct {
 	Status            DeviceStatus `bson:"status"`
 	NetworkCIDR       string       `bson:"network_cidr"`
 	Ports             []Port       `bson:"ports,omitempty"`
-	Hostname          string       `bson:"hostname,omitempty" json:"hostname,omitempty"`
+	Hostname          *string      `bson:"hostname,omitempty"`
 	CreatedAt         time.Time    `bson:"created_at"`
 	UpdatedAt         time.Time    `bson:"updated_at"`
 	LastSeenOnlineAt  *time.Time   `bson:"last_seen_online_at,omitempty"`

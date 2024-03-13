@@ -38,7 +38,7 @@ func (s *PortScanService) Run(ipv4 string) {
 		return
 	}
 
-	ports, vendor, err := s.ExecutePortScan(ipv4) // Adjusted to also return vendor
+	ports, vendor, hostname, err := s.ExecutePortScan(ipv4) // Adjusted to also return vendor
 	if err != nil {
 		log.Printf("Error executing port scan: %v", err)
 		return
@@ -47,6 +47,9 @@ func (s *PortScanService) Run(ipv4 string) {
 	device.Ports = ports
 	if vendor != "" {
 		device.Vendor = &vendor // Update device with vendor info if available
+	}
+	if hostname != "" {
+		device.Hostname = &hostname
 	}
 
 	_, err = s.DeviceService.CreateOrUpdate(device) // Now expects device to include vendor info
@@ -59,30 +62,29 @@ func (s *PortScanService) Run(ipv4 string) {
 }
 
 // ExecutePortScan performs the port scan using Nmap and returns ports and vendor.
-func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, error) {
+func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, string, error) {
 	cmd := exec.Command("sudo", "/usr/bin/nmap", "-oX", "-", "-O", ipv4)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	ports, vendor := s.ParseNmapOutput(string(output))
-	return ports, vendor, nil
+	ports, vendor, hostname := s.ParseNmapOutput(string(output))
+	return ports, vendor, hostname, nil
 }
 
-// ParseNmapOutput parses the XML output of the Nmap command to extract ports and the vendor.
-func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string) {
+// ParseNmapOutput parses the XML output of the Nmap command to extract ports, vendor, and hostname.
+func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string, string) {
 	var nmapXML models.NmapXML
 	err := xml.Unmarshal([]byte(output), &nmapXML)
 	if err != nil {
 		log.Printf("Error parsing Nmap XML output: %v", err)
-		return nil, ""
+		return nil, "", ""
 	}
 
 	var ports []models.Port
-	var vendor string
+	var vendor, hostname string
 	for _, host := range nmapXML.Hosts {
-		// Iterate through addresses to find the vendor for "mac" type addresses.
 		for _, address := range host.Addresses {
 			if address.AddrType == "mac" && address.Vendor != "" {
 				vendor = address.Vendor // Capture the vendor information.
@@ -90,7 +92,10 @@ func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string)
 			}
 		}
 
-		// Parse port information from each host.
+		if len(host.Hostnames) > 0 {
+			hostname = host.Hostnames[0].Name // Capture the first hostname, if available.
+		}
+
 		for _, xmlPort := range host.Ports {
 			port := models.Port{
 				Number:   xmlPort.PortID,
@@ -101,6 +106,5 @@ func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string)
 			ports = append(ports, port)
 		}
 	}
-
-	return ports, vendor
+	return ports, vendor, hostname
 }
