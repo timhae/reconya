@@ -23,12 +23,9 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 	}
 }
 
-// Run executes a port scan for a given IP address
+// Run executes a port scan for a given IP address and updates device info.
 func (s *PortScanService) Run(ipv4 string) {
 	log.Printf("Starting port scan for IP [%s]", ipv4)
-
-	// Record the start of the port scan in event logs
-	// [Insert code to log the event]
 
 	device, err := s.DeviceService.FindByIPv4(ipv4)
 	if err != nil {
@@ -41,41 +38,59 @@ func (s *PortScanService) Run(ipv4 string) {
 		return
 	}
 
-	// [Insert code to update device's status]
-
-	ports, err := s.ExecutePortScan(ipv4)
+	ports, vendor, err := s.ExecutePortScan(ipv4) // Adjusted to also return vendor
 	if err != nil {
 		log.Printf("Error executing port scan: %v", err)
 		return
 	}
 
-	// [Insert code to handle the port scan result, such as updating the device in the database]
-	log.Printf("Port scan for IP [%s] completed. Found ports: %v", ipv4, ports)
+	device.Ports = ports
+	if vendor != "" {
+		device.Vendor = &vendor // Update device with vendor info if available
+	}
+
+	_, err = s.DeviceService.CreateOrUpdate(device) // Now expects device to include vendor info
+	if err != nil {
+		log.Printf("Error saving device with updated ports: %v", err)
+		return
+	}
+
+	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", ipv4, ports, vendor)
 }
 
-// ExecutePortScan performs the port scan using Nmap
-func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, error) {
+// ExecutePortScan performs the port scan using Nmap and returns ports and vendor.
+func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, error) {
 	cmd := exec.Command("sudo", "/usr/bin/nmap", "-oX", "-", "-O", ipv4)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	ports := s.ParseNmapOutput(string(output))
-	return ports, nil
+	ports, vendor := s.ParseNmapOutput(string(output))
+	return ports, vendor, nil
 }
 
-// ParseNmapOutput parses the XML output of the Nmap command
-func (s *PortScanService) ParseNmapOutput(output string) []models.Port {
+// ParseNmapOutput parses the XML output of the Nmap command to extract ports and the vendor.
+func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string) {
 	var nmapXML models.NmapXML
 	err := xml.Unmarshal([]byte(output), &nmapXML)
 	if err != nil {
 		log.Printf("Error parsing Nmap XML output: %v", err)
-		return nil
+		return nil, ""
 	}
 
 	var ports []models.Port
+	var vendor string
 	for _, host := range nmapXML.Hosts {
+		// Iterate through addresses to find the vendor for "mac" type addresses.
+		for _, address := range host.Addresses {
+			if address.AddrType == "mac" && address.Vendor != "" {
+				vendor = address.Vendor // Capture the vendor information.
+				break                   // Assuming you're scanning one device at a time or only need the first MAC vendor.
+			}
+		}
+
+		// Parse port information from each host.
 		for _, xmlPort := range host.Ports {
 			port := models.Port{
 				Number:   xmlPort.PortID,
@@ -83,9 +98,9 @@ func (s *PortScanService) ParseNmapOutput(output string) []models.Port {
 				State:    xmlPort.State.State,
 				Service:  xmlPort.Service.Name,
 			}
-			log.Printf("Parsed Port: %+v\n", port) // Debugging log
 			ports = append(ports, port)
 		}
 	}
-	return ports
+
+	return ports, vendor
 }

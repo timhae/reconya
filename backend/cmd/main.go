@@ -15,10 +15,19 @@ import (
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/middleware"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	mongoURI := os.Getenv("MONGODB_URI")
+
 	if mongoURI == "" {
 		mongoURI = "mongodb://localhost:27017/reconya-mongo-dev"
 	}

@@ -20,7 +20,7 @@ const Devices: React.FC<DevicesProps> = ({ devices }) => {
       <table className="table-dark table-sm table-compact text-success w-100">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Hostname</th>
             <th>IPv4</th>
             <th>MAC</th>
             <th>Vendor</th>
@@ -31,7 +31,7 @@ const Devices: React.FC<DevicesProps> = ({ devices }) => {
         <tbody>
           {devices.map((device, index) => (
             <tr key={index}>
-              <td>{device.Name || 'Unknown'}</td>
+              <td>{device.Hostname || 'Unknown'}</td>
               <td>{device.IPv4}</td>
               <td>{device.MAC || 'N/A'}</td>
               <td>{device.Vendor || 'Unknown'}</td>

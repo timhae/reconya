@@ -23,21 +23,37 @@ func NewDeviceService(db *mongo.Client, dbName, collName string) *DeviceService 
 
 func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, error) {
 	filter := bson.M{"ipv4": device.IPv4}
-	update := bson.M{"$set": device}
-	after := options.After
-	opts := &options.FindOneAndUpdateOptions{Upsert: &trueBool, ReturnDocument: &after}
+
+	// Set LastSeenOnlineAt to the current time
+	now := time.Now()
+	device.LastSeenOnlineAt = &now
+
+	// Ensure you're creating a map that includes the ports data and LastSeenOnlineAt
+	updateData := bson.M{
+		"ipv4":                device.IPv4,
+		"hostname":            device.Hostname,
+		"mac":                 device.MAC,
+		"vendor":              device.Vendor,
+		"ports":               device.Ports,            // Include port data
+		"last_seen_online_at": device.LastSeenOnlineAt, // Update LastSeenOnlineAt
+		// Add other fields as necessary but exclude the _id field
+	}
+
+	update := bson.M{"$set": updateData}
+	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 
 	var updatedDevice models.Device
 	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
 	if err != nil {
+		log.Printf("Error saving device with updated ports: %v", err)
 		return nil, err
 	}
 	return &updatedDevice, nil
 }
 
-var trueBool = true // Global variable
-
+// ParseFromNmap takes a bufferStream (the Nmap output as a string) and parses it into a slice of Device structs.
 func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
+	log.Println("Starting Nmap parse")
 	var devices []models.Device
 	lines := strings.Split(bufferStream, "\n")
 
@@ -56,6 +72,8 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 						device.Hostname = hostname
 					}
 				}
+
+				log.Printf("Found device - IP: %s, Hostname: %s", device.IPv4, device.Hostname)
 			}
 
 			// Check for the MAC address in the following lines
@@ -64,6 +82,7 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 				if len(macParts) >= 3 {
 					mac := macParts[2]
 					device.MAC = &mac
+					log.Printf("Device MAC Address: %s", *device.MAC)
 				}
 			}
 
@@ -71,6 +90,7 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 		}
 	}
 
+	log.Printf("Finished parsing Nmap output. Total devices found: %d", len(devices))
 	return devices
 }
 

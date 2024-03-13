@@ -5,6 +5,7 @@ export interface Device {
   MAC?: string;
   Vendor?: string;
   Status?: string;
+  Hostname?: string;
   NetworkCIDR?: string;
   Ports?: Port[]; 
   CreatedAt?: string;

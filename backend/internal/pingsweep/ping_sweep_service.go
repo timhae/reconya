@@ -2,13 +2,13 @@ package pingsweep
 
 import (
 	"log"
+	"os"
 	"os/exec"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/portscan"
 	"reconya-ai/models"
-	// Import other necessary packages...
 )
 
 type PingSweepService struct {
@@ -29,7 +29,10 @@ func NewPingSweepService(deviceService *device.DeviceService, eventLogService *e
 
 func (s *PingSweepService) Run() {
 	log.Println("Starting new ping sweep scan...")
-	network := "192.168.144.0/24"
+	network := os.Getenv("NETWORK_RANGE")
+	if network == "" {
+		log.Fatal("No network range specified in NETWORK_RANGE environment variable")
+	}
 
 	devices, err := s.ExecuteSweepScanCommand(network)
 	if err != nil {
@@ -76,5 +79,3 @@ func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Dev
 func (s *PingSweepService) ParseNmapOutput(output string) []models.Device {
 	return s.DeviceService.ParseFromNmap(output)
 }
-
-// Implement other methods as needed...
