@@ -10,7 +10,7 @@ const useDevices = () => {
   useEffect(() => {
     const getDevices = async () => {
       try {
-        setIsLoading(true);
+        // setIsLoading(true);
         const data = await fetchDevices();
         setDevices(data);
       } catch (error: any) {

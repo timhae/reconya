@@ -13,8 +13,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      {/* <NetworkMap devices={devices} localDevice={localDevice} />
-      <DeviceList devices={devices} localDevice={localDevice} /> */}
+      <NetworkMap devices={devices} localDevice={localDevice} />
+      <DeviceList devices={devices} localDevice={localDevice} />
       <Devices devices={devices} />
     </div>
   );

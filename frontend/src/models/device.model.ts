@@ -17,7 +17,7 @@ export interface Device {
 
 export interface Port {
   protocol: string;
-  port: string;
+  number: string;
   state: string;
   service: string;
 }
