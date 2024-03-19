@@ -38,4 +38,4 @@ const NetworkMap: React.FC<Props> = ({ devices, localDevice }) => {
   );
 };
 
-export default NetworkMap;
+export default  React.memo(NetworkMap);

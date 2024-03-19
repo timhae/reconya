@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { fetchDevices } from '../api/axiosConfig'; // Adjust the import path as needed
-import { Device } from '../models/device.model'; // Adjust the import path as needed
+import { fetchDevices } from '../api/axiosConfig';
+import { Device } from '../models/device.model';
 
 const useDevices = () => {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -20,8 +20,14 @@ const useDevices = () => {
       }
     };
 
-    getDevices();
-  }, []);
+    getDevices(); // Fetch devices immediately on component mount
+
+    // Setup polling interval
+    const interval = setInterval(getDevices, 3000); // Poll every 3 seconds (adjusted to match comment)
+
+    // Cleanup function to clear interval on component unmount
+    return () => clearInterval(interval);
+  }, []); // Empty dependency array means this effect runs only on mount and unmount
 
   return { devices, isLoading, error };
 };

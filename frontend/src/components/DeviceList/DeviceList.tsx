@@ -56,4 +56,4 @@ const DeviceList: React.FC<DeviceListProps> = ({ devices, localDevice }) => {
   );
 };
 
-export default DeviceList;
+export default  React.memo(DeviceList);
