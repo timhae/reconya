@@ -25,9 +25,9 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
 
   return (
     <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)', marginTop: '170px' }} onClick={onClose}>
-      <div className="modal-dialog modal-lg" onClick={handleModalContentClick}>
+      <div className="modal-dialog modal-lg" onClick={handleModalContentClick} style={{ minHeight: '400px' }}>
         <div className="modal-content">
-          <div className="modal-body bg-black border border-success border-radius-0 text-success p-3">
+          <div className="modal-body bg-black border border-success border-radius-0 text-success p-5" style={{ minHeight: '400px' }}>
           <div className="mb-3">
               <div className="border-bottom border-success pb-2 mb-3 d-flex justify-content-between">
                 <div>
