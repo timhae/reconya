@@ -3,6 +3,7 @@ package systemstatus
 import (
 	"context"           // Replace with the correct import path
 	"reconya-ai/models" // Replace with the correct import path
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -27,7 +28,7 @@ func NewSystemStatusService(client *mongo.Client, dbName string, collectionName 
 // GetLatest retrieves the latest system status
 func (s *SystemStatusService) GetLatest() (*models.SystemStatus, error) {
 	var systemStatus models.SystemStatus
-	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	opts := options.FindOne().SetSort(bson.D{{Key: "updated_at", Value: -1}})
 	err := s.collection.FindOne(context.Background(), bson.D{}, opts).Decode(&systemStatus)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -40,8 +41,21 @@ func (s *SystemStatusService) GetLatest() (*models.SystemStatus, error) {
 
 // CreateOrUpdate creates or updates a system status
 func (s *SystemStatusService) CreateOrUpdate(systemStatus *models.SystemStatus) (*models.SystemStatus, error) {
+	now := time.Now()
+
+	// Set the updated_at field to now
+	update := bson.M{
+		"$set": bson.M{
+			"updated_at": now,
+			// Set other fields that should be updated every time...
+		},
+		"$setOnInsert": bson.M{
+			"created_at": now,
+			// Set other fields that should only be set on creation...
+		},
+	}
+
 	filter := bson.M{"local_device.ipv4": systemStatus.LocalDevice.IPv4}
-	update := bson.M{"$set": systemStatus}
 	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 
 	var updatedSystemStatus models.SystemStatus
@@ -49,5 +63,6 @@ func (s *SystemStatusService) CreateOrUpdate(systemStatus *models.SystemStatus) 
 	if err != nil {
 		return nil, err
 	}
+
 	return &updatedSystemStatus, nil
 }

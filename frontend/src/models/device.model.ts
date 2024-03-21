@@ -4,7 +4,7 @@ export interface Device {
   IPv4: string;
   MAC?: string;
   Vendor?: string;
-  Status?: string;
+  Status?: DeviceStatus;
   Hostname?: string;
   NetworkCIDR?: string;
   Ports?: Port[]; 

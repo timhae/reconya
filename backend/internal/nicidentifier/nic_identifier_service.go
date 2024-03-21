@@ -1,6 +1,7 @@
 package nicidentifier
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/models"
-	"strings"
 )
 
 // NicIdentifierService struct
@@ -31,6 +31,7 @@ func NewNicIdentifierService(networkSvc *network.NetworkService, systemStatusSvc
 // Identify performs the NIC identification process
 func (s *NicIdentifierService) Identify() {
 	nic := s.getLocalNic()
+	fmt.Printf("NIC: %v\n", nic)
 	cidr := extractCIDR(nic.IPv4)
 	publicIP, err := s.getPublicIp()
 	if err != nil {
@@ -81,22 +82,31 @@ func (s *NicIdentifierService) getLocalNic() models.NIC {
 	}
 
 	for _, iface := range interfaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+		fmt.Printf("Checking interface: %s\n", iface.Name)
+		if iface.Flags&net.FlagUp == 0 {
+			fmt.Printf("Skipping %s: interface is down\n", iface.Name)
+			continue
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			fmt.Printf("Skipping %s: interface is loopback\n", iface.Name)
 			continue
 		}
 
 		addrs, err := iface.Addrs()
 		if err != nil {
+			fmt.Printf("Skipping %s: error getting addresses: %v\n", iface.Name, err)
 			continue
 		}
 
 		for _, addr := range addrs {
 			ip, _, err := net.ParseCIDR(addr.String())
 			if err != nil || ip.To4() == nil {
+				fmt.Printf("Skipping address %s on %s: not a valid IPv4\n", addr.String(), iface.Name)
 				continue
 			}
 
-			if !ip.IsLoopback() && strings.HasPrefix(iface.Name, "eth") {
+			if !ip.IsLoopback() {
+				fmt.Printf("Found matching interface: %s with IPv4: %s\n", iface.Name, ip.String())
 				return models.NIC{Name: iface.Name, IPv4: ip.String()}
 			}
 		}

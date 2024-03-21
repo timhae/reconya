@@ -40,8 +40,8 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
               <table className="text-success w-100 p-2 mb-4">
                 <tbody className="p-2">
                   <tr>
-                    <td className="w-25 ps-2 fw-bold">Name</td>
-                    <td>{device.Name}</td>
+                    <td className="w-25 ps-2 fw-bold">Hostname</td>
+                    <td>{device.Hostname || 'Unknown'}</td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">H/W vendor</td>

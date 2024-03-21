@@ -20,14 +20,12 @@ const useDevices = () => {
       }
     };
 
-    getDevices(); // Fetch devices immediately on component mount
+    getDevices(); 
 
-    // Setup polling interval
-    const interval = setInterval(getDevices, 3000); // Poll every 3 seconds (adjusted to match comment)
+    const interval = setInterval(getDevices, 3000); 
 
-    // Cleanup function to clear interval on component unmount
     return () => clearInterval(interval);
-  }, []); // Empty dependency array means this effect runs only on mount and unmount
+  }, []); 
 
   return { devices, isLoading, error };
 };

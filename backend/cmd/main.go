@@ -39,10 +39,12 @@ func main() {
 	eventLogService := eventlog.NewEventLogService(db.GetMongoClient(), "reconya-dev", "event_logs")
 	eventLogHandlers := eventlog.NewEventLogHandlers(eventLogService)
 	systemStatusService := systemstatus.NewSystemStatusService(db.GetMongoClient(), "reconya-dev", "system_status")
-	portScanService := portscan.NewPortScanService(deviceService, eventLogService /* other dependencies */)
+	systemStatusHandlers := systemstatus.NewSystemStatusHandlers(systemStatusService)
+	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(deviceService, eventLogService, networkService, portScanService)
 
-	net, err := networkService.FindOrCreate("192.168.144.0/24")
+	network := os.Getenv("NETWORK_RANGE")
+	net, err := networkService.FindOrCreate(network)
 	if err != nil {
 		log.Fatalf("Failed to find or create network: %v", err)
 	}
@@ -82,6 +84,8 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	mux.HandleFunc("/system-status/latest", systemStatusHandlers.GetLatestSystemStatus)
 
 	mux.HandleFunc("/event-log", eventLogHandlers.FindLatest)
 	mux.HandleFunc("/event-log/", eventLogHandlers.FindAllByDeviceId)
