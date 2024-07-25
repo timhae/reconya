@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// EventLog represents the event log entity
 type EventLog struct {
 	Type        EEventLogType `bson:"type"`
 	Description string        `bson:"description"`

@@ -2,10 +2,11 @@ package nicidentifier
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/systemstatus"
@@ -17,19 +18,26 @@ type NicIdentifierService struct {
 	NetworkService      *network.NetworkService
 	SystemStatusService *systemstatus.SystemStatusService
 	EventLogService     *eventlog.EventLogService
+	DeviceService       *device.DeviceService
 }
 
 // NewNicIdentifierService creates a new instance of NicIdentifierService
-func NewNicIdentifierService(networkSvc *network.NetworkService, systemStatusSvc *systemstatus.SystemStatusService, eventLogSvc *eventlog.EventLogService) *NicIdentifierService {
+func NewNicIdentifierService(
+	networkService *network.NetworkService,
+	systemStatusService *systemstatus.SystemStatusService,
+	eventLogService *eventlog.EventLogService,
+	deviceService *device.DeviceService) *NicIdentifierService {
 	return &NicIdentifierService{
-		NetworkService:      networkSvc,
-		SystemStatusService: systemStatusSvc,
-		EventLogService:     eventLogSvc,
+		NetworkService:      networkService,
+		SystemStatusService: systemStatusService,
+		EventLogService:     eventLogService,
+		DeviceService:       deviceService,
 	}
 }
 
 // Identify performs the NIC identification process
 func (s *NicIdentifierService) Identify() {
+	log.Printf("Attempting to identify network")
 	nic := s.getLocalNic()
 	fmt.Printf("NIC: %v\n", nic)
 	cidr := extractCIDR(nic.IPv4)
@@ -51,8 +59,17 @@ func (s *NicIdentifierService) Identify() {
 		Status: models.DeviceStatusOnline,
 	}
 
+	// Save or update the device in the database.
+	savedDevice, err := s.DeviceService.CreateOrUpdate(&localDevice)
+	if err != nil {
+		log.Printf("Failed to save or update local device: %v", err)
+		return
+	}
+
+	// Use the potentially updated or newly created system status,
+	// including the saved device.
 	systemStatus := models.SystemStatus{
-		LocalDevice: localDevice,
+		LocalDevice: *savedDevice, // Use savedDevice, which is now updated with ID
 		Network:     networkEntity,
 		PublicIP:    &publicIP,
 	}
@@ -64,13 +81,12 @@ func (s *NicIdentifierService) Identify() {
 	}
 
 	s.EventLogService.CreateOne(&models.EventLog{
-		Type:        models.LocalIPFound,
-		Description: "Local IPv4 Address found",
+		Type:     models.LocalIPFound,
+		DeviceID: &savedDevice.ID,
 	})
 
 	s.EventLogService.CreateOne(&models.EventLog{
-		Type:        models.LocalNetworkFound,
-		Description: "Local Network found",
+		Type: models.LocalNetworkFound,
 	})
 }
 
@@ -122,7 +138,7 @@ func (s *NicIdentifierService) getPublicIp() (string, error) {
 	}
 	defer resp.Body.Close()
 
-	ip, err := ioutil.ReadAll(resp.Body)
+	ip, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

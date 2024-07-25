@@ -24,21 +24,25 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 }
 
 // Run executes a port scan for a given IP address and updates device info.
-func (s *PortScanService) Run(ipv4 string) {
-	log.Printf("Starting port scan for IP [%s]", ipv4)
+func (s *PortScanService) Run(requestedDevice models.Device) {
+	log.Printf("Starting port scan for IP [%s]", requestedDevice.IPv4)
+	s.EventLogService.CreateOne(&models.EventLog{
+		Type:     models.PortScanStarted,
+		DeviceID: &requestedDevice.ID,
+	})
 
-	device, err := s.DeviceService.FindByIPv4(ipv4)
+	device, err := s.DeviceService.FindByIPv4(requestedDevice.IPv4)
 	if err != nil {
 		log.Printf("Error finding device: %v", err)
 		return
 	}
 
-	if device == nil {
-		log.Printf("No device found for IP: %s", ipv4)
+	if device.IPv4 == "" {
+		log.Printf("No device found for IP: %s", device.IPv4)
 		return
 	}
 
-	ports, vendor, hostname, err := s.ExecutePortScan(ipv4) // Adjusted to also return vendor
+	ports, vendor, hostname, err := s.ExecutePortScan(device.IPv4)
 	if err != nil {
 		log.Printf("Error executing port scan: %v", err)
 		return
@@ -46,19 +50,23 @@ func (s *PortScanService) Run(ipv4 string) {
 
 	device.Ports = ports
 	if vendor != "" {
-		device.Vendor = &vendor // Update device with vendor info if available
+		device.Vendor = &vendor
 	}
 	if hostname != "" {
 		device.Hostname = &hostname
 	}
 
-	_, err = s.DeviceService.CreateOrUpdate(device) // Now expects device to include vendor info
+	_, err = s.DeviceService.CreateOrUpdate(device)
 	if err != nil {
 		log.Printf("Error saving device with updated ports: %v", err)
 		return
 	}
 
-	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", ipv4, ports, vendor)
+	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", device.IPv4, ports, vendor)
+	s.EventLogService.CreateOne(&models.EventLog{
+		Type:     models.PortScanCompleted,
+		DeviceID: &requestedDevice.ID,
+	})
 }
 
 // ExecutePortScan performs the port scan using Nmap and returns ports and vendor.

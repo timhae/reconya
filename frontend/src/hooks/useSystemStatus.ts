@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchSystemStatus } from "../api/axiosConfig";
-import { SystemStatus } from "../models/system_status.model";
+import { SystemStatus } from "../models/system-status.model";
 
 // This is a simplistic extension. You might want to split this into multiple hooks or handle state more granularly.
 const useSystemStatus = () => {

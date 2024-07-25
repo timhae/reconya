@@ -1,11 +1,9 @@
-// Navigation.tsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleNodes, faBell, faGear } from '@fortawesome/free-solid-svg-icons';
 
 const Navigation: React.FC = () => {
-  // Assume `isUserLoggedIn` is determined by your authentication logic
   const isUserLoggedIn = true; // Replace this with actual logic
 
   return (
@@ -26,11 +24,22 @@ const Navigation: React.FC = () => {
             <FontAwesomeIcon icon={faGear} />
           </NavLink>
           {isUserLoggedIn && (
-            <div className="d-inline-block ml-auto">
-              {/* Implement dropdown logic as needed */}
-              <NavLink to="#" className="nav-link text-success">
+            <div className="dropdown">
+              <button
+                className="btn btn-success dropdown-toggle"
+                type="button"
+                id="dropdownMenuButton"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
                 Welcome, human
-              </NavLink>
+              </button>
+              <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                <li><NavLink to="/targets" className="dropdown-item">Targets</NavLink></li>
+                <li><NavLink to="/scans" className="dropdown-item">Scans</NavLink></li>
+                <li><NavLink to="/account" className="dropdown-item">Account</NavLink></li>
+                <li><NavLink to="/logout" className="dropdown-item">Logout</NavLink></li>
+              </ul>
             </div>
           )}
         </div>

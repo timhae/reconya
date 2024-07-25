@@ -4,14 +4,13 @@ import useSystemStatus from '../../hooks/useSystemStatus';
 import NetworkMap from '../NetworkMap/NetworkMap';
 import Devices from '../Devices/Devices';
 import DeviceList from '../DeviceList/DeviceList';
+import EventLogs from '../EventLog/EventLogs';
 
 const Dashboard: React.FC = () => {
   const { devices, isLoading: devicesLoading, error: devicesError } = useDevices();
-  // Destructure systemStatus and then access localDevice from it
   const { systemStatus, isLoading: systemStatusLoading, error: systemStatusError } = useSystemStatus();
 
-  // Access localDevice directly from systemStatus; adjust the casing to match your actual data structure
-  const localDevice = systemStatus?.LocalDevice; // Assuming localDevice is the correct property name
+  const localDevice = systemStatus?.LocalDevice;
 
   const isLoading = devicesLoading || systemStatusLoading;
   const error = devicesError || systemStatusError;
@@ -22,6 +21,7 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <NetworkMap devices={devices} localDevice={localDevice} />
+      <EventLogs />
       <Devices devices={devices} localDevice={localDevice} />
       <DeviceList devices={devices} localDevice={localDevice} />
     </div>

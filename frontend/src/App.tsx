@@ -4,6 +4,9 @@ import './App.scss';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Common/Navigation';
 import Dashboard from './components/Dashboard/Dashboard';
+import Targets from './components/Targets/Targets';
+
+import 'bootstrap/dist/js/bootstrap.bundle.min';
 
 function App() {
   return (
@@ -12,6 +15,7 @@ function App() {
       <div className="fluid-container mx-auto px-5 mt-5 pb-5">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/targets/*" element={<Targets />} />
         </Routes>
       </div>
     </Router>

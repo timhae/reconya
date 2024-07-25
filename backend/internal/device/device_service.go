@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -28,15 +29,18 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	now := time.Now()
 	device.LastSeenOnlineAt = &now
 
-	// Ensure you're creating a map that includes the ports data and LastSeenOnlineAt
+	// Start building the updateData map with fields that are always updated
 	updateData := bson.M{
 		"ipv4":                device.IPv4,
 		"hostname":            device.Hostname,
 		"mac":                 device.MAC,
-		"vendor":              device.Vendor,
 		"ports":               device.Ports,            // Include port data
 		"last_seen_online_at": device.LastSeenOnlineAt, // Update LastSeenOnlineAt
-		// Add other fields as necessary but exclude the _id field
+	}
+
+	// Only add the vendor field to updateData if the new vendor value is not nil
+	if device.Vendor != nil && *device.Vendor != "" {
+		updateData["vendor"] = device.Vendor
 	}
 
 	update := bson.M{"$set": updateData}
@@ -51,7 +55,6 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	return &updatedDevice, nil
 }
 
-// ParseFromNmap takes a bufferStream (the Nmap output as a string) and parses it into a slice of Device structs.
 func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 	log.Println("Starting Nmap parse")
 	var devices []models.Device
@@ -107,7 +110,6 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 
 func (s *DeviceService) EligibleForPortScan(device *models.Device) bool {
 	if device == nil {
-		// Handle nil device
 		log.Println("Warning: Attempted to check port scan eligibility for a nil device")
 		return false
 	}
@@ -138,7 +140,26 @@ func (s *DeviceService) FindAll() ([]models.Device, error) {
 	return devices, nil
 }
 
-// FindByIPv4 finds a device by its IPv4 address
+func (s *DeviceService) FindByID(deviceID string) (*models.Device, error) {
+	var device models.Device
+
+	objID, err := primitive.ObjectIDFromHex(deviceID)
+	if err != nil {
+		log.Printf("Error converting deviceID %s to ObjectID: %v", deviceID, err)
+		return nil, err
+	}
+
+	err = s.collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&device)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		log.Printf("Error finding device with ID %s: %v", deviceID, err)
+		return nil, err
+	}
+	return &device, nil
+}
+
 func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
 	var device models.Device
 	err := s.collection.FindOne(context.Background(), bson.M{"ipv4": ipv4}).Decode(&device)

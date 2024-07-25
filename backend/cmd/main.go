@@ -36,7 +36,7 @@ func main() {
 	networkService := network.NewNetworkService(db.GetMongoClient(), "reconya-dev", "networks")
 	deviceService := device.NewDeviceService(db.GetMongoClient(), "reconya-dev", "devices")
 	deviceHandlers := device.NewDeviceHandlers(deviceService)
-	eventLogService := eventlog.NewEventLogService(db.GetMongoClient(), "reconya-dev", "event_logs")
+	eventLogService := eventlog.NewEventLogService(db.GetMongoClient(), "reconya-dev", "event_logs", deviceService)
 	eventLogHandlers := eventlog.NewEventLogHandlers(eventLogService)
 	systemStatusService := systemstatus.NewSystemStatusService(db.GetMongoClient(), "reconya-dev", "system_status")
 	systemStatusHandlers := systemstatus.NewSystemStatusHandlers(systemStatusService)
@@ -50,7 +50,8 @@ func main() {
 	}
 	log.Printf("Network CIDR: %s", net.CIDR)
 
-	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService)
+	log.Printf("Starting network identification")
+	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService)
 	nicService.Identify()
 
 	go func() {

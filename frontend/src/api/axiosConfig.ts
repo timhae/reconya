@@ -2,7 +2,8 @@
 
 import axios from 'axios';
 import { Device } from '../models/device.model';
-import { SystemStatus } from '../models/system_status.model';
+import { SystemStatus } from '../models/system-status.model';
+import { EventLog } from '../models/event-log.model';
 
 export const fetchDevices = async (): Promise<Device[]> => {
   try {
@@ -24,3 +25,12 @@ export const fetchSystemStatus = async (): Promise<SystemStatus> => {
   }
 };
 
+export const fetchEventLogs = async () => {
+  try {
+    const response = await axios.get<EventLog[]>('http://localhost:3008/event-log');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching event logs:", error);
+    throw error;
+  }
+};

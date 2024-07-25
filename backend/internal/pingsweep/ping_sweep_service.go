@@ -18,7 +18,11 @@ type PingSweepService struct {
 	PortScanService *portscan.PortScanService
 }
 
-func NewPingSweepService(deviceService *device.DeviceService, eventLogService *eventlog.EventLogService, networkService *network.NetworkService, portScanService *portscan.PortScanService) *PingSweepService {
+func NewPingSweepService(
+	deviceService *device.DeviceService,
+	eventLogService *eventlog.EventLogService,
+	networkService *network.NetworkService,
+	portScanService *portscan.PortScanService) *PingSweepService {
 	return &PingSweepService{
 		DeviceService:   deviceService,
 		EventLogService: eventLogService,
@@ -41,28 +45,25 @@ func (s *PingSweepService) Run() {
 	}
 
 	for _, device := range devices {
-		// Update the device status in the database
 		updatedDevice, err := s.DeviceService.CreateOrUpdate(&device)
 		if err != nil {
 			log.Printf("Error updating device %s: %v", device.IPv4, err)
 			continue
 		}
 
-		// Check if the device is eligible for a port scan and initiate it concurrently
+		s.EventLogService.CreateOne(&models.EventLog{
+			Type:     models.DeviceOnline,
+			DeviceID: &updatedDevice.ID,
+		})
+
 		if s.DeviceService.EligibleForPortScan(updatedDevice) {
-			go func(ip string) {
-				s.PortScanService.Run(ip)
-			}(updatedDevice.IPv4)
+			go func(updatedDevice models.Device) {
+				s.PortScanService.Run(updatedDevice)
+			}(*updatedDevice)
 		}
 	}
 
 	log.Printf("Ping sweep scan completed. Found %d devices.", len(devices))
-}
-
-// eligibleForPortScan determines whether a device is eligible for port scanning
-func eligibleForPortScan(device *models.Device) bool {
-	// Implement the logic to determine if the device should be port scanned
-	return true // Placeholder return value
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {

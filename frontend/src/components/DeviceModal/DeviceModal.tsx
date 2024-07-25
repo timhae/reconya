@@ -1,7 +1,7 @@
 import React from 'react';
 import { Device } from '../../models/device.model';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faExclamationTriangle, faSquare } from '@fortawesome/free-solid-svg-icons';
+import { faSquare } from '@fortawesome/free-solid-svg-icons';
 
 interface DeviceModalProps {
   device: Device | null;
@@ -74,7 +74,7 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                       <td className="ps-2 fw-bold" style={{ width: '15%' }}>{port.number}</td>
                       <td style={{ width: '15%' }}>{port.state}</td>
                       <td style={{ width: '20%' }}>{port.protocol.toUpperCase()}</td>
-                      <td>{port.service}</td>
+                      <td>{port.service || 'Unknown'}</td>
                     </tr>
                   ))}
                 </tbody>

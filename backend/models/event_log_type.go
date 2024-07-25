@@ -5,6 +5,7 @@ type EEventLogType string
 const (
 	PingSweep         EEventLogType = "Ping sweep"
 	PortScanStarted   EEventLogType = "Port scan started"
+	PortScanCompleted EEventLogType = "Port scan completed"
 	DeviceOnline      EEventLogType = "Device online"
 	DeviceIdle        EEventLogType = "Device became idle"
 	DeviceOffline     EEventLogType = "Device is now offline"
