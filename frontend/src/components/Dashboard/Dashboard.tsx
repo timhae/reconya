@@ -1,4 +1,6 @@
+// src/components/Dashboard/Dashboard.tsx
 import React from 'react';
+import useAuth from '../../hooks/useAuth';
 import useDevices from '../../hooks/useDevices';
 import useSystemStatus from '../../hooks/useSystemStatus';
 import NetworkMap from '../NetworkMap/NetworkMap';
@@ -7,6 +9,8 @@ import DeviceList from '../DeviceList/DeviceList';
 import EventLogs from '../EventLog/EventLogs';
 
 const Dashboard: React.FC = () => {
+  const isAuthenticated = useAuth();
+
   const { devices, isLoading: devicesLoading, error: devicesError } = useDevices();
   const { systemStatus, isLoading: systemStatusLoading, error: systemStatusError } = useSystemStatus();
 
@@ -15,6 +19,7 @@ const Dashboard: React.FC = () => {
   const isLoading = devicesLoading || systemStatusLoading;
   const error = devicesError || systemStatusError;
 
+  if (!isAuthenticated) return null;
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 

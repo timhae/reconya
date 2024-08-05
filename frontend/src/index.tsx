@@ -9,7 +9,9 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <div data-bs-theme="dark">
+      <App />
+    </div>
   </React.StrictMode>
 );
 
