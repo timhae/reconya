@@ -3,17 +3,19 @@ package device
 import (
 	"encoding/json"
 	"net/http"
+	"reconya-ai/internal/config"
 	"reconya-ai/models" // Replace with the correct import path
 )
 
 // DeviceHandlers struct holds the device service
 type DeviceHandlers struct {
 	Service *DeviceService
+	Config  *config.Config
 }
 
 // NewDeviceHandlers creates new device HTTP handlers
-func NewDeviceHandlers(service *DeviceService) *DeviceHandlers {
-	return &DeviceHandlers{Service: service}
+func NewDeviceHandlers(service *DeviceService, cfg *config.Config) *DeviceHandlers {
+	return &DeviceHandlers{Service: service, Config: cfg}
 }
 
 // CreateDevice handles the creation of a new device
@@ -40,10 +42,17 @@ func (h *DeviceHandlers) CreateDevice(w http.ResponseWriter, r *http.Request) {
 
 // GetAllDevices handles fetching all devices
 func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := h.Service.FindAll()
+	devices := []models.Device{} // Initialize as an empty slice
+
+	foundDevices, err := h.Service.FindAllForNetwork(h.Config.NetworkCIDR)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// If foundDevices is not nil, assign it to devices
+	if foundDevices != nil {
+		devices = foundDevices
 	}
 
 	w.Header().Set("Content-Type", "application/json")

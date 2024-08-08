@@ -80,9 +80,10 @@ func (s *NicIdentifierService) Identify() {
 		return
 	}
 
+	device := savedDevice.ID.Hex()
 	s.EventLogService.CreateOne(&models.EventLog{
 		Type:     models.LocalIPFound,
-		DeviceID: &savedDevice.ID,
+		DeviceID: &device,
 	})
 
 	s.EventLogService.CreateOne(&models.EventLog{

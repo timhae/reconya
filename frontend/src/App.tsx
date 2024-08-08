@@ -7,7 +7,7 @@ import Targets from './components/Targets/Targets';
 import Login from './components/Login/Login';
 
 import 'bootstrap/dist/js/bootstrap.bundle.min';
-import './App.scss';
+// import './App.scss';
 
 function App() {
   return (

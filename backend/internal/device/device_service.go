@@ -3,6 +3,8 @@ package device
 import (
 	"context"
 	"log"
+	"reconya-ai/internal/config"
+	"reconya-ai/internal/network"
 	"reconya-ai/models"
 	"strings"
 	"time"
@@ -14,12 +16,18 @@ import (
 )
 
 type DeviceService struct {
-	collection *mongo.Collection
+	Config         *config.Config
+	collection     *mongo.Collection
+	networkService *network.NetworkService
 }
 
-func NewDeviceService(db *mongo.Client, dbName, collName string) *DeviceService {
-	collection := db.Database(dbName).Collection(collName)
-	return &DeviceService{collection: collection}
+func NewDeviceService(db *mongo.Client, collName string, networkService *network.NetworkService, cfg *config.Config) *DeviceService {
+	collection := db.Database(cfg.DatabaseName).Collection(collName)
+	return &DeviceService{
+		Config:         cfg,
+		collection:     collection,
+		networkService: networkService,
+	}
 }
 
 func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, error) {
@@ -29,13 +37,20 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	now := time.Now()
 	device.LastSeenOnlineAt = &now
 
-	// Start building the updateData map with fields that are always updated
+	// Fetch or create the network for the device
+	network, err := s.networkService.FindOrCreate(s.Config.NetworkCIDR)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update data with network ID
 	updateData := bson.M{
 		"ipv4":                device.IPv4,
 		"hostname":            device.Hostname,
 		"mac":                 device.MAC,
-		"ports":               device.Ports,            // Include port data
-		"last_seen_online_at": device.LastSeenOnlineAt, // Update LastSeenOnlineAt
+		"ports":               device.Ports,
+		"last_seen_online_at": device.LastSeenOnlineAt,
+		"network_id":          network.ID,
 	}
 
 	// Only add the vendor field to updateData if the new vendor value is not nil
@@ -47,9 +62,9 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 
 	var updatedDevice models.Device
-	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
+	err = s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
 	if err != nil {
-		log.Printf("Error saving device with updated ports: %v", err)
+		log.Printf("Error saving device with updated information: %v", err)
 		return nil, err
 	}
 	return &updatedDevice, nil
@@ -72,11 +87,8 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 				if len(parts) == 6 {
 					hostname := strings.Trim(parts[4], "()")
 					if hostname != ipAddress {
-						// If hostname is not equal to the IP address, update the device hostname.
 						device.Hostname = &hostname
 					} else {
-						// If hostname equals the IP address, consider it as no hostname provided.
-						// To explicitly clear out an existing hostname, point to an empty string instead of nil.
 						empty := ""
 						device.Hostname = &empty
 					}
@@ -90,7 +102,6 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 
 			}
 
-			// Check for the MAC address in the following lines
 			if i+2 < len(lines) && strings.HasPrefix(lines[i+2], "MAC Address: ") {
 				macParts := strings.Fields(lines[i+2])
 				if len(macParts) >= 3 {
@@ -165,12 +176,41 @@ func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
 	err := s.collection.FindOne(context.Background(), bson.M{"ipv4": ipv4}).Decode(&device)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			// No device found is not an error in this context, return nil device and nil error
 			return nil, nil
 		}
-		// Log the error and return
 		log.Printf("Error finding device with IPv4 %s: %v", ipv4, err)
 		return nil, err
 	}
 	return &device, nil
+}
+
+func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) {
+	var devices []models.Device
+
+	network, err := s.networkService.FindByCIDR(cidr)
+	if err != nil {
+		return nil, err
+	}
+
+	if network == nil {
+		return devices, nil
+	}
+
+	filter := bson.M{"network_id": network.ID}
+
+	cursor, err := s.collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(context.Background()) {
+		var device models.Device
+		if err := cursor.Decode(&device); err != nil {
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+
+	return devices, nil
 }

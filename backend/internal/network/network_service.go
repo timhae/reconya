@@ -9,6 +9,11 @@ import (
 )
 
 // NetworkService struct
+// type NetworkService struct {
+// 	client     *mongo.Client
+// 	collection *mongo.Collection
+// }
+
 type NetworkService struct {
 	client     *mongo.Client
 	collection *mongo.Collection
@@ -42,6 +47,19 @@ func (s *NetworkService) FindOrCreate(cidr string) (*models.Network, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	return &network, nil
+}
+
+// FindByCIDR finds an existing network by its CIDR
+func (s *NetworkService) FindByCIDR(cidr string) (*models.Network, error) {
+	var network models.Network
+	err := s.collection.FindOne(context.Background(), bson.M{"cidr": cidr}).Decode(&network)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil // No network found
+	}
+	if err != nil {
+		return nil, err // Some other error occurred
 	}
 	return &network, nil
 }

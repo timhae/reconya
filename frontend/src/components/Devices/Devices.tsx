@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import DeviceModal from '../DeviceModal/DeviceModal'; // Adjust the import path as necessary
 import { Device } from '../../models/device.model';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleDot, faWarning } from '@fortawesome/free-solid-svg-icons'; // Now using faEthernet
 
 interface DevicesProps {
   devices: Device[];
@@ -23,7 +21,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
   return (
     <div className="device-container mt-5 d-flex align-items-start">
       <h6 className="text-success d-block w-100">[ DEVICES ]</h6>
-      {devices.map((device, index) => (
+      {devices && devices.map((device, index) => (
         <button
           key={index}
           type="button"

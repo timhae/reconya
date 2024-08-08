@@ -2,8 +2,8 @@ package pingsweep
 
 import (
 	"log"
-	"os"
 	"os/exec"
+	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
@@ -12,6 +12,7 @@ import (
 )
 
 type PingSweepService struct {
+	Config          *config.Config
 	DeviceService   *device.DeviceService
 	EventLogService *eventlog.EventLogService
 	NetworkService  *network.NetworkService
@@ -19,11 +20,13 @@ type PingSweepService struct {
 }
 
 func NewPingSweepService(
+	cfg *config.Config,
 	deviceService *device.DeviceService,
 	eventLogService *eventlog.EventLogService,
 	networkService *network.NetworkService,
 	portScanService *portscan.PortScanService) *PingSweepService {
 	return &PingSweepService{
+		Config:          cfg,
 		DeviceService:   deviceService,
 		EventLogService: eventLogService,
 		NetworkService:  networkService,
@@ -33,12 +36,8 @@ func NewPingSweepService(
 
 func (s *PingSweepService) Run() {
 	log.Println("Starting new ping sweep scan...")
-	network := os.Getenv("NETWORK_RANGE")
-	if network == "" {
-		log.Fatal("No network range specified in NETWORK_RANGE environment variable")
-	}
 
-	devices, err := s.ExecuteSweepScanCommand(network)
+	devices, err := s.ExecuteSweepScanCommand(s.Config.NetworkCIDR)
 	if err != nil {
 		log.Printf("Error executing sweep scan: %v\n", err)
 		return
@@ -51,9 +50,10 @@ func (s *PingSweepService) Run() {
 			continue
 		}
 
+		deviceIDStr := device.ID.Hex()
 		s.EventLogService.CreateOne(&models.EventLog{
 			Type:     models.DeviceOnline,
-			DeviceID: &updatedDevice.ID,
+			DeviceID: &deviceIDStr,
 		})
 
 		if s.DeviceService.EligibleForPortScan(updatedDevice) {
@@ -67,7 +67,7 @@ func (s *PingSweepService) Run() {
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
-	cmd := exec.Command("sudo", "/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
+	cmd := exec.Command("/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err

@@ -25,10 +25,11 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 
 // Run executes a port scan for a given IP address and updates device info.
 func (s *PortScanService) Run(requestedDevice models.Device) {
+	deviceIDStr := requestedDevice.ID.Hex()
 	log.Printf("Starting port scan for IP [%s]", requestedDevice.IPv4)
 	s.EventLogService.CreateOne(&models.EventLog{
 		Type:     models.PortScanStarted,
-		DeviceID: &requestedDevice.ID,
+		DeviceID: &deviceIDStr,
 	})
 
 	device, err := s.DeviceService.FindByIPv4(requestedDevice.IPv4)
@@ -65,7 +66,7 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", device.IPv4, ports, vendor)
 	s.EventLogService.CreateOne(&models.EventLog{
 		Type:     models.PortScanCompleted,
-		DeviceID: &requestedDevice.ID,
+		DeviceID: &deviceIDStr,
 	})
 }
 

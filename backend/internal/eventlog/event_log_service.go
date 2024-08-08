@@ -19,7 +19,7 @@ type EventLogService struct {
 	DeviceService *device.DeviceService
 }
 
-func NewEventLogService(client *mongo.Client, dbName string, collectionName string, deviceService *device.DeviceService) *EventLogService {
+func NewEventLogService(client *mongo.Client, dbName, collectionName string, deviceService *device.DeviceService) *EventLogService {
 	collection := client.Database(dbName).Collection(collectionName)
 	return &EventLogService{
 		client:        client,
