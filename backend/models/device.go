@@ -15,7 +15,6 @@ const (
 	DeviceStatusOffline DeviceStatus = "offline"
 )
 
-// Device represents the device entity
 type Device struct {
 	ID                primitive.ObjectID `bson:"_id,omitempty"`
 	Name              string             `bson:"name"`
@@ -23,7 +22,7 @@ type Device struct {
 	MAC               *string            `bson:"mac,omitempty"`
 	Vendor            *string            `bson:"vendor,omitempty"`
 	Status            DeviceStatus       `bson:"status"`
-	NetworkID         primitive.ObjectID `bson:"network_id,omitempty"` // Reference to Network
+	NetworkID         primitive.ObjectID `bson:"network_id,omitempty"`
 	Ports             []Port             `bson:"ports,omitempty"`
 	Hostname          *string            `bson:"hostname,omitempty"`
 	CreatedAt         time.Time          `bson:"created_at"`

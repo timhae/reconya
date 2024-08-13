@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchSystemStatus } from "../api/axiosConfig";
-import { SystemStatus } from "../models/system-status.model";
+import { SystemStatus } from "../models/systemStatus.model";
 
-// This is a simplistic extension. You might want to split this into multiple hooks or handle state more granularly.
 const useSystemStatus = () => {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | undefined>();
   const [isLoading, setIsLoading] = useState(true);
@@ -13,7 +12,10 @@ const useSystemStatus = () => {
       try {
         // setIsLoading(true);
         const data = await fetchSystemStatus();
-        setSystemStatus({ LocalDevice: data.LocalDevice });
+        setSystemStatus({ 
+          LocalDevice: data.LocalDevice,
+          PublicIP: data.PublicIP
+        });
       } catch (error: any) {
         setError(error);
       } finally {

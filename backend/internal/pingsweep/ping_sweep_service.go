@@ -37,6 +37,9 @@ func NewPingSweepService(
 func (s *PingSweepService) Run() {
 	log.Println("Starting new ping sweep scan...")
 
+	s.EventLogService.CreateOne(&models.EventLog{
+		Type: models.PingSweep,
+	})
 	devices, err := s.ExecuteSweepScanCommand(s.Config.NetworkCIDR)
 	if err != nil {
 		log.Printf("Error executing sweep scan: %v\n", err)
@@ -67,16 +70,12 @@ func (s *PingSweepService) Run() {
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
-	cmd := exec.Command("/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
+	cmd := exec.Command("sudo", "/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
 
-	devices := s.ParseNmapOutput(string(output))
+	devices := s.DeviceService.ParseFromNmap(string(output))
 	return devices, nil
-}
-
-func (s *PingSweepService) ParseNmapOutput(output string) []models.Device {
-	return s.DeviceService.ParseFromNmap(output)
 }

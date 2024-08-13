@@ -1,11 +1,14 @@
 package device
 
 import (
+	"bytes"
 	"context"
 	"log"
+	"net"
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/network"
 	"reconya-ai/models"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,38 +34,58 @@ func NewDeviceService(db *mongo.Client, collName string, networkService *network
 }
 
 func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, error) {
-	filter := bson.M{"ipv4": device.IPv4}
+	currentTime := time.Now()
+	device.LastSeenOnlineAt = &currentTime
 
-	// Set LastSeenOnlineAt to the current time
-	now := time.Now()
-	device.LastSeenOnlineAt = &now
-
-	// Fetch or create the network for the device
 	network, err := s.networkService.FindOrCreate(s.Config.NetworkCIDR)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update data with network ID
+	existingDevice, err := s.FindByIPv4(device.IPv4)
+	if err != nil {
+		return nil, err
+	}
+
+	s.setTimestamps(device, existingDevice, currentTime)
+
+	updateData := s.buildUpdateData(device, network.ID)
+
+	return s.updateDevice(bson.M{"ipv4": device.IPv4}, updateData)
+}
+
+func (s *DeviceService) setTimestamps(device, existingDevice *models.Device, currentTime time.Time) {
+	if existingDevice == nil || existingDevice.CreatedAt.IsZero() {
+		device.CreatedAt = currentTime
+	} else {
+		device.CreatedAt = existingDevice.CreatedAt
+	}
+	device.UpdatedAt = currentTime
+}
+
+func (s *DeviceService) buildUpdateData(device *models.Device, networkID primitive.ObjectID) bson.M {
 	updateData := bson.M{
 		"ipv4":                device.IPv4,
 		"hostname":            device.Hostname,
 		"mac":                 device.MAC,
 		"ports":               device.Ports,
 		"last_seen_online_at": device.LastSeenOnlineAt,
-		"network_id":          network.ID,
+		"network_id":          networkID,
+		"created_at":          device.CreatedAt,
+		"updated_at":          device.UpdatedAt,
 	}
-
-	// Only add the vendor field to updateData if the new vendor value is not nil
 	if device.Vendor != nil && *device.Vendor != "" {
 		updateData["vendor"] = device.Vendor
 	}
+	return updateData
+}
 
+func (s *DeviceService) updateDevice(filter, updateData bson.M) (*models.Device, error) {
 	update := bson.M{"$set": updateData}
 	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 
 	var updatedDevice models.Device
-	err = s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
+	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
 	if err != nil {
 		log.Printf("Error saving device with updated information: %v", err)
 		return nil, err
@@ -132,6 +155,14 @@ func (s *DeviceService) EligibleForPortScan(device *models.Device) bool {
 	return true
 }
 
+func sortDevicesByIP(devices []models.Device) {
+	sort.Slice(devices, func(i, j int) bool {
+		ip1 := net.ParseIP(devices[i].IPv4)
+		ip2 := net.ParseIP(devices[j].IPv4)
+		return bytes.Compare(ip1, ip2) < 0
+	})
+}
+
 func (s *DeviceService) FindAll() ([]models.Device, error) {
 	var devices []models.Device
 	cursor, err := s.collection.Find(context.Background(), bson.M{})
@@ -147,6 +178,9 @@ func (s *DeviceService) FindAll() ([]models.Device, error) {
 		}
 		devices = append(devices, device)
 	}
+
+	// Sort devices by IP address after fetching
+	sortDevicesByIP(devices)
 
 	return devices, nil
 }
@@ -212,5 +246,56 @@ func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) 
 		devices = append(devices, device)
 	}
 
+	sortDevicesByIP(devices)
+
 	return devices, nil
+}
+
+func (s *DeviceService) UpdateDeviceStatuses() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cur, err := s.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return err
+	}
+	defer cur.Close(ctx)
+
+	for cur.Next(ctx) {
+		var device models.Device
+		if err := cur.Decode(&device); err != nil {
+			return err
+		}
+
+		var status models.DeviceStatus
+
+		if device.LastSeenOnlineAt == nil {
+			status = models.DeviceStatusUnknown
+		} else {
+			duration := time.Since(*device.LastSeenOnlineAt)
+			switch {
+			case duration <= 3*time.Minute:
+				status = models.DeviceStatusOnline
+			case duration <= 7*time.Minute:
+				status = models.DeviceStatusIdle
+			default:
+				status = models.DeviceStatusOffline
+			}
+		}
+
+		if status != device.Status {
+			update := bson.M{
+				"$set": bson.M{
+					"status":     status,
+					"updated_at": time.Now(),
+				},
+			}
+			_, err := s.collection.UpdateByID(ctx, device.ID, update)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return cur.Err()
 }

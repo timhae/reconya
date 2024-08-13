@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EventLog } from '../models/event-log.model';
+import { EventLog } from '../models/eventLog.model';
 import { fetchEventLogs } from '../api/axiosConfig';
 
 const useEventLogs = () => {

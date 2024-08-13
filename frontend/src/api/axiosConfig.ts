@@ -1,8 +1,9 @@
 // In src/api/axiosConfig.ts
 import axios from 'axios';
 import { Device } from '../models/device.model';
-import { SystemStatus } from '../models/system-status.model';
-import { EventLog } from '../models/event-log.model';
+import { SystemStatus } from '../models/systemStatus.model';
+import { EventLog } from '../models/eventLog.model';
+import { Network } from '../models/network.model';
 
 const axiosInstance = axios.create({
   baseURL: 'http://localhost:3008',
@@ -42,6 +43,16 @@ export const fetchEventLogs = async (): Promise<EventLog[]> => {
     return response.data;
   } catch (error) {
     console.error("Error fetching event logs:", error);
+    throw error;
+  }
+};
+
+export const fetchNetwork = async (): Promise<Network> => {
+  try {
+    const response = await axiosInstance.get<Network>(`/network`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching network:", error);
     throw error;
   }
 };

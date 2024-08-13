@@ -2,6 +2,7 @@
 export enum EEventLogType {
   PingSweep = 'Ping sweep',
   PortScanStarted = 'Port scan started',
+  PortScanCompleted = "Port scan completed",
   DeviceOnline = 'Device online',
   DeviceIdle = 'Device became idle',
   DeviceOffline = 'Device is now offline',

@@ -32,7 +32,7 @@ func main() {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
 
-	networkService := network.NewNetworkService(mongoClient, cfg.DatabaseName, "networks")
+	networkService := network.NewNetworkService(mongoClient, cfg.DatabaseName, "networks", cfg)
 	deviceService := device.NewDeviceService(mongoClient, "devices", networkService, cfg)
 	eventLogService := eventlog.NewEventLogService(mongoClient, cfg.DatabaseName, "event_logs", deviceService)
 	systemStatusService := systemstatus.NewSystemStatusService(mongoClient, cfg.DatabaseName, "system_status")
@@ -44,8 +44,9 @@ func main() {
 
 	nicService.Identify()
 	go runPingSweepService(pingSweepService)
+	go runDeviceUpdater(deviceService)
 
-	mux := setupRouter(deviceService, eventLogService, systemStatusService, authHandlers, middlewareHandlers, cfg)
+	mux := setupRouter(deviceService, eventLogService, systemStatusService, networkService, authHandlers, middlewareHandlers, cfg)
 	loggedRouter := middleware.LoggingMiddleware(mux)
 
 	server := &http.Server{
@@ -67,12 +68,14 @@ func setupRouter(
 	deviceService *device.DeviceService,
 	eventLogService *eventlog.EventLogService,
 	systemStatusService *systemstatus.SystemStatusService,
+	networkService *network.NetworkService,
 	authHandlers *auth.AuthHandlers,
 	middlewareHandlers *middleware.Middleware,
 	cfg *config.Config) http.Handler {
 	deviceHandlers := device.NewDeviceHandlers(deviceService, cfg)
 	eventLogHandlers := eventlog.NewEventLogHandlers(eventLogService)
 	systemStatusHandlers := systemstatus.NewSystemStatusHandlers(systemStatusService)
+	networkHandlers := network.NewNetworkHandlers(networkService)
 
 	mux := http.NewServeMux()
 	corsRouter := middleware.SetupCORS()(mux)
@@ -83,16 +86,31 @@ func setupRouter(
 	mux.HandleFunc("/system-status/latest", middlewareHandlers.AuthMiddleware(systemStatusHandlers.GetLatestSystemStatus))
 	mux.HandleFunc("/event-log", middlewareHandlers.AuthMiddleware(eventLogHandlers.FindLatest))
 	mux.HandleFunc("/event-log/", middlewareHandlers.AuthMiddleware(eventLogHandlers.FindAllByDeviceId))
+	mux.HandleFunc("/network", middlewareHandlers.AuthMiddleware(networkHandlers.GetNetwork))
 
 	return corsRouter
 }
 
 func runPingSweepService(service *pingsweep.PingSweepService) {
+	service.Run()
+
 	ticker := time.NewTicker(3 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
 		service.Run()
+	}
+}
+
+func runDeviceUpdater(deviceService *device.DeviceService) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		err := deviceService.UpdateDeviceStatuses()
+		if err != nil {
+			log.Printf("Failed to update device statuses: %v", err)
+		}
 	}
 }
 

@@ -1,11 +1,11 @@
 package eventlog
 
 import (
-	"context" // Replace with the correct import path
+	"context"
 	"fmt"
 	"log"
 	"reconya-ai/internal/device"
-	"reconya-ai/models" // Replace with the correct import path
+	"reconya-ai/models"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -42,7 +42,6 @@ func (s *EventLogService) GetAll(limitSize int64) ([]models.EventLog, error) {
 		if err := cursor.Decode(&eventLog); err != nil {
 			return nil, err
 		}
-		// Dynamically set the description based on the event type
 		eventLog.Description = s.generateDescription(eventLog)
 		eventLogs = append(eventLogs, eventLog)
 	}

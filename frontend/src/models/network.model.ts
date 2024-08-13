@@ -1,6 +1,6 @@
 export interface Network {
   Name: string;
-  Cidr: string;
+  CIDR: string;
   CreatedAt: string;
   UpdatedAt: string;
 }

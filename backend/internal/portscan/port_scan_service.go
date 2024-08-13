@@ -9,13 +9,11 @@ import (
 	"reconya-ai/models"
 )
 
-// PortScanService struct
 type PortScanService struct {
 	DeviceService   *device.DeviceService
 	EventLogService *eventlog.EventLogService
 }
 
-// NewPortScanService creates a new PortScanService
 func NewPortScanService(deviceService *device.DeviceService, eventLogService *eventlog.EventLogService) *PortScanService {
 	return &PortScanService{
 		DeviceService:   deviceService,
@@ -23,7 +21,6 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 	}
 }
 
-// Run executes a port scan for a given IP address and updates device info.
 func (s *PortScanService) Run(requestedDevice models.Device) {
 	deviceIDStr := requestedDevice.ID.Hex()
 	log.Printf("Starting port scan for IP [%s]", requestedDevice.IPv4)
@@ -70,7 +67,6 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 	})
 }
 
-// ExecutePortScan performs the port scan using Nmap and returns ports and vendor.
 func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, string, error) {
 	cmd := exec.Command("sudo", "/usr/bin/nmap", "-oX", "-", "-O", ipv4)
 	output, err := cmd.CombinedOutput()
@@ -82,7 +78,6 @@ func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, s
 	return ports, vendor, hostname, nil
 }
 
-// ParseNmapOutput parses the XML output of the Nmap command to extract ports, vendor, and hostname.
 func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string, string) {
 	var nmapXML models.NmapXML
 	err := xml.Unmarshal([]byte(output), &nmapXML)
@@ -96,13 +91,13 @@ func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string,
 	for _, host := range nmapXML.Hosts {
 		for _, address := range host.Addresses {
 			if address.AddrType == "mac" && address.Vendor != "" {
-				vendor = address.Vendor // Capture the vendor information.
-				break                   // Assuming you're scanning one device at a time or only need the first MAC vendor.
+				vendor = address.Vendor
+				break
 			}
 		}
 
 		if len(host.Hostnames) > 0 {
-			hostname = host.Hostnames[0].Name // Capture the first hostname, if available.
+			hostname = host.Hostnames[0].Name
 		}
 
 		for _, xmlPort := range host.Ports {

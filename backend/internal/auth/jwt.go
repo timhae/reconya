@@ -29,7 +29,7 @@ func NewAuthHandlers(cfg *config.Config) *AuthHandlers {
 }
 
 func (h *AuthHandlers) GenerateJWT(username string) (string, error) {
-	expirationTime := time.Now().Add(5 * time.Minute)
+	expirationTime := time.Now().Add(3600 * time.Minute)
 	claims := &Claims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{

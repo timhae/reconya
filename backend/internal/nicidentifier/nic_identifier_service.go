@@ -13,7 +13,6 @@ import (
 	"reconya-ai/models"
 )
 
-// NicIdentifierService struct
 type NicIdentifierService struct {
 	NetworkService      *network.NetworkService
 	SystemStatusService *systemstatus.SystemStatusService
@@ -21,7 +20,6 @@ type NicIdentifierService struct {
 	DeviceService       *device.DeviceService
 }
 
-// NewNicIdentifierService creates a new instance of NicIdentifierService
 func NewNicIdentifierService(
 	networkService *network.NetworkService,
 	systemStatusService *systemstatus.SystemStatusService,
@@ -35,9 +33,8 @@ func NewNicIdentifierService(
 	}
 }
 
-// Identify performs the NIC identification process
 func (s *NicIdentifierService) Identify() {
-	log.Printf("Attempting to identify network")
+	log.Printf("Attempting network identification")
 	nic := s.getLocalNic()
 	fmt.Printf("NIC: %v\n", nic)
 	cidr := extractCIDR(nic.IPv4)
@@ -46,6 +43,7 @@ func (s *NicIdentifierService) Identify() {
 		log.Printf("Failed to get public IP: %v", err)
 		return
 	}
+	log.Printf("Public IP Address found: [%v]", publicIP)
 
 	networkEntity, err := s.NetworkService.FindOrCreate(cidr)
 	if err != nil {
@@ -59,18 +57,15 @@ func (s *NicIdentifierService) Identify() {
 		Status: models.DeviceStatusOnline,
 	}
 
-	// Save or update the device in the database.
 	savedDevice, err := s.DeviceService.CreateOrUpdate(&localDevice)
 	if err != nil {
 		log.Printf("Failed to save or update local device: %v", err)
 		return
 	}
 
-	// Use the potentially updated or newly created system status,
-	// including the saved device.
 	systemStatus := models.SystemStatus{
-		LocalDevice: *savedDevice, // Use savedDevice, which is now updated with ID
-		Network:     networkEntity,
+		LocalDevice: *savedDevice,
+		NetworkID:   networkEntity.ID,
 		PublicIP:    &publicIP,
 	}
 
