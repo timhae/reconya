@@ -43,8 +43,13 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("LOGIN_USERNAME or LOGIN_PASSWORD is not set in .env file")
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET_KEY")
+	if jwtSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET_KEY is not set in .env file")
+	}
+
 	return &Config{
-		JwtKey:       []byte("my_secret_key"),
+		JwtKey:       []byte(jwtSecret),
 		NetworkCIDR:  networkCIDR,
 		MongoURI:     mongoURI,
 		Username:     username,
