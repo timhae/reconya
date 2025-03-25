@@ -26,7 +26,12 @@ const EventLogs = () => {
         <tbody>
           {eventLogs.length > 0 ? (
             eventLogs.map((log: EventLog, index: React.Key | null | undefined) => {
-              const icon = EventLogIcons[log.Type];
+              // Handle both snake_case and camelCase properties
+              const logType = log.type || log.Type;
+              const logDescription = log.description || log.Description;
+              const logCreatedAt = log.created_at || log.CreatedAt;
+              
+              const icon = logType ? EventLogIcons[logType] : null;
 
               return (
                 <tr key={index}>
@@ -37,8 +42,10 @@ const EventLogs = () => {
                       <span>??</span>
                     )}
                   </td>
-                  <td className="bg-transparent text-success px-3">{log.Description}</td>
-                  <td className="bg-transparent text-success px-3 text-end">{formatDate(log.CreatedAt)}</td>
+                  <td className="bg-transparent text-success px-3">{logDescription}</td>
+                  <td className="bg-transparent text-success px-3 text-end">
+                    {logCreatedAt ? formatDate(logCreatedAt) : "Unknown"}
+                  </td>
                 </tr>
               );
             })

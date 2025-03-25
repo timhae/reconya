@@ -4,47 +4,37 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reconya-ai/db"
 	"reconya-ai/internal/device"
 	"reconya-ai/models"
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type EventLogService struct {
-	client        *mongo.Client
-	collection    *mongo.Collection
+	repository    db.EventLogRepository
 	DeviceService *device.DeviceService
 }
 
-func NewEventLogService(client *mongo.Client, dbName, collectionName string, deviceService *device.DeviceService) *EventLogService {
-	collection := client.Database(dbName).Collection(collectionName)
+func NewEventLogService(repository db.EventLogRepository, deviceService *device.DeviceService) *EventLogService {
 	return &EventLogService{
-		client:        client,
-		collection:    collection,
+		repository:    repository,
 		DeviceService: deviceService,
 	}
 }
 
 func (s *EventLogService) GetAll(limitSize int64) ([]models.EventLog, error) {
-	var eventLogs []models.EventLog
-	findOptions := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}).SetLimit(limitSize)
-	cursor, err := s.collection.Find(context.Background(), bson.D{}, findOptions)
+	ctx := context.Background()
+	eventLogPtrs, err := s.repository.FindLatest(ctx, int(limitSize))
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
 
-	for cursor.Next(context.Background()) {
-		var eventLog models.EventLog
-		if err := cursor.Decode(&eventLog); err != nil {
-			return nil, err
-		}
-		eventLog.Description = s.generateDescription(eventLog)
-		eventLogs = append(eventLogs, eventLog)
+	eventLogs := make([]models.EventLog, len(eventLogPtrs))
+	for i, logPtr := range eventLogPtrs {
+		eventLogs[i] = *logPtr
+		eventLogs[i].Description = s.generateDescription(eventLogs[i])
 	}
+	
 	return eventLogs, nil
 }
 
@@ -86,30 +76,30 @@ func (s *EventLogService) generateDescription(eventLog models.EventLog) string {
 }
 
 func (s *EventLogService) GetAllByDeviceId(deviceId string, limitSize int64) ([]models.EventLog, error) {
-	var eventLogs []models.EventLog
-	findOptions := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}).SetLimit(limitSize)
-	cursor, err := s.collection.Find(context.Background(), bson.M{"device_id": deviceId}, findOptions)
+	ctx := context.Background()
+	eventLogPtrs, err := s.repository.FindAllByDeviceID(ctx, deviceId)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
 
-	for cursor.Next(context.Background()) {
-		var eventLog models.EventLog
-		if err := cursor.Decode(&eventLog); err != nil {
-			return nil, err
-		}
-		eventLogs = append(eventLogs, eventLog)
+	// Convert pointers to values and respect the limit
+	count := int(limitSize)
+	if count > len(eventLogPtrs) {
+		count = len(eventLogPtrs)
 	}
+	
+	eventLogs := make([]models.EventLog, count)
+	for i := 0; i < count; i++ {
+		eventLogs[i] = *eventLogPtrs[i]
+	}
+	
 	return eventLogs, nil
 }
 
 func (s *EventLogService) CreateOne(eventLog *models.EventLog) error {
 	now := time.Now()
-
 	eventLog.CreatedAt = &now
 	eventLog.UpdatedAt = &now
 
-	_, err := s.collection.InsertOne(context.Background(), eventLog)
-	return err
+	return s.repository.Create(context.Background(), eventLog)
 }

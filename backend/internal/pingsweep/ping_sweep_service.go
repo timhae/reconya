@@ -1,6 +1,7 @@
 package pingsweep
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
 	"reconya-ai/internal/config"
@@ -53,7 +54,7 @@ func (s *PingSweepService) Run() {
 			continue
 		}
 
-		deviceIDStr := device.ID.Hex()
+		deviceIDStr := device.ID
 		s.EventLogService.CreateOne(&models.EventLog{
 			Type:     models.DeviceOnline,
 			DeviceID: &deviceIDStr,
@@ -70,11 +71,15 @@ func (s *PingSweepService) Run() {
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
+	log.Printf("Executing nmap command on network: %s", network)
 	cmd := exec.Command("sudo", "/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		log.Printf("nmap command failed: %s\n", string(output))
+		return nil, fmt.Errorf("error executing nmap: %w", err)
 	}
+
+	log.Printf("nmap command succeeded. Output:\n%s", output)
 
 	devices := s.DeviceService.ParseFromNmap(string(output))
 	return devices, nil

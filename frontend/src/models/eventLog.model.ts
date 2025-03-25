@@ -13,9 +13,17 @@ export enum EEventLogType {
 }
 
 export interface EventLog {
-  Type: EEventLogType;
-  Description: string;
-  DeviceId: string; 
-  CreatedAt: Date | string;
-  UpdatedAt: Date | string;
+  // CamelCase properties
+  Type?: EEventLogType;
+  Description?: string;
+  DeviceId?: string; 
+  CreatedAt?: Date | string;
+  UpdatedAt?: Date | string;
+  
+  // snake_case properties
+  type?: EEventLogType;
+  description?: string;
+  device_id?: string;
+  created_at?: Date | string;
+  updated_at?: Date | string;
 }

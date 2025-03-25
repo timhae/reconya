@@ -5,30 +5,25 @@ import (
 	"context"
 	"log"
 	"net"
+	"reconya-ai/db"
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/network"
 	"reconya-ai/models"
 	"sort"
 	"strings"
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type DeviceService struct {
 	Config         *config.Config
-	collection     *mongo.Collection
+	repository     db.DeviceRepository
 	networkService *network.NetworkService
 }
 
-func NewDeviceService(db *mongo.Client, collName string, networkService *network.NetworkService, cfg *config.Config) *DeviceService {
-	collection := db.Database(cfg.DatabaseName).Collection(collName)
+func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config) *DeviceService {
 	return &DeviceService{
 		Config:         cfg,
-		collection:     collection,
+		repository:     deviceRepo,
 		networkService: networkService,
 	}
 }
@@ -43,15 +38,27 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	}
 
 	existingDevice, err := s.FindByIPv4(device.IPv4)
-	if err != nil {
+	if err != nil && err != db.ErrNotFound {
 		return nil, err
 	}
 
 	s.setTimestamps(device, existingDevice, currentTime)
 
-	updateData := s.buildUpdateData(device, network.ID)
+	// Set network ID
+	device.NetworkID = network.ID
 
-	return s.updateDevice(bson.M{"ipv4": device.IPv4}, updateData)
+	// Set status if not already set
+	if device.Status == "" {
+		device.Status = models.DeviceStatusOnline
+	}
+
+	// If the device doesn't have a name, use the IP address
+	if device.Name == "" {
+		device.Name = device.IPv4
+	}
+
+	// Save the device
+	return s.repository.CreateOrUpdate(context.Background(), device)
 }
 
 func (s *DeviceService) setTimestamps(device, existingDevice *models.Device, currentTime time.Time) {
@@ -61,36 +68,6 @@ func (s *DeviceService) setTimestamps(device, existingDevice *models.Device, cur
 		device.CreatedAt = existingDevice.CreatedAt
 	}
 	device.UpdatedAt = currentTime
-}
-
-func (s *DeviceService) buildUpdateData(device *models.Device, networkID primitive.ObjectID) bson.M {
-	updateData := bson.M{
-		"ipv4":                device.IPv4,
-		"hostname":            device.Hostname,
-		"mac":                 device.MAC,
-		"ports":               device.Ports,
-		"last_seen_online_at": device.LastSeenOnlineAt,
-		"network_id":          networkID,
-		"created_at":          device.CreatedAt,
-		"updated_at":          device.UpdatedAt,
-	}
-	if device.Vendor != nil && *device.Vendor != "" {
-		updateData["vendor"] = device.Vendor
-	}
-	return updateData
-}
-
-func (s *DeviceService) updateDevice(filter, updateData bson.M) (*models.Device, error) {
-	update := bson.M{"$set": updateData}
-	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
-
-	var updatedDevice models.Device
-	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedDevice)
-	if err != nil {
-		log.Printf("Error saving device with updated information: %v", err)
-		return nil, err
-	}
-	return &updatedDevice, nil
 }
 
 func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
@@ -164,62 +141,52 @@ func sortDevicesByIP(devices []models.Device) {
 }
 
 func (s *DeviceService) FindAll() ([]models.Device, error) {
-	var devices []models.Device
-	cursor, err := s.collection.Find(context.Background(), bson.M{})
+	ctx := context.Background()
+	devices, err := s.repository.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
 
-	for cursor.Next(context.Background()) {
-		var device models.Device
-		if err := cursor.Decode(&device); err != nil {
-			return nil, err
-		}
-		devices = append(devices, device)
+	// Convert pointers to values
+	deviceValues := make([]models.Device, len(devices))
+	for i, d := range devices {
+		deviceValues[i] = *d
 	}
 
-	// Sort devices by IP address after fetching
-	sortDevicesByIP(devices)
+	// Sort devices by IP address
+	sortDevicesByIP(deviceValues)
 
-	return devices, nil
+	return deviceValues, nil
 }
 
 func (s *DeviceService) FindByID(deviceID string) (*models.Device, error) {
-	var device models.Device
-
-	objID, err := primitive.ObjectIDFromHex(deviceID)
-	if err != nil {
-		log.Printf("Error converting deviceID %s to ObjectID: %v", deviceID, err)
-		return nil, err
+	ctx := context.Background()
+	device, err := s.repository.FindByID(ctx, deviceID)
+	if err == db.ErrNotFound {
+		return nil, nil
 	}
-
-	err = s.collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&device)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		log.Printf("Error finding device with ID %s: %v", deviceID, err)
 		return nil, err
 	}
-	return &device, nil
+	return device, nil
 }
 
 func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
-	var device models.Device
-	err := s.collection.FindOne(context.Background(), bson.M{"ipv4": ipv4}).Decode(&device)
+	ctx := context.Background()
+	device, err := s.repository.FindByIP(ctx, ipv4)
+	if err == db.ErrNotFound {
+		return nil, nil
+	}
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		log.Printf("Error finding device with IPv4 %s: %v", ipv4, err)
 		return nil, err
 	}
-	return &device, nil
+	return device, nil
 }
 
 func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) {
-	var devices []models.Device
+	var deviceValues []models.Device
 
 	network, err := s.networkService.FindByCIDR(cidr)
 	if err != nil {
@@ -227,75 +194,44 @@ func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) 
 	}
 
 	if network == nil {
-		return devices, nil
+		return deviceValues, nil
 	}
-
-	filter := bson.M{"network_id": network.ID}
-
-	cursor, err := s.collection.Find(context.Background(), filter)
+	// Get all devices first
+	ctx := context.Background()
+	allDevices, err := s.repository.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
 
-	for cursor.Next(context.Background()) {
-		var device models.Device
-		if err := cursor.Decode(&device); err != nil {
-			return nil, err
+	// Filter devices by network ID
+	for _, d := range allDevices {
+		// Make sure we're comparing non-empty values
+		if d.NetworkID != "" && network.ID != "" && d.NetworkID == network.ID {
+			deviceValues = append(deviceValues, *d)
+		} else if d.NetworkID == "" && network.ID != "" {
+			// If device has no network ID but belongs to the current network
+			// The device might be in this network but the ID wasn't saved
+			// This is a workaround for existing data
+			d.NetworkID = network.ID
+			_, err := s.repository.CreateOrUpdate(context.Background(), d)
+			if err != nil {
+				log.Printf("Error updating device network ID: %v", err)
+			} else {
+				deviceValues = append(deviceValues, *d)
+			}
+		} else {
+			log.Printf("Skipping device %s (network ID mismatch)", d.IPv4)
 		}
-		devices = append(devices, device)
 	}
 
-	sortDevicesByIP(devices)
-
-	return devices, nil
+	sortDevicesByIP(deviceValues)
+	return deviceValues, nil
 }
 
 func (s *DeviceService) UpdateDeviceStatuses() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cur, err := s.collection.Find(ctx, bson.M{})
-	if err != nil {
-		return err
-	}
-	defer cur.Close(ctx)
-
-	for cur.Next(ctx) {
-		var device models.Device
-		if err := cur.Decode(&device); err != nil {
-			return err
-		}
-
-		var status models.DeviceStatus
-
-		if device.LastSeenOnlineAt == nil {
-			status = models.DeviceStatusUnknown
-		} else {
-			duration := time.Since(*device.LastSeenOnlineAt)
-			switch {
-			case duration <= 3*time.Minute:
-				status = models.DeviceStatusOnline
-			case duration <= 7*time.Minute:
-				status = models.DeviceStatusIdle
-			default:
-				status = models.DeviceStatusOffline
-			}
-		}
-
-		if status != device.Status {
-			update := bson.M{
-				"$set": bson.M{
-					"status":     status,
-					"updated_at": time.Now(),
-				},
-			}
-			_, err := s.collection.UpdateByID(ctx, device.ID, update)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return cur.Err()
+	// Let the repository handle the device status update logic
+	return s.repository.UpdateDeviceStatuses(ctx, 7*time.Minute)
 }

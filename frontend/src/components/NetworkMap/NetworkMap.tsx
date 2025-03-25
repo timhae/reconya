@@ -19,21 +19,29 @@ const generateIpRange = (baseIp: string): string[] => {
   return ips;
 };
 
+// Helper functions to normalize property access
+const getDeviceIPv4 = (device: Device) => device.ipv4 || device.IPv4 || '';
+const getDeviceStatus = (device: Device) => device.status || device.Status;
+
 // Function to get the CSS classes for each IP address based on its status
 const getDeviceContainerCssClasses = (ip: string, devices: Device[], localDevice?: Device): string => {
-  const device = devices.find((device) => device.IPv4 === ip);
+  const device = devices.find((device) => getDeviceIPv4(device) === ip);
 
   if (!device) {
     return 'border border-dark opacity-75 text-muted'; // Style for missing devices
   }
 
-  if (device.Status === 'online' && device.IPv4 !== localDevice?.IPv4) {
+  const deviceStatus = getDeviceStatus(device);
+  const deviceIp = getDeviceIPv4(device);
+  const localDeviceIp = localDevice ? getDeviceIPv4(localDevice) : '';
+
+  if (deviceStatus === 'online' && deviceIp !== localDeviceIp) {
     return 'border border-success text-success';
-  } else if (device.IPv4 === localDevice?.IPv4) {
+  } else if (deviceIp === localDeviceIp) {
     return 'border border-primary text-primary';
-  } else if (device.Status === 'offline' || device.Status === 'unknown') {
+  } else if (deviceStatus === 'offline' || deviceStatus === 'unknown') {
     return 'border border-dark text-dark';
-  } else if (device.Status === 'idle') {
+  } else if (deviceStatus === 'idle') {
     return 'border border-success text-success opacity-50';
   }
 
@@ -41,14 +49,16 @@ const getDeviceContainerCssClasses = (ip: string, devices: Device[], localDevice
 };
 
 const NetworkMap: React.FC<Props> = ({ devices, localDevice }) => {
-  const baseIp = localDevice?.IPv4 || '192.168.1.0'; // Adjust the base IP as necessary
+  const baseIp = localDevice ? getDeviceIPv4(localDevice) : '192.168.1.0'; // Adjust the base IP as necessary
+  console.log("NetworkMap - baseIp:", baseIp, "localDevice:", localDevice);
+  
   const ipRange = generateIpRange(baseIp);
 
   return (
     <div className="device-container d-flex align-items-start flex-wrap">
       <h6 className="text-success d-block w-100">[ NETWORK MAP ]</h6>
       {ipRange.map((ip, index) => {
-        const isExisting = devices.some(device => device.IPv4 === ip);
+        const isExisting = devices.some(device => getDeviceIPv4(device) === ip);
         return (
           <button
             key={index}

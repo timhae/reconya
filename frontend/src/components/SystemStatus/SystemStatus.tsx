@@ -5,6 +5,12 @@ import { SystemStatus } from '../../models/systemStatus.model';
 import { Network } from '../../models/network.model';
 
 const SystemStatusComponent: React.FC<{systemStatus: SystemStatus | undefined, network: Network | undefined}> = ({systemStatus, network}) => {
+  // Use either the snake_case or camelCase property, depending on which is available
+  const publicIP = systemStatus?.public_ip || systemStatus?.PublicIP;
+  const networkCIDR = network?.cidr || network?.CIDR;
+  
+  console.log("SystemStatus component:", {systemStatus, network, publicIP, networkCIDR});
+  
   return (
     <div className="">
       <h6 className="text-success d-block w-100">[ SYSTEM STATUS ]</h6>
@@ -16,7 +22,7 @@ const SystemStatusComponent: React.FC<{systemStatus: SystemStatus | undefined, n
                 <FontAwesomeIcon icon={faNetworkWired} />
               </div>
               <div className="d-inline-block align-middle ms-4">
-                { network?.CIDR }
+                { networkCIDR }
               </div>
             </div>
 
@@ -25,7 +31,7 @@ const SystemStatusComponent: React.FC<{systemStatus: SystemStatus | undefined, n
                 <FontAwesomeIcon icon={faGlobe} />
               </div>
               <div className="d-inline-block align-middle ms-4">
-                { systemStatus?.PublicIP }
+                { publicIP }
               </div>
             </div>
           </div>

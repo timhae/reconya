@@ -22,7 +22,7 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 }
 
 func (s *PortScanService) Run(requestedDevice models.Device) {
-	deviceIDStr := requestedDevice.ID.Hex()
+	deviceIDStr := requestedDevice.ID
 	log.Printf("Starting port scan for IP [%s]", requestedDevice.IPv4)
 	s.EventLogService.CreateOne(&models.EventLog{
 		Type:     models.PortScanStarted,

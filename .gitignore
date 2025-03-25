@@ -33,3 +33,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+.aider*
+
+# Database files
+backend/data/*.db

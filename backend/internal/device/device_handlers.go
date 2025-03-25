@@ -2,6 +2,7 @@ package device
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"reconya-ai/internal/config"
 	"reconya-ai/models"
@@ -37,7 +38,7 @@ func (h *DeviceHandlers) CreateDevice(w http.ResponseWriter, r *http.Request) {
 
 func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
 	devices := []models.Device{}
-
+	log.Printf("CIDR: %s", h.Config.NetworkCIDR)
 	foundDevices, err := h.Service.FindAllForNetwork(h.Config.NetworkCIDR)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

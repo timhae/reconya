@@ -2,62 +2,42 @@ package systemstatus
 
 import (
 	"context"
+	"reconya-ai/db"
 	"reconya-ai/models"
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type SystemStatusService struct {
-	client     *mongo.Client
-	collection *mongo.Collection
+	repository db.SystemStatusRepository
 }
 
-func NewSystemStatusService(client *mongo.Client, dbName string, collectionName string) *SystemStatusService {
-	collection := client.Database(dbName).Collection(collectionName)
+func NewSystemStatusService(repository db.SystemStatusRepository) *SystemStatusService {
 	return &SystemStatusService{
-		client:     client,
-		collection: collection,
+		repository: repository,
 	}
 }
 
 func (s *SystemStatusService) GetLatest() (*models.SystemStatus, error) {
-	var systemStatus models.SystemStatus
-	opts := options.FindOne().SetSort(bson.D{{Key: "updated_at", Value: -1}})
-	err := s.collection.FindOne(context.Background(), bson.D{}, opts).Decode(&systemStatus)
+	systemStatus, err := s.repository.FindLatest(context.Background())
+	if err == db.ErrNotFound {
+		return nil, nil
+	}
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
-	return &systemStatus, nil
+	return systemStatus, nil
 }
 
 func (s *SystemStatusService) CreateOrUpdate(systemStatus *models.SystemStatus) (*models.SystemStatus, error) {
 	now := time.Now()
+	systemStatus.CreatedAt = now
+	systemStatus.UpdatedAt = now
 
-	update := bson.M{
-		"$set": bson.M{
-			"updated_at": now,
-			"network_id": systemStatus.NetworkID,
-			"public_ip":  *systemStatus.PublicIP,
-		},
-		"$setOnInsert": bson.M{
-			"created_at": now,
-		},
-	}
-
-	filter := bson.M{"local_device.ipv4": systemStatus.LocalDevice.IPv4}
-	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
-
-	var updatedSystemStatus models.SystemStatus
-	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedSystemStatus)
-	if err != nil {
+	// Create the system status
+	if err := s.repository.Create(context.Background(), systemStatus); err != nil {
 		return nil, err
 	}
 
-	return &updatedSystemStatus, nil
+	// Return the latest system status
+	return s.GetLatest()
 }

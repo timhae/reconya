@@ -12,11 +12,10 @@ const useSystemStatus = () => {
       try {
         // setIsLoading(true);
         const data = await fetchSystemStatus();
-        setSystemStatus({ 
-          LocalDevice: data.LocalDevice,
-          PublicIP: data.PublicIP
-        });
+        console.log("System status response:", data);
+        setSystemStatus(data);
       } catch (error: any) {
+        console.error("Error fetching system status:", error);
         setError(error);
       } finally {
         setIsLoading(false);

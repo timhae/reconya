@@ -35,7 +35,26 @@ Reconya AI Go helps users discover, identify, and monitor devices on their netwo
    ```
    Edit `.env` with your configuration.
 
-3. Start MongoDB:
+3. Choose your database:
+
+   **Option 1: Using SQLite (Recommended for simplicity)**
+   
+   Add the following to your `.env` file:
+   ```
+   DATABASE_TYPE=sqlite
+   SQLITE_PATH=data/reconya.db
+   ```
+   No additional database setup required!
+
+   **Option 2: Using MongoDB**
+   
+   Add the following to your `.env` file:
+   ```
+   DATABASE_TYPE=mongodb
+   MONGODB_URI=mongodb://localhost:27017
+   ```
+   
+   Then start MongoDB:
    ```
    ../scripts/dev_create_mongo.sh
    ```
@@ -43,6 +62,11 @@ Reconya AI Go helps users discover, identify, and monitor devices on their netwo
 4. Build and run the backend:
    ```
    ../scripts/dev_start_backend.sh
+   ```
+
+5. Migration from MongoDB to SQLite (if you were using MongoDB):
+   ```
+   ../scripts/migrate_to_sqlite.sh
    ```
 
 ### Frontend Setup
@@ -69,9 +93,24 @@ Reconya AI Go helps users discover, identify, and monitor devices on their netwo
 
 ## Architecture
 
-- **Backend**: Go API server with MongoDB for storage
+- **Backend**: Go API server with MongoDB or SQLite for storage
 - **Frontend**: React/TypeScript web application
 - **Scanning**: Network operations performed through native Go libraries
+
+### Database Options
+
+The application supports two database options:
+
+#### MongoDB (Default)
+- Good for distributed deployments
+- Allows for horizontal scaling
+- Requires a MongoDB instance
+
+#### SQLite (Recommended for Single-User Deployments)
+- Self-contained, no separate database service required
+- Simpler setup
+- Perfect for personal or small deployments
+- Lightweight and portable
 
 ## Security Notes
 

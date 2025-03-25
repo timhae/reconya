@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/middleware"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
@@ -27,18 +30,49 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	mongoClient, err := db.ConnectToMongo(cfg.MongoURI)
-	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	// Create repositories factory based on database type
+	var repoFactory *db.RepositoryFactory
+	var sqliteDB *sql.DB
+	var mongoClient *mongo.Client
+
+	if cfg.DatabaseType == config.SQLite {
+		log.Println("Using SQLite database")
+		sqliteDB, err = db.ConnectToSQLite(cfg.SQLitePath)
+		if err != nil {
+			log.Fatalf("Failed to connect to SQLite: %v", err)
+		}
+		
+		// Initialize database schema
+		if err := db.InitializeSchema(sqliteDB); err != nil {
+			log.Fatalf("Failed to initialize database schema: %v", err)
+		}
+		
+		repoFactory = db.NewRepositoryFactory(sqliteDB, nil, cfg.DatabaseName)
+	} else {
+		log.Println("Using MongoDB database")
+		mongoClient, err = db.ConnectToMongo(cfg.MongoURI)
+		if err != nil {
+			log.Fatalf("Failed to connect to MongoDB: %v", err)
+		}
+		
+		repoFactory = db.NewRepositoryFactory(nil, mongoClient, cfg.DatabaseName)
 	}
 
-	networkService := network.NewNetworkService(mongoClient, cfg.DatabaseName, "networks", cfg)
-	deviceService := device.NewDeviceService(mongoClient, "devices", networkService, cfg)
-	eventLogService := eventlog.NewEventLogService(mongoClient, cfg.DatabaseName, "event_logs", deviceService)
-	systemStatusService := systemstatus.NewSystemStatusService(mongoClient, cfg.DatabaseName, "system_status")
+	// Create repositories
+	networkRepo := repoFactory.NewNetworkRepository()
+	deviceRepo := repoFactory.NewDeviceRepository()
+	eventLogRepo := repoFactory.NewEventLogRepository()
+	systemStatusRepo := repoFactory.NewSystemStatusRepository()
+
+	// Initialize services with repositories
+	networkService := network.NewNetworkService(networkRepo, cfg)
+	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg)
+	eventLogService := eventlog.NewEventLogService(eventLogRepo, deviceService)
+	systemStatusService := systemstatus.NewSystemStatusService(systemStatusRepo)
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
 	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService)
+	
 	authHandlers := auth.NewAuthHandlers(cfg)
 	middlewareHandlers := middleware.NewMiddleware(cfg)
 

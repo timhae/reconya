@@ -10,6 +10,17 @@ interface DeviceModalProps {
 
 const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
   if (!device) return null;
+  
+  // Helper functions to normalize property access
+  const getDeviceID = (d: Device) => d.id || d.ID || '';
+  const getDeviceIPv4 = (d: Device) => d.ipv4 || d.IPv4 || '';
+  const getDeviceMAC = (d: Device) => d.mac || d.MAC;
+  const getDeviceVendor = (d: Device) => d.vendor || d.Vendor;
+  const getDeviceHostname = (d: Device) => d.hostname || d.Hostname;
+  const getDeviceStatus = (d: Device) => d.status || d.Status;
+  const getDevicePorts = (d: Device) => d.ports || d.Ports || [];
+  const getDeviceCreatedAt = (d: Device) => d.created_at || d.CreatedAt;
+  const getDeviceLastSeen = (d: Device) => d.last_seen_online_at || d.LastSeenOnlineAt;
 
   const calcTimeElapsed = (dateString: string | undefined) => {
     if (!dateString) return "N/A";
@@ -76,7 +87,9 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
   };
 
   const renderPortIcons = () => {
-    if (device?.Ports?.some((port) => port.state === "open")) {
+    const ports = getDevicePorts(device);
+    
+    if (ports?.some((port) => port.state === "open")) {
       return (
         <FontAwesomeIcon
           icon={faCircle}
@@ -86,7 +99,7 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
       );
     }
 
-    if (device?.Ports?.some((port) => port.state === "filtered")) {
+    if (ports?.some((port) => port.state === "filtered")) {
       return (
         <FontAwesomeIcon
           icon={faCircle}
@@ -129,7 +142,7 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
             <div className="mb-3">
               <div className="border-bottom border-success pb-2 mb-3 d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
-                  <span className="orbitron fw-bold fs-2">{device.IPv4}</span>
+                  <span className="orbitron fw-bold fs-2">{getDeviceIPv4(device)}</span>
                 </div>
                 <div className="d-flex align-items-center">
                   {renderPortIcons()}
@@ -140,30 +153,30 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                 <tbody className="p-2">
                   <tr>
                     <td className="w-25 ps-2 fw-bold">Hostname</td>
-                    <td>{device.Hostname || "Unknown"}</td>
+                    <td>{getDeviceHostname(device) || "Unknown"}</td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">H/W vendor</td>
-                    <td>{device.Vendor}</td>
+                    <td>{getDeviceVendor(device) || "Unknown"}</td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">MAC Address</td>
-                    <td>{device.MAC}</td>
+                    <td>{getDeviceMAC(device) || "Unknown"}</td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">Status</td>
                     <td>
-                      {getStatusIcon(device.Status)}
-                      {device.Status}
+                      {getStatusIcon(getDeviceStatus(device))}
+                      {getDeviceStatus(device)}
                     </td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">First appeared</td>
-                    <td>{calcTimeElapsed(device.CreatedAt)}</td>
+                    <td>{calcTimeElapsed(getDeviceCreatedAt(device))}</td>
                   </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">Last seen online</td>
-                    <td>{calcTimeElapsed(device.LastSeenOnlineAt)}</td>
+                    <td>{calcTimeElapsed(getDeviceLastSeen(device))}</td>
                   </tr>
                 </tbody>
               </table>
@@ -171,9 +184,9 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
               <h6>[ PORTS ]</h6>
               <table className="text-success w-100 p-2 mb-4">
                 <tbody className="p-2">
-                  {device.Ports?.map((port, index) => {
+                  {getDevicePorts(device)?.map((port, index) => {
                     const portNumber = Number(port.number); // Ensure port number is treated as a number
-                    const portLink = getPortLink(portNumber, device.IPv4 || "");
+                    const portLink = getPortLink(portNumber, getDeviceIPv4(device));
                     return (
                       <tr key={index}>
                         <td className="ps-2 fw-bold" style={{ width: "15%" }}>

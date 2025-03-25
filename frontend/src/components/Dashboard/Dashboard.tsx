@@ -17,7 +17,7 @@ const Dashboard: React.FC = () => {
   const { systemStatus, isLoading: systemStatusLoading, error: systemStatusError } = useSystemStatus();
   const { network } = useNetwork();
 
-  const localDevice = systemStatus?.LocalDevice;
+  const localDevice = systemStatus?.local_device || systemStatus?.LocalDevice;
 
   const isLoading = devicesLoading || systemStatusLoading;
   const error = devicesError || systemStatusError;
