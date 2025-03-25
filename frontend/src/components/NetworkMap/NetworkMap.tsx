@@ -1,4 +1,6 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircle } from '@fortawesome/free-solid-svg-icons';
 import { Device } from '../../models/device.model';
 
 interface Props {
@@ -50,8 +52,6 @@ const getDeviceContainerCssClasses = (ip: string, devices: Device[], localDevice
 
 const NetworkMap: React.FC<Props> = ({ devices, localDevice }) => {
   const baseIp = localDevice ? getDeviceIPv4(localDevice) : '192.168.1.0'; // Adjust the base IP as necessary
-  console.log("NetworkMap - baseIp:", baseIp, "localDevice:", localDevice);
-  
   const ipRange = generateIpRange(baseIp);
 
   return (

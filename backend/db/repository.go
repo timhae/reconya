@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -55,52 +53,38 @@ type SystemStatusRepository interface {
 	FindLatest(ctx context.Context) (*models.SystemStatus, error)
 }
 
-// RepositoryFactory creates repositories based on the database type
+// RepositoryFactory creates repositories
 type RepositoryFactory struct {
-	SQLiteDB    *sql.DB
-	MongoClient *mongo.Client
-	DBName      string
+	SQLiteDB *sql.DB
+	DBName   string
 }
 
 // NewRepositoryFactory creates a new repository factory
-func NewRepositoryFactory(sqliteDB *sql.DB, mongoClient *mongo.Client, dbName string) *RepositoryFactory {
+func NewRepositoryFactory(sqliteDB *sql.DB, dbName string) *RepositoryFactory {
 	return &RepositoryFactory{
-		SQLiteDB:    sqliteDB,
-		MongoClient: mongoClient,
-		DBName:      dbName,
+		SQLiteDB: sqliteDB,
+		DBName:   dbName,
 	}
 }
 
 // NewNetworkRepository creates a new network repository
 func (f *RepositoryFactory) NewNetworkRepository() NetworkRepository {
-	if f.SQLiteDB != nil {
-		return NewSQLiteNetworkRepository(f.SQLiteDB)
-	}
-	return NewMongoNetworkRepository(f.MongoClient, f.DBName, "networks")
+	return NewSQLiteNetworkRepository(f.SQLiteDB)
 }
 
 // NewDeviceRepository creates a new device repository
 func (f *RepositoryFactory) NewDeviceRepository() DeviceRepository {
-	if f.SQLiteDB != nil {
-		return NewSQLiteDeviceRepository(f.SQLiteDB)
-	}
-	return NewMongoDeviceRepository(f.MongoClient, f.DBName, "devices")
+	return NewSQLiteDeviceRepository(f.SQLiteDB)
 }
 
 // NewEventLogRepository creates a new event log repository
 func (f *RepositoryFactory) NewEventLogRepository() EventLogRepository {
-	if f.SQLiteDB != nil {
-		return NewSQLiteEventLogRepository(f.SQLiteDB)
-	}
-	return NewMongoEventLogRepository(f.MongoClient, f.DBName, "event_logs")
+	return NewSQLiteEventLogRepository(f.SQLiteDB)
 }
 
 // NewSystemStatusRepository creates a new system status repository
 func (f *RepositoryFactory) NewSystemStatusRepository() SystemStatusRepository {
-	if f.SQLiteDB != nil {
-		return NewSQLiteSystemStatusRepository(f.SQLiteDB)
-	}
-	return NewMongoSystemStatusRepository(f.MongoClient, f.DBName, "system_status")
+	return NewSQLiteSystemStatusRepository(f.SQLiteDB)
 }
 
 // GenerateID generates a unique ID for a record
@@ -108,11 +92,3 @@ func GenerateID() string {
 	return uuid.New().String()
 }
 
-// ObjectIDFromString converts a string to an ObjectID
-func ObjectIDFromString(id string) primitive.ObjectID {
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return primitive.NilObjectID
-	}
-	return objectID
-}

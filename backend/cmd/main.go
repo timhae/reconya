@@ -20,8 +20,6 @@ import (
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/middleware"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
@@ -30,33 +28,22 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Create repositories factory based on database type
+	// Create repositories factory
 	var repoFactory *db.RepositoryFactory
 	var sqliteDB *sql.DB
-	var mongoClient *mongo.Client
 
-	if cfg.DatabaseType == config.SQLite {
-		log.Println("Using SQLite database")
-		sqliteDB, err = db.ConnectToSQLite(cfg.SQLitePath)
-		if err != nil {
-			log.Fatalf("Failed to connect to SQLite: %v", err)
-		}
-		
-		// Initialize database schema
-		if err := db.InitializeSchema(sqliteDB); err != nil {
-			log.Fatalf("Failed to initialize database schema: %v", err)
-		}
-		
-		repoFactory = db.NewRepositoryFactory(sqliteDB, nil, cfg.DatabaseName)
-	} else {
-		log.Println("Using MongoDB database")
-		mongoClient, err = db.ConnectToMongo(cfg.MongoURI)
-		if err != nil {
-			log.Fatalf("Failed to connect to MongoDB: %v", err)
-		}
-		
-		repoFactory = db.NewRepositoryFactory(nil, mongoClient, cfg.DatabaseName)
+	log.Println("Using SQLite database")
+	sqliteDB, err = db.ConnectToSQLite(cfg.SQLitePath)
+	if err != nil {
+		log.Fatalf("Failed to connect to SQLite: %v", err)
 	}
+	
+	// Initialize database schema
+	if err := db.InitializeSchema(sqliteDB); err != nil {
+		log.Fatalf("Failed to initialize database schema: %v", err)
+	}
+	
+	repoFactory = db.NewRepositoryFactory(sqliteDB, cfg.DatabaseName)
 
 	// Create repositories
 	networkRepo := repoFactory.NewNetworkRepository()

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - reconya-network
+    restart: unless-stopped
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3008:3008"
+    environment:
+      - ENVIRONMENT=production
+      - PORT=3008
+    volumes:
+      - ./backend/data:/app/data
+    networks:
+      - reconya-network
+    restart: unless-stopped
+
+networks:
+  reconya-network:
+    driver: bridge

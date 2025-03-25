@@ -8,6 +8,7 @@ import Devices from '../Devices/Devices';
 import DeviceList from '../DeviceList/DeviceList';
 import EventLogs from '../EventLog/EventLogs';
 import SystemStatusComponent from '../SystemStatus/SystemStatus';
+import LoadingSpinner from '../Common/LoadingSpinner';
 import useNetwork from '../../hooks/useNetwork';
 
 const Dashboard: React.FC = () => {
@@ -22,14 +23,23 @@ const Dashboard: React.FC = () => {
   const isLoading = devicesLoading || systemStatusLoading;
   const error = devicesError || systemStatusError;
 
+  
   if (!isAuthenticated) return null;
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (isLoading) return <LoadingSpinner message="Loading dashboard data..." />;
+  if (error) return (
+    <div className="alert alert-danger">
+      <h4 className="alert-heading">Error</h4>
+      <p>{error.message}</p>
+      <hr />
+      <p className="mb-0">Please try refreshing the page or contact support if the problem persists.</p>
+    </div>
+  );
 
   return (
     <div className="container-fluid">
       <div className="row mt-1">
         <div className="col-md-9">
+          {/* Interactive D3.js Network Graph */}
           <NetworkMap devices={devices} localDevice={localDevice} />
           <Devices devices={devices} localDevice={localDevice} />
         </div>

@@ -11,16 +11,13 @@ import (
 type DatabaseType string
 
 const (
-	MongoDB DatabaseType = "mongodb"
-	SQLite  DatabaseType = "sqlite"
+	SQLite DatabaseType = "sqlite"
 )
 
 type Config struct {
 	JwtKey       []byte
 	NetworkCIDR  string
 	DatabaseType DatabaseType
-	// MongoDB config
-	MongoURI     string
 	// SQLite config
 	SQLitePath   string
 	// Common configs
@@ -56,11 +53,8 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET_KEY is not set in .env file")
 	}
 
-	// Determine database type
-	dbType := os.Getenv("DATABASE_TYPE")
-	if dbType == "" {
-		dbType = string(SQLite) // Default to SQLite
-	}
+	// Set database type to SQLite
+	dbType := string(SQLite)
 
 	config := &Config{
 		JwtKey:       []byte(jwtSecret),
@@ -71,23 +65,13 @@ func LoadConfig() (*Config, error) {
 		DatabaseName: databaseName,
 	}
 
-	// Configure based on database type
-	if config.DatabaseType == MongoDB {
-		mongoURI := os.Getenv("MONGODB_URI")
-		if mongoURI == "" {
-			return nil, fmt.Errorf("MONGODB_URI is not set in .env file")
-		}
-		config.MongoURI = mongoURI
-	} else if config.DatabaseType == SQLite {
-		sqlitePath := os.Getenv("SQLITE_PATH")
-		if sqlitePath == "" {
-			// Default to a data directory in the current directory
-			sqlitePath = filepath.Join("data", fmt.Sprintf("%s.db", databaseName))
-		}
-		config.SQLitePath = sqlitePath
-	} else {
-		return nil, fmt.Errorf("unsupported DATABASE_TYPE: %s", dbType)
+	// Configure SQLite database
+	sqlitePath := os.Getenv("SQLITE_PATH")
+	if sqlitePath == "" {
+		// Default to a data directory in the current directory
+		sqlitePath = filepath.Join("data", fmt.Sprintf("%s.db", databaseName))
 	}
+	config.SQLitePath = sqlitePath
 
 	return config, nil
 }
