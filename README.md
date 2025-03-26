@@ -125,7 +125,7 @@ For development purposes:
    npm start
    ```
 
-4. Access the web interface at `http://localhost:3000`
+4. Access the web interface at `http://localhost:3001`
 
 #### ⚙️ Production Customization
 
