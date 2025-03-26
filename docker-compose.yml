@@ -1,16 +1,15 @@
-version: '3.8'
-
 services:
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "3001:80"
     depends_on:
       - backend
     environment:
       - NODE_ENV=production
+      - REACT_APP_API_URL=http://backend:3008
     networks:
       - reconya-network
     restart: unless-stopped
@@ -24,13 +23,23 @@ services:
     ports:
       - "3008:3008"
     environment:
-      - ENVIRONMENT=production
-      - PORT=3008
+      - DATABASE_TYPE=sqlite
+      - SQLITE_PATH=/app/data/reconya.db
+      - DATABASE_NAME=reconya
+      - NETWORK_RANGE=${NETWORK_RANGE:-192.168.1.0/24}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default_jwt_secret_change_this_in_production}
+      - LOGIN_USERNAME=${LOGIN_USERNAME:-admin}
+      - LOGIN_PASSWORD=${LOGIN_PASSWORD:-admin}
     volumes:
       - ./backend/data:/app/data
     networks:
       - reconya-network
     restart: unless-stopped
+    # Optional: Uncomment these lines to enable more network capabilities
+    # cap_add:
+    #   - NET_ADMIN
+    #   - NET_RAW
+    # network_mode: host
 
 networks:
   reconya-network:

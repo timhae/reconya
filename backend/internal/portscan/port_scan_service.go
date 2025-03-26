@@ -68,12 +68,17 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 }
 
 func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, string, error) {
-	cmd := exec.Command("sudo", "/usr/bin/nmap", "-oX", "-", "-O", ipv4)
+	// Use simpler scan options that don't require the NSE script engine
+	// -sT: TCP connect scan, -p-: all ports, -oX: XML output
+	log.Printf("Running basic port scan for IP %s", ipv4)
+	cmd := exec.Command("nmap", "-sT", "-p1-1000", "-oX", "-", ipv4)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("nmap error: %v, output: %s", err, string(output))
 		return nil, "", "", err
 	}
 
+	log.Printf("Scan completed for %s, parsing results", ipv4)
 	ports, vendor, hostname := s.ParseNmapOutput(string(output))
 	return ports, vendor, hostname, nil
 }

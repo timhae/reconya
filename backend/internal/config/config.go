@@ -27,30 +27,29 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, err
-	}
+	// Try to load .env file but don't fail if it doesn't exist
+	// This allows using environment variables directly in Docker
+	_ = godotenv.Load()
 
 	networkCIDR := os.Getenv("NETWORK_RANGE")
 	if networkCIDR == "" {
-		return nil, fmt.Errorf("NETWORK_RANGE is not set in .env file")
+		return nil, fmt.Errorf("NETWORK_RANGE environment variable is not set")
 	}
 
 	databaseName := os.Getenv("DATABASE_NAME")
 	if databaseName == "" {
-		return nil, fmt.Errorf("DATABASE_NAME is not set in .env file")
+		return nil, fmt.Errorf("DATABASE_NAME environment variable is not set")
 	}
 
 	username := os.Getenv("LOGIN_USERNAME")
 	password := os.Getenv("LOGIN_PASSWORD")
 	if username == "" || password == "" {
-		return nil, fmt.Errorf("LOGIN_USERNAME or LOGIN_PASSWORD is not set in .env file")
+		return nil, fmt.Errorf("LOGIN_USERNAME or LOGIN_PASSWORD environment variables are not set")
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET_KEY")
 	if jwtSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET_KEY is not set in .env file")
+		return nil, fmt.Errorf("JWT_SECRET_KEY environment variable is not set")
 	}
 
 	// Set database type to SQLite

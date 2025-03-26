@@ -22,105 +22,110 @@ Reconya AI Go helps users discover, identify, and monitor devices on their netwo
 
 ### 📋 Prerequisites
 
-- 🐳 Docker and Docker Compose (for production deployment)
-- 🔹 Go 1.16+
-- 🟢 Node.js 14+ and npm
+- 🐳 Docker and Docker Compose (for easy deployment)
+- 🔹 Go 1.16+ (for development only)
+- 🟢 Node.js 14+ and npm (for development only)
 
-### 💻 Development Setup
+### 🚀 Quick Start (Recommended)
 
-#### 🔧 Backend Setup
+The easiest way to get started is using our setup script:
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/yourusername/reconya-ai-go.git
    cd reconya-ai-go
    ```
 
-2. Set up environment variables:
+2. Run the setup script:
+   ```bash
+   ./setup.sh
    ```
+   
+   The script will:
+   - Check for dependencies
+   - Guide you through configuration
+   - Set up environment variables
+   - Build and start the application
+
+3. Access the application at `http://localhost:3001`
+
+### 🏭 Manual Deployment
+
+If you prefer to set things up manually:
+
+1. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your configuration (network range, credentials, etc.)
+
+2. Build and start the containers:
+   ```bash
+   docker compose up -d
+   ```
+
+3. Access the application at `http://localhost:3001`
+
+### 🛠️ Helper Scripts
+
+We provide several convenient scripts to manage RecoNya AI:
+
+- `setup.sh` - Interactive setup script (recommended for first-time users)
+- `start.sh` - Start the application
+- `stop.sh` - Stop the application
+- `logs.sh` - View application logs
+  ```bash
+  # View all logs
+  ./logs.sh
+  
+  # Follow logs (live updates)
+  ./logs.sh -f
+  
+  # View only backend or frontend logs
+  ./logs.sh backend
+  ./logs.sh frontend
+  ```
+
+### 💻 Development Setup
+
+For development purposes:
+
+#### 🔧 Backend Setup
+
+1. Set up environment variables:
+   ```bash
    cd backend
    cp .env.example .env
    ```
    Edit `.env` with your configuration.
 
-3. Choose your database:
-
-   **Option 1: Using SQLite (Recommended for simplicity)**
-   
-   Add the following to your `.env` file:
-   ```
-   DATABASE_TYPE=sqlite
-   SQLITE_PATH=data/reconya.db
-   ```
-   No additional database setup required!
-
-   **Option 2: Using MongoDB**
-   
-   Add the following to your `.env` file:
-   ```
-   DATABASE_TYPE=mongodb
-   MONGODB_URI=mongodb://localhost:27017
-   ```
-   
-   Then start MongoDB:
-   ```
-   ../scripts/dev_create_mongo.sh
-   ```
-
-4. Build and run the backend:
-   ```
-   ../scripts/dev_start_backend.sh
-   ```
-
-5. Migration from MongoDB to SQLite (if you were using MongoDB):
-   ```
-   ../scripts/migrate_to_sqlite.sh
+2. Install dependencies and run:
+   ```bash
+   cd backend
+   go mod download
+   go run cmd/main.go
    ```
 
 #### 🎨 Frontend Setup
 
 1. Install dependencies:
-   ```
+   ```bash
    cd frontend
    npm install
    ```
 
 2. Configure environment variables:
-   ```
+   ```bash
    cp .env.example .env
    ```
-   Adjust the `.env` file as needed.
 
 3. Start the development server:
-   ```
-   ../scripts/dev_start_frontend.sh
+   ```bash
+   npm start
    ```
 
 4. Access the web interface at `http://localhost:3000`
-
-### 🏭 Production Deployment
-
-For production environments, we recommend using Docker Compose:
-
-1. Configure environment variables:
-   ```
-   # Backend
-   cd backend
-   cp .env.example .env
-   # Edit .env with production values
-
-   # Frontend (optional)
-   cd ../frontend
-   cp .env.example .env.production
-   # Edit .env.production with production values
-   ```
-
-2. Build and start the containers:
-   ```
-   docker-compose up -d
-   ```
-
-3. Access the application at `http://your-server-ip` (port 80)
 
 #### ⚙️ Production Customization
 
@@ -143,25 +148,23 @@ For production environments, we recommend using Docker Compose:
 
 ## 🏗️ Architecture
 
-- 🔙 **Backend**: Go API server with MongoDB or SQLite for storage
+- 🔙 **Backend**: Go API server with SQLite for storage
 - 🖌️ **Frontend**: React/TypeScript web application with responsive Bootstrap UI
 - 🔍 **Scanning**: Network operations performed through native Go libraries
 - 🔄 **Real-time Updates**: Polling system with configurable intervals
+- 🐳 **Deployment**: Docker Compose for easy setup and production use
 
-### 💾 Database Options
+### 💾 Database
 
-The application supports two database options to fit different deployment needs:
+The application uses SQLite for its database, offering several advantages:
 
-#### 🔷 MongoDB
-- 🌐 Good for distributed deployments
-- 🚀 Allows for horizontal scaling
-- 🔌 Requires a MongoDB instance
-
-#### 🔶 SQLite (Recommended for Single-User Deployments)
+#### 🔶 SQLite Benefits
 - 📦 Self-contained, no separate database service required
-- 🧩 Simpler setup with minimal configuration
-- 🏠 Perfect for personal or small deployments
+- 🧩 Simple setup with minimal configuration
+- 🏠 Perfect for personal or organizational deployments
 - 🪶 Lightweight and portable
+- 🔒 Data is stored locally in a single file
+- 🚫 No need for database administration
 
 ## 🔐 Security Notes
 
@@ -171,6 +174,52 @@ The application supports two database options to fit different deployment needs:
 - 👮 Run with least privilege required for network scanning
 - 🔄 Keep dependencies updated to patch security vulnerabilities
 - 🧪 Regularly test your deployment for security issues
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Application Not Accessible
+- Make sure ports 3001 and 3008 are not in use by other applications
+- Check that Docker containers are running with `docker ps`
+- View logs with `./logs.sh` to identify any startup errors
+- If the page is blank or shows "Cannot GET /", check the nginx configuration to ensure static files are being served correctly from `/usr/share/nginx/html`
+
+#### CORS Issues
+- If you see CORS errors in the browser console, check:
+  - The CORS configuration in `backend/middleware/cors.go`
+  - The proxy configuration in nginx.conf to ensure proper API routing
+  - The axiosConfig.ts to ensure it's using the correct API URL
+- For local development, set the Access-Control-Allow-Origin header to "*" 
+- For production, set it to your specific domain
+
+#### Authentication Issues
+- For development, API endpoints are set to bypass authentication
+- For production, uncomment the middleware.AuthMiddleware wrapper in main.go
+- If you see "Unauthorized" errors, ensure the JWT token is properly set
+- The default login is admin/admin for development environment
+
+#### Permission Issues
+- Some network scanning operations require elevated privileges
+- Make sure Docker has the necessary network permissions
+- If using host networking, run with appropriate privileges
+
+#### Database Issues
+- Check that the data directory is writable by the application
+- If database errors occur, try removing and recreating the data directory
+
+#### Network Scanning Not Working
+- Verify the network range is correctly specified in the .env file
+- Ensure the application has access to the target network
+- Check that nmap is installed in the Docker container
+- Check firewall settings that might block ICMP or TCP scanning
+- Note: Docker containers may have limited network scanning capabilities due to container isolation
+
+### Getting Help
+If you're experiencing issues not covered here, please:
+1. Check the logs using `./logs.sh`
+2. Open an issue in the GitHub repository with detailed information
+3. Include log output and system information in your report
 
 ## 🤝 Contributing
 

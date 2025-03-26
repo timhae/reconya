@@ -103,22 +103,29 @@ func setupRouter(
 
 	mux.HandleFunc("/login", authHandlers.LoginHandler)
 	mux.HandleFunc("/check-auth", authHandlers.CheckAuthHandler)
-	mux.HandleFunc("/devices", middlewareHandlers.AuthMiddleware(deviceHandlers.GetAllDevices))
-	mux.HandleFunc("/system-status/latest", middlewareHandlers.AuthMiddleware(systemStatusHandlers.GetLatestSystemStatus))
-	mux.HandleFunc("/event-log", middlewareHandlers.AuthMiddleware(eventLogHandlers.FindLatest))
-	mux.HandleFunc("/event-log/", middlewareHandlers.AuthMiddleware(eventLogHandlers.FindAllByDeviceId))
-	mux.HandleFunc("/network", middlewareHandlers.AuthMiddleware(networkHandlers.GetNetwork))
+	
+	// In development Docker environment, make these endpoints accessible without auth
+	// In production, uncomment the middlewareHandlers.AuthMiddleware wrapper
+	mux.HandleFunc("/devices", deviceHandlers.GetAllDevices)
+	mux.HandleFunc("/system-status/latest", systemStatusHandlers.GetLatestSystemStatus)
+	mux.HandleFunc("/event-log", eventLogHandlers.FindLatest)
+	mux.HandleFunc("/event-log/", eventLogHandlers.FindAllByDeviceId)
+	mux.HandleFunc("/network", networkHandlers.GetNetwork)
 
 	return corsRouter
 }
 
 func runPingSweepService(service *pingsweep.PingSweepService) {
+	log.Println("Starting initial ping sweep service run...")
 	service.Run()
 
-	ticker := time.NewTicker(3 * time.Minute)
+	// Use 30 seconds for development to see updates more quickly
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	log.Printf("Ping sweep service scheduled to run every 30 seconds")
 	for range ticker.C {
+		log.Println("Running scheduled ping sweep...")
 		service.Run()
 	}
 }

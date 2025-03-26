@@ -23,12 +23,14 @@ const logger = {
 
 // Create axios instance with configuration from environment variables
 const axiosInstance = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3008',
+  // No baseURL when using nginx reverse proxy - use relative paths
+  baseURL: '',
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '30000', 10),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  withCredentials: false, // Disable credentials for CORS
 });
 
 // Request interceptor - adds auth token and logs requests

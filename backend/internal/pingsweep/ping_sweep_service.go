@@ -72,7 +72,8 @@ func (s *PingSweepService) Run() {
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
 	log.Printf("Executing nmap command on network: %s", network)
-	cmd := exec.Command("sudo", "/usr/bin/nmap", "-sn", "--send-ip", "-T4", network)
+	// In Docker, we don't need sudo and nmap might be in a different location
+	cmd := exec.Command("nmap", "-sn", "--send-ip", "-T4", network)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("nmap command failed: %s\n", string(output))

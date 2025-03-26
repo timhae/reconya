@@ -11,15 +11,22 @@ const POLL_INTERVAL = parseInt(process.env.REACT_APP_POLL_INTERVAL || '3000', 10
  */
 const useEventLogs = () => {
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Use callback to avoid recreating this function on every render
   const fetchLogs = useCallback(async () => {
+    setIsLoading(true);
     try {
       const logs = await fetchEventLogs();
       logger.debug(`Fetched ${logs.length} event logs`);
       setEventLogs(logs);
-    } catch (error) {
+      setError(null);
+    } catch (error: any) {
       logger.error("Error fetching event logs:", error);
+      setError(error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -39,7 +46,7 @@ const useEventLogs = () => {
     };
   }, [fetchLogs]);
 
-  return eventLogs;
+  return { eventLogs, isLoading, error };
 };
 
 export default useEventLogs;
