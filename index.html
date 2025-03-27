@@ -7,7 +7,7 @@
     <meta name="description" content="A powerful network reconnaissance and asset discovery tool built with Go and React">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #0f7f00;
@@ -19,13 +19,16 @@
             --muted-text: #b0b0b0;
         }
         body {
-            font-family: 'Orbitron', sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: var(--background-color);
             color: var(--text-color);
             line-height: 1.6;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
             overflow-x: hidden;
             position: relative;
+        }
+        h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link, .btn, .section-title {
+            font-family: 'Orbitron', sans-serif;
         }
         .navbar {
             background-color: rgba(0, 0, 0, 0.9) !important;
@@ -47,11 +50,12 @@
         }
         .hero {
             min-height: 100vh;
-            background-color: var(--background-color);
+            background-color: transparent;
             color: white;
             padding: 8rem 0;
             position: relative;
             overflow: hidden;
+            z-index: 5;
         }
         .hero h1 {
             font-size: 3.5rem;
@@ -62,10 +66,13 @@
             text-shadow: 0 0 10px rgba(15, 127, 0, 0.5);
         }
         .hero p {
-            letter-spacing: 0.5px;
+            letter-spacing: 0.2px;
             color: var(--muted-text);
             font-size: 1.2rem;
-            font-weight: 300;
+            font-weight: 400;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .feature-icon {
             font-size: 2.5rem;
@@ -79,6 +86,8 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             margin-bottom: 2rem;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            font-weight: 300;
+            line-height: 1.6;
         }
         .card:hover {
             transform: translateY(-5px);
@@ -190,6 +199,24 @@
         #particles-js {
             position: absolute;
             width: 100%;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            opacity: 1;
+            overflow: hidden;
+        }
+        
+        .hero-section {
+            position: relative;
+            overflow: hidden;
+            min-height: 100vh;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        
+        .hero-particles {
+            position: absolute;
+            width: 100%;
             height: 100%;
             top: 0;
             left: 0;
@@ -198,6 +225,9 @@
         .content-wrapper {
             position: relative;
             z-index: 2;
+        }
+        .hero h1 {
+            text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
         }
         
         /* Dark Section */
@@ -228,13 +258,13 @@
             h3, .h3, h4, .h4, h5, .h5 {
                 letter-spacing: 1px;
             }
+            .hero-particles {
+                opacity: 0.9;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Particles Background -->
-    <div id="particles-js"></div>
-    
     <div class="content-wrapper">
         <!-- Navigation -->
         <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
@@ -267,18 +297,21 @@
             </div>
         </nav>
 
-        <!-- Hero Section -->
-        <section class="hero d-flex align-items-center">
-            <div class="container text-center">
-                <h1>Reconya AI</h1>
-                <p class="lead mb-5 col-md-10 mx-auto">
-                    A powerful network reconnaissance and asset discovery tool built with Go and React, designed to help map and monitor network devices with precision and elegance.
-                </p>
-                <div>
-                    <a href="#installation" class="btn btn-primary btn-lg px-4 me-md-2">Get Started</a>
-                    <a href="#features" class="btn btn-outline-primary btn-lg px-4">Learn More</a>
+        <!-- Hero Section with Particles -->
+        <section class="hero-section">
+            <div id="particles-js" class="hero-particles"></div>
+            <section class="hero d-flex align-items-center">
+                <div class="container text-center">
+                    <h1>Reconya AI</h1>
+                    <p class="lead mb-5 col-md-10 mx-auto">
+                        A powerful network reconnaissance and asset discovery tool built with Go and React, designed to help map and monitor network devices with precision and elegance.
+                    </p>
+                    <div>
+                        <a href="#installation" class="btn btn-primary btn-lg px-4 me-md-2">Get Started</a>
+                        <a href="#features" class="btn btn-outline-primary btn-lg px-4">Learn More</a>
+                    </div>
                 </div>
-            </div>
+            </section>
         </section>
 
         <!-- Screenshot Section -->
@@ -606,7 +639,7 @@
         particlesJS("particles-js", {
             "particles": {
                 "number": {
-                    "value": 80,
+                    "value": 150,
                     "density": {
                         "enable": true,
                         "value_area": 800
@@ -626,22 +659,22 @@
                     }
                 },
                 "opacity": {
-                    "value": 0.5,
-                    "random": false,
+                    "value": 0.9,
+                    "random": true,
                     "anim": {
-                        "enable": false,
+                        "enable": true,
                         "speed": 1,
-                        "opacity_min": 0.1,
+                        "opacity_min": 0.5,
                         "sync": false
                     }
                 },
                 "size": {
-                    "value": 3,
+                    "value": 5,
                     "random": true,
                     "anim": {
-                        "enable": false,
-                        "speed": 40,
-                        "size_min": 0.1,
+                        "enable": true,
+                        "speed": 6,
+                        "size_min": 0.3,
                         "sync": false
                     }
                 },
@@ -649,19 +682,19 @@
                     "enable": true,
                     "distance": 150,
                     "color": "#0f7f00",
-                    "opacity": 0.4,
-                    "width": 1
+                    "opacity": 0.7,
+                    "width": 1.5
                 },
                 "move": {
                     "enable": true,
                     "speed": 2,
                     "direction": "none",
-                    "random": false,
+                    "random": true,
                     "straight": false,
                     "out_mode": "out",
                     "bounce": false,
                     "attract": {
-                        "enable": false,
+                        "enable": true,
                         "rotateX": 600,
                         "rotateY": 1200
                     }
