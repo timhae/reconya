@@ -136,10 +136,6 @@ For development purposes:
 
 ## 📝 Usage
 
-<div align="center">
-  <img src="screenshots/event-logs.png" alt="Event Logs" width="80%">
-</div>
-
 1. 🔑 Log in with credentials configured in your `.env` file
 2. 🌐 Configure network range to scan in the settings
 3. 🔍 Run discovery to find devices on your network
