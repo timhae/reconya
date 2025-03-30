@@ -32,7 +32,7 @@ The easiest way to get started is using our setup script:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/reconya-ai-go.git
+   git clone https://github.com/Dyneteq/reconya-ai-go.git
    cd reconya-ai-go
    ```
 
