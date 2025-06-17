@@ -58,15 +58,28 @@ func TestDeviceHandlers_Integration(t *testing.T) {
 	})
 
 	t.Run("GetAllDevices_WithData", func(t *testing.T) {
-		// Create test devices
+		// First create a network for the test CIDR
+		testNetwork := &models.Network{
+			ID:   testutils.CreateTestNetwork().ID,
+			CIDR: "192.168.1.0/24",
+		}
+		savedNetwork, err := networkRepo.CreateOrUpdate(ctx, testNetwork)
+		require.NoError(t, err)
+
+		// Create test devices with network association
 		testDevices := []*models.Device{
 			createTestDevice("192.168.1.200", "HTTP Test Device 1"),
 			createTestDevice("192.168.1.201", "HTTP Test Device 2"),
 		}
 
+		// Set network ID for all devices
+		for _, dev := range testDevices {
+			dev.NetworkID = savedNetwork.ID
+		}
+
 		// Save devices to database
 		for _, dev := range testDevices {
-			_, err := deviceRepo.CreateOrUpdate(ctx, dev)
+			_, err = deviceRepo.CreateOrUpdate(ctx, dev)
 			require.NoError(t, err)
 		}
 
@@ -77,7 +90,7 @@ func TestDeviceHandlers_Integration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		var devices []models.Device
-		err := json.NewDecoder(resp.Body).Decode(&devices)
+		err = json.NewDecoder(resp.Body).Decode(&devices)
 		require.NoError(t, err)
 		
 		// Should return our test devices
