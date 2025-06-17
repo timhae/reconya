@@ -3,6 +3,8 @@ package device
 import (
 	"bytes"
 	"context"
+	"encoding/xml"
+	"fmt"
 	"log"
 	"net"
 	"reconya-ai/db"
@@ -54,9 +56,17 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		device.Status = models.DeviceStatusOnline
 	}
 
-	// If the device doesn't have a name, use the IP address
+	// Set a meaningful device name
 	if device.Name == "" {
-		device.Name = device.IPv4
+		if device.Hostname != nil && *device.Hostname != "" {
+			device.Name = *device.Hostname
+		} else if device.Vendor != nil && *device.Vendor != "" {
+			// Create a name based on vendor and IP
+			device.Name = fmt.Sprintf("%s Device (%s)", *device.Vendor, device.IPv4)
+		} else {
+			// Fallback to IP address
+			device.Name = device.IPv4
+		}
 	}
 
 	// Use DB manager to serialize database access
@@ -118,6 +128,69 @@ func (s *DeviceService) ParseFromNmap(bufferStream string) []models.Device {
 	}
 
 	log.Printf("Finished parsing Nmap output. Total devices found: %d", len(devices))
+	return devices
+}
+
+func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
+	log.Println("Starting Nmap XML parse")
+	var devices []models.Device
+	var nmapXML models.NmapXML
+	
+	err := xml.Unmarshal([]byte(xmlOutput), &nmapXML)
+	if err != nil {
+		log.Printf("Error parsing Nmap XML output: %v", err)
+		// Fallback to text parsing
+		return s.ParseFromNmap(xmlOutput)
+	}
+
+	for _, host := range nmapXML.Hosts {
+		device := models.Device{}
+		var macAddress, vendor string
+		
+		// Extract IP address, MAC address, and vendor info
+		for _, address := range host.Addresses {
+			if address.AddrType == "ipv4" {
+				device.IPv4 = address.Addr
+			} else if address.AddrType == "mac" {
+				macAddress = address.Addr
+				vendor = address.Vendor
+			}
+		}
+		
+		// Skip if no IP address found
+		if device.IPv4 == "" {
+			continue
+		}
+		
+		// Set MAC address if found
+		if macAddress != "" {
+			device.MAC = &macAddress
+			log.Printf("Found MAC Address: %s for IP: %s", macAddress, device.IPv4)
+		}
+		
+		// Set vendor info if found
+		if vendor != "" {
+			device.Vendor = &vendor
+			log.Printf("Found Vendor: %s for IP: %s", vendor, device.IPv4)
+		}
+		
+		// Extract hostname if available
+		if len(host.Hostnames) > 0 && host.Hostnames[0].Name != "" {
+			hostname := host.Hostnames[0].Name
+			device.Hostname = &hostname
+			log.Printf("Found Hostname: %s for IP: %s", hostname, device.IPv4)
+		}
+		
+		log.Printf("Found device - IP: %s, MAC: %v, Vendor: %v, Hostname: %v", 
+			device.IPv4, 
+			func() string { if device.MAC != nil { return *device.MAC } else { return "<nil>" } }(),
+			func() string { if device.Vendor != nil { return *device.Vendor } else { return "<nil>" } }(),
+			func() string { if device.Hostname != nil { return *device.Hostname } else { return "<nil>" } }())
+		
+		devices = append(devices, device)
+	}
+
+	log.Printf("Finished parsing Nmap XML output. Total devices found: %d", len(devices))
 	return devices
 }
 
@@ -233,6 +306,105 @@ func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) 
 
 	sortDevicesByIP(deviceValues)
 	return deviceValues, nil
+}
+
+// FindOnlineDevicesForNetwork returns only devices that have been actually discovered online
+func (s *DeviceService) FindOnlineDevicesForNetwork(cidr string) ([]models.Device, error) {
+	network, err := s.networkService.FindByCIDR(cidr)
+	if err != nil {
+		return nil, err
+	}
+
+	if network == nil {
+		return []models.Device{}, nil
+	}
+	
+	// Get all devices first
+	ctx := context.Background()
+	allDevices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var deviceValues []models.Device
+
+	// Filter devices by network ID AND only include devices that have been seen online
+	for _, d := range allDevices {
+		// Skip devices that have never been seen online
+		if d.LastSeenOnlineAt == nil {
+			continue
+		}
+
+		// Skip offline devices - only show online and idle devices
+		if d.Status == models.DeviceStatusOffline {
+			continue
+		}
+
+		// Skip network and broadcast addresses
+		if s.isNetworkOrBroadcastAddress(d.IPv4, cidr) {
+			continue
+		}
+
+		// Check network membership
+		shouldInclude := false
+		if d.NetworkID != "" && network.ID != "" && d.NetworkID == network.ID {
+			shouldInclude = true
+		} else if d.NetworkID == "" && network.ID != "" {
+			// If device has no network ID but belongs to the current network
+			d.NetworkID = network.ID
+			
+			// Use retry logic for updating the device
+			_, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
+				return s.repository.CreateOrUpdate(context.Background(), d)
+			})
+			
+			if err != nil {
+				log.Printf("Error updating device network ID: %v", err)
+			}
+			shouldInclude = true
+		}
+
+		if shouldInclude {
+			deviceValues = append(deviceValues, *d)
+		}
+	}
+
+	sortDevicesByIP(deviceValues)
+	log.Printf("Filtered to %d active devices (online/idle)", len(deviceValues))
+	return deviceValues, nil
+}
+
+// isNetworkOrBroadcastAddress checks if an IP is a network or broadcast address
+func (s *DeviceService) isNetworkOrBroadcastAddress(ipStr, cidrStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return true // Invalid IP, exclude it
+	}
+
+	_, network, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return false // Can't parse CIDR, include the IP
+	}
+
+	// Check if it's the network address
+	if ip.Equal(network.IP) {
+		return true
+	}
+
+	// Check if it's the broadcast address
+	// For IPv4, calculate the broadcast address
+	if ip.To4() != nil {
+		mask := network.Mask
+		broadcast := make(net.IP, len(network.IP))
+		for i := range network.IP {
+			broadcast[i] = network.IP[i] | ^mask[i]
+		}
+		if ip.Equal(broadcast) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *DeviceService) UpdateDeviceStatuses() error {

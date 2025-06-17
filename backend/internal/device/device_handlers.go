@@ -39,7 +39,8 @@ func (h *DeviceHandlers) CreateDevice(w http.ResponseWriter, r *http.Request) {
 func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
 	devices := []models.Device{}
 	log.Printf("CIDR: %s", h.Config.NetworkCIDR)
-	foundDevices, err := h.Service.FindAllForNetwork(h.Config.NetworkCIDR)
+	// Only return devices that have been actually discovered online
+	foundDevices, err := h.Service.FindOnlineDevicesForNetwork(h.Config.NetworkCIDR)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -49,6 +50,7 @@ func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
 		devices = foundDevices
 	}
 
+	log.Printf("Returning %d active devices (online/idle)", len(devices))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(devices)
 }

@@ -12,11 +12,12 @@ Reconya AI Go helps users discover, identify, and monitor devices on their netwo
 
 ### ✨ Key Features
 
-- 🔎 **Advanced Network Scanning** - Comprehensive port scanning and ping sweeping
-- 🧩 **Device Identification** - Accurate identification and classification of network devices
+- 🔎 **Advanced Network Scanning** - Comprehensive port scanning and ping sweeping with nmap integration
+- 🧩 **Enhanced Device Identification** - MAC addresses, vendor detection, and hostname resolution
 - 🕸️ **Network Visualization** - Clear and interactive network topology mapping
 - 📊 **Event Monitoring** - Real-time logging and monitoring of network events
 - 🖥️ **Modern Dashboard** - Sleek, responsive web interface for all devices
+- 🔍 **Deep Device Fingerprinting** - Hardware vendor identification and network interface details
 
 ## 🚀 Installation
 
@@ -100,10 +101,41 @@ For development purposes:
    ```
    Edit `.env` with your configuration.
 
-2. Install dependencies and run:
+2. Install dependencies:
    ```bash
    cd backend
    go mod download
+   ```
+
+3. **Enhanced Network Scanning Setup** (Required for MAC addresses and vendor detection):
+
+   Install nmap:
+   ```bash
+   # macOS (using Homebrew)
+   brew install nmap
+   
+   # Ubuntu/Debian
+   sudo apt-get install nmap
+   
+   # CentOS/RHEL
+   sudo yum install nmap
+   ```
+
+   Configure nmap for enhanced device detection:
+   ```bash
+   # Allow nmap to run with elevated privileges for MAC address detection
+   echo "$(whoami) ALL=(ALL) NOPASSWD: $(which nmap)" | sudo tee /etc/sudoers.d/reconya-nmap
+   sudo chmod 440 /etc/sudoers.d/reconya-nmap
+   
+   # Set nmap to run with setuid (alternative approach for better performance)
+   sudo chown root:admin $(which nmap)
+   sudo chmod u+s $(which nmap)
+   ```
+
+   **Note**: These commands enable nmap to capture MAC addresses and vendor information from network devices. Without elevated privileges, you'll only see IP addresses and hostnames.
+
+4. Run the backend:
+   ```bash
    go run cmd/main.go
    ```
 
@@ -207,9 +239,17 @@ The application uses SQLite for its database, offering several advantages:
 #### Network Scanning Not Working
 - Verify the network range is correctly specified in the .env file
 - Ensure the application has access to the target network
-- Check that nmap is installed in the Docker container
+- Check that nmap is installed and properly configured
 - Check firewall settings that might block ICMP or TCP scanning
 - Note: Docker containers may have limited network scanning capabilities due to container isolation
+
+#### Missing MAC Addresses or Vendor Information
+- Ensure nmap is installed: `which nmap`
+- Verify nmap has elevated privileges (see Enhanced Network Scanning Setup above)
+- Check that the setuid bit is set: `ls -la $(which nmap)` (should show 's' in permissions)
+- Run a test scan: `nmap -sn -T4 -R -oX - 192.168.1.1` (should show XML output with address elements)
+- MAC addresses are only visible for devices on the same network segment
+- Some devices may not respond to ping scans or may hide their MAC addresses
 
 ### Getting Help
 If you're experiencing issues not covered here, please:

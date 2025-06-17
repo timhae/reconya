@@ -33,12 +33,15 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Load environment variables
+source .env
+
 # Start the application
 echo -e "${YELLOW}Starting containers...${NC}"
 $COMPOSE_CMD up -d
 
 echo -e "\n${GREEN}RecoNya AI is now running!${NC}"
-echo -e "Access the application at: ${YELLOW}http://localhost:3001${NC}"
+echo -e "Access the application at: ${YELLOW}http://localhost:${FRONTEND_PORT:-3001}${NC}"
 echo -e "API is available at: ${YELLOW}http://localhost:3008${NC}"
 echo
 echo -e "To view logs, run: ${YELLOW}./logs.sh${NC}"

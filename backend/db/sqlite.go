@@ -89,6 +89,24 @@ func InitializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create devices table: %w", err)
 	}
 
+	// Create unique index on ipv4 to prevent duplicate IP addresses
+	_, err = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_ipv4 ON devices(ipv4)`)
+	if err != nil {
+		return fmt.Errorf("failed to create unique index on devices.ipv4: %w", err)
+	}
+
+	// Create index on MAC address for faster lookups
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_mac ON devices(mac)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on devices.mac: %w", err)
+	}
+
+	// Create index on network_id for faster network queries
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_network_id ON devices(network_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on devices.network_id: %w", err)
+	}
+
 	// Create ports table
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS ports (

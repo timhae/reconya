@@ -234,22 +234,60 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 	defer tx.Rollback()
 
 	now := time.Now()
-	if device.ID == "" {
-		device.ID = GenerateID()
-		device.CreatedAt = now
-	}
 	device.UpdatedAt = now
 
 	// Convert strings to *string
 	networkIDPtr := stringToPtr(device.NetworkID)
 
-	var exists bool
-	err = tx.QueryRowContext(ctx, "SELECT 1 FROM devices WHERE id = ?", device.ID).Scan(&exists)
+	// Check if a device with this IP address already exists
+	var existingID string
+	err = tx.QueryRowContext(ctx, "SELECT id FROM devices WHERE ipv4 = ?", device.IPv4).Scan(&existingID)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, fmt.Errorf("error checking if device exists: %w", err)
+		return nil, fmt.Errorf("error checking if device with IP exists: %w", err)
 	}
 
-	if !exists {
+	deviceExists := err != sql.ErrNoRows
+
+	if deviceExists {
+		// Update existing device with the same IP address
+		device.ID = existingID
+		
+		// Get the existing created_at timestamp
+		var createdAt time.Time
+		err = tx.QueryRowContext(ctx, "SELECT created_at FROM devices WHERE id = ?", device.ID).Scan(&createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("error getting existing created_at: %w", err)
+		}
+		device.CreatedAt = createdAt
+
+		query := `
+		UPDATE devices SET name = ?, mac = ?, vendor = ?, status = ?, network_id = ?,
+			hostname = ?, updated_at = ?, last_seen_online_at = ?, port_scan_started_at = ?, port_scan_ended_at = ?
+		WHERE id = ?`
+
+		_, err = tx.ExecContext(ctx, query,
+			device.Name, nullableString(device.MAC), nullableString(device.Vendor),
+			device.Status, networkIDPtr, nullableString(device.Hostname),
+			device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
+			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt),
+			device.ID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error updating device: %w", err)
+		}
+
+		// Delete existing ports for this device
+		_, err = tx.ExecContext(ctx, "DELETE FROM ports WHERE device_id = ?", device.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error deleting device ports: %w", err)
+		}
+	} else {
+		// Create new device
+		if device.ID == "" {
+			device.ID = GenerateID()
+		}
+		device.CreatedAt = now
+
 		query := `
 		INSERT INTO devices (id, name, ipv4, mac, vendor, status, network_id, hostname,
 			created_at, updated_at, last_seen_online_at, port_scan_started_at, port_scan_ended_at)
@@ -263,27 +301,6 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error inserting device: %w", err)
-		}
-	} else {
-		query := `
-		UPDATE devices SET name = ?, ipv4 = ?, mac = ?, vendor = ?, status = ?, network_id = ?,
-			hostname = ?, updated_at = ?, last_seen_online_at = ?, port_scan_started_at = ?, port_scan_ended_at = ?
-		WHERE id = ?`
-
-		_, err = tx.ExecContext(ctx, query,
-			device.Name, device.IPv4, nullableString(device.MAC), nullableString(device.Vendor),
-			device.Status, networkIDPtr, nullableString(device.Hostname),
-			device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
-			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt),
-			device.ID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error updating device: %w", err)
-		}
-
-		_, err = tx.ExecContext(ctx, "DELETE FROM ports WHERE device_id = ?", device.ID)
-		if err != nil {
-			return nil, fmt.Errorf("error deleting device ports: %w", err)
 		}
 	}
 
