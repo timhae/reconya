@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -17,17 +18,40 @@ func ConnectToSQLite(dbPath string) (*sql.DB, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory for SQLite: %w", err)
 	}
-
-	db, err := sql.Open("sqlite3", dbPath)
+	// Open connection with extended query string parameters for better concurrency
+	dsn := fmt.Sprintf("%s?_journal=WAL&_timeout=30000&_busy_timeout=30000", dbPath)
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
+	}
+
+	// Set connection pool size - important for handling concurrent requests
+	db.SetMaxOpenConns(15)                  // Allow up to 10 concurrent connections
+	db.SetMaxIdleConns(10)                  // Keep up to 5 idle connections
+	db.SetConnMaxLifetime(30 * time.Minute) // Recycle connections after 30 minutes
+
+	// Set PRAGMA statements for better concurrent access
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL",
+		"PRAGMA busy_timeout=30000", // Increased to 30 seconds
+		"PRAGMA synchronous=NORMAL",
+		"PRAGMA cache_size=10000", // Increased cache size
+		"PRAGMA foreign_keys=ON",
+		"PRAGMA temp_store=MEMORY",   // Use memory for temp storage
+		"PRAGMA mmap_size=268435456", // Use memory mapping (256MB)
+	}
+
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			return nil, fmt.Errorf("failed to set %s: %w", pragma, err)
+		}
 	}
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping SQLite database: %w", err)
 	}
 
-	log.Println("Connected to SQLite database")
+	log.Println("Connected to SQLite database with optimized settings for concurrency")
 	return db, nil
 }
 

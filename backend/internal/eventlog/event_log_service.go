@@ -6,6 +6,7 @@ import (
 	"log"
 	"reconya-ai/db"
 	"reconya-ai/internal/device"
+	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"time"
 )
@@ -13,12 +14,14 @@ import (
 type EventLogService struct {
 	repository    db.EventLogRepository
 	DeviceService *device.DeviceService
+	dbManager     *db.DBManager
 }
 
-func NewEventLogService(repository db.EventLogRepository, deviceService *device.DeviceService) *EventLogService {
+func NewEventLogService(repository db.EventLogRepository, deviceService *device.DeviceService, dbManager *db.DBManager) *EventLogService {
 	return &EventLogService{
 		repository:    repository,
 		DeviceService: deviceService,
+		dbManager:     dbManager,
 	}
 }
 
@@ -101,5 +104,6 @@ func (s *EventLogService) CreateOne(eventLog *models.EventLog) error {
 	eventLog.CreatedAt = &now
 	eventLog.UpdatedAt = &now
 
-	return s.repository.Create(context.Background(), eventLog)
+	// Use DB manager to serialize database access
+	return s.dbManager.CreateEventLog(s.repository, context.Background(), eventLog)
 }

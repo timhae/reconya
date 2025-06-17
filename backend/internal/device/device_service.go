@@ -8,23 +8,25 @@ import (
 	"reconya-ai/db"
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/network"
+	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"sort"
 	"strings"
 	"time"
 )
-
 type DeviceService struct {
 	Config         *config.Config
 	repository     db.DeviceRepository
 	networkService *network.NetworkService
+	dbManager      *db.DBManager
 }
 
-func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config) *DeviceService {
+func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config, dbManager *db.DBManager) *DeviceService {
 	return &DeviceService{
 		Config:         cfg,
 		repository:     deviceRepo,
 		networkService: networkService,
+		dbManager:      dbManager,
 	}
 }
 
@@ -57,8 +59,8 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		device.Name = device.IPv4
 	}
 
-	// Save the device
-	return s.repository.CreateOrUpdate(context.Background(), device)
+	// Use DB manager to serialize database access
+	return s.dbManager.CreateOrUpdateDevice(s.repository, context.Background(), device)
 }
 
 func (s *DeviceService) setTimestamps(device, existingDevice *models.Device, currentTime time.Time) {
@@ -213,7 +215,12 @@ func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) 
 			// The device might be in this network but the ID wasn't saved
 			// This is a workaround for existing data
 			d.NetworkID = network.ID
-			_, err := s.repository.CreateOrUpdate(context.Background(), d)
+			
+			// Use retry logic for updating the device
+			_, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
+				return s.repository.CreateOrUpdate(context.Background(), d)
+			})
+			
 			if err != nil {
 				log.Printf("Error updating device network ID: %v", err)
 			} else {
@@ -232,6 +239,6 @@ func (s *DeviceService) UpdateDeviceStatuses() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Let the repository handle the device status update logic
-	return s.repository.UpdateDeviceStatuses(ctx, 7*time.Minute)
+	// Use DB manager to serialize database access
+	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 7*time.Minute)
 }

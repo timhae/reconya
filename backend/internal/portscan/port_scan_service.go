@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
+	"reconya-ai/internal/util"
 	"reconya-ai/models"
 )
 
@@ -24,10 +25,18 @@ func NewPortScanService(deviceService *device.DeviceService, eventLogService *ev
 func (s *PortScanService) Run(requestedDevice models.Device) {
 	deviceIDStr := requestedDevice.ID
 	log.Printf("Starting port scan for IP [%s]", requestedDevice.IPv4)
-	s.EventLogService.CreateOne(&models.EventLog{
-		Type:     models.PortScanStarted,
-		DeviceID: &deviceIDStr,
+	
+	// Use retry logic for creating event log
+	err := util.RetryOnLock(func() error {
+		return s.EventLogService.CreateOne(&models.EventLog{
+			Type:     models.PortScanStarted,
+			DeviceID: &deviceIDStr,
+		})
 	})
+	
+	if err != nil {
+		log.Printf("Error creating port scan started event log: %v", err)
+	}
 
 	device, err := s.DeviceService.FindByIPv4(requestedDevice.IPv4)
 	if err != nil {
@@ -35,7 +44,7 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 		return
 	}
 
-	if device.IPv4 == "" {
+	if device == nil || device.IPv4 == "" {
 		log.Printf("No device found for IP: %s", device.IPv4)
 		return
 	}
@@ -53,18 +62,28 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 	if hostname != "" {
 		device.Hostname = &hostname
 	}
-
-	_, err = s.DeviceService.CreateOrUpdate(device)
+	// Use retry logic for saving device with updated ports
+	_, err = util.RetryOnLockWithResult(func() (*models.Device, error) {
+		return s.DeviceService.CreateOrUpdate(device)
+	})
+	
 	if err != nil {
 		log.Printf("Error saving device with updated ports: %v", err)
 		return
 	}
-
 	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", device.IPv4, ports, vendor)
-	s.EventLogService.CreateOne(&models.EventLog{
-		Type:     models.PortScanCompleted,
-		DeviceID: &deviceIDStr,
+	
+	// Use retry logic for creating event log
+	err = util.RetryOnLock(func() error {
+		return s.EventLogService.CreateOne(&models.EventLog{
+			Type:     models.PortScanCompleted,
+			DeviceID: &deviceIDStr,
+		})
 	})
+	
+	if err != nil {
+		log.Printf("Error creating port scan completed event log: %v", err)
+	}
 }
 
 func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, string, error) {

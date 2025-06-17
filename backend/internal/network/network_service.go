@@ -10,22 +10,20 @@ import (
 type NetworkService struct {
 	Config     *config.Config
 	Repository db.NetworkRepository
+	dbManager  *db.DBManager
 }
 
-func NewNetworkService(networkRepo db.NetworkRepository, cfg *config.Config) *NetworkService {
+func NewNetworkService(networkRepo db.NetworkRepository, cfg *config.Config, dbManager *db.DBManager) *NetworkService {
 	return &NetworkService{
 		Config:     cfg,
 		Repository: networkRepo,
+		dbManager:  dbManager,
 	}
 }
 
 func (s *NetworkService) Create(cidr string) (*models.Network, error) {
 	network := &models.Network{CIDR: cidr}
-	network, err := s.Repository.CreateOrUpdate(context.Background(), network)
-	if err != nil {
-		return nil, err
-	}
-	return network, nil
+	return s.dbManager.CreateOrUpdateNetwork(s.Repository, context.Background(), network)
 }
 
 func (s *NetworkService) FindOrCreate(cidr string) (*models.Network, error) {

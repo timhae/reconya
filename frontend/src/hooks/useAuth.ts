@@ -1,4 +1,5 @@
 // src/hooks/useAuth.ts
+import { API_BASE_URL } from '../config';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,7 +16,7 @@ const useAuth = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3008/check-auth', {
+      const response = await fetch(`${API_BASE_URL}/check-auth`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
