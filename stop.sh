@@ -7,7 +7,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Stopping RecoNya AI...${NC}"
+echo -e "${YELLOW}Stopping RecoNya...${NC}"
 
 # Check for docker compose v2 or docker-compose
 if command -v docker compose &> /dev/null; then
@@ -22,5 +22,5 @@ fi
 # Stop the application
 $COMPOSE_CMD down
 
-echo -e "${GREEN}RecoNya AI has been stopped.${NC}"
+echo -e "${GREEN}RecoNya has been stopped.${NC}"
 echo -e "To start it again, run: ${YELLOW}./start.sh${NC}"

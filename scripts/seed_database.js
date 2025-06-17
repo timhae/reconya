@@ -1,4 +1,4 @@
-// MongoDB seed script for Reconya AI Go
+// MongoDB seed script for Reconya Go
 // Run with: mongo mongodb://localhost:27017/reconya-dev seed_database.js
 
 // Clear existing collections

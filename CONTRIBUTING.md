@@ -1,6 +1,6 @@
-# Contributing to Reconya AI Go
+# Contributing to Reconya Go
 
-Thank you for your interest in contributing to Reconya AI Go! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Reconya! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -53,4 +53,4 @@ Follow the installation instructions in the README.md file.
 
 If you have questions about contributing, please open an issue in the repository.
 
-Thank you for contributing to Reconya AI Go!
+Thank you for contributing to Reconya!

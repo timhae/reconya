@@ -49,6 +49,6 @@ if [[ -n $SERVICE ]]; then
 fi
 
 # Display logs
-echo -e "${YELLOW}Displaying logs for RecoNya AI...${NC}"
+echo -e "${YELLOW}Displaying logs for Reconya...${NC}"
 echo -e "Press Ctrl+C to exit if following logs\n"
 eval $CMD

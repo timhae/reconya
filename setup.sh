@@ -7,8 +7,8 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}RecoNya AI Setup Script${NC}"
-echo "This script will help you set up RecoNya AI quickly."
+echo -e "${GREEN}RecoNya Setup Script${NC}"
+echo "This script will help you set up RecoNya quickly."
 
 # Check if docker and docker-compose are installed
 echo -e "\n${YELLOW}Checking dependencies...${NC}"
@@ -81,7 +81,7 @@ echo -e "\n${YELLOW}Building and starting containers...${NC}"
 $COMPOSE_CMD up -d --build
 
 echo -e "\n${GREEN}Setup complete!${NC}"
-echo -e "RecoNya AI is now running at: ${YELLOW}http://localhost:3001${NC}"
+echo -e "RecoNya is now running at: ${YELLOW}http://localhost:3001${NC}"
 echo -e "API is available at: ${YELLOW}http://localhost:3008${NC}"
 echo -e "Login with username: ${YELLOW}$USERNAME${NC} and the password you provided."
 echo

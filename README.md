@@ -1,4 +1,4 @@
-# Reconya AI 
+# Reconya
 
 A powerful network reconnaissance and asset discovery tool built with Go and React, designed to help map and monitor network devices with precision and elegance.
 
@@ -8,7 +8,7 @@ A powerful network reconnaissance and asset discovery tool built with Go and Rea
 
 ## 🌟 Overview
 
-Reconya AI Go helps users discover, identify, and monitor devices on their network with real-time updates and an intuitive interface. Our tool is perfect for network administrators, security professionals, and tech enthusiasts.
+Reconya helps users discover, identify, and monitor devices on their network with real-time updates and an intuitive interface. Our tool is perfect for network administrators, security professionals, and tech enthusiasts.
 
 ### ✨ Key Features
 
@@ -70,7 +70,7 @@ If you prefer to set things up manually:
 
 ### 🛠️ Helper Scripts
 
-We provide several convenient scripts to manage RecoNya AI:
+We provide several convenient scripts to manage Reconya:
 
 - `setup.sh` - Interactive setup script (recommended for first-time users)
 - `start.sh` - Start the application
