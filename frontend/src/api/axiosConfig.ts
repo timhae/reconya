@@ -3,6 +3,7 @@ import { Device } from '../models/device.model';
 import { SystemStatus } from '../models/systemStatus.model';
 import { EventLog } from '../models/eventLog.model';
 import { Network } from '../models/network.model';
+import { API_BASE_URL } from '../config';
 
 // Logger function
 const logger = {
@@ -23,8 +24,7 @@ const logger = {
 
 // Create axios instance with configuration from environment variables
 const axiosInstance = axios.create({
-  // No baseURL when using nginx reverse proxy - use relative paths
-  baseURL: '',
+  baseURL: API_BASE_URL,
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '30000', 10),
   headers: {
     'Content-Type': 'application/json',

@@ -6,7 +6,6 @@ import (
 	"log"
 	"reconya-ai/db"
 	"reconya-ai/internal/device"
-	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"time"
 )

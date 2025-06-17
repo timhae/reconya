@@ -11,13 +11,20 @@ export const getBackendUrl = (): string => {
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
 
+  console.log('Frontend hostname:', hostname);
+  console.log('Frontend protocol:', protocol);
+
   // If we're accessing from localhost, use localhost
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return `http://localhost:${BACKEND_PORT}`;
+    const url = `http://localhost:${BACKEND_PORT}`;
+    console.log('Using backend URL:', url);
+    return url;
   }
 
   // Otherwise, use the current hostname
-  return `${protocol}//${hostname}:${BACKEND_PORT}`;
+  const url = `${protocol}//${hostname}:${BACKEND_PORT}`;
+  console.log('Using backend URL:', url);
+  return url;
 };
 
 export const API_BASE_URL = getBackendUrl();

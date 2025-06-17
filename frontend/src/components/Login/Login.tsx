@@ -12,21 +12,35 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Clear previous errors
+    
+    try {
+      console.log('Attempting login to:', `${API_BASE_URL}/login`);
       const response = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem('token', data.token); // Store the token in local storage
-      setIsUserLoggedIn(true);
-      navigate('/');
-    } else {
-      setError('Invalid username or password');
+      console.log('Login response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Login successful, redirecting...');
+        localStorage.setItem('token', data.token);
+        setIsUserLoggedIn(true);
+        // Force page reload to reinitialize auth state
+        window.location.href = '/';
+      } else {
+        const errorData = await response.text();
+        console.error('Login failed:', response.status, errorData);
+        setError(`Login failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Network error during login:', error);
+      setError('Network error - cannot connect to server');
     }
   };
 

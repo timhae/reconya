@@ -11,6 +11,7 @@ import (
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/util"
 	"reconya-ai/models"
+	"time"
 )
 
 type PingSweepService struct {
