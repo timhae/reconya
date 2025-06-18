@@ -22,8 +22,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o reconya-api ./cmd/main.go
 # Runtime stage
 FROM alpine:latest
 
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata sqlite nmap
+# Install runtime dependencies including sudo for nmap
+RUN apk add --no-cache ca-certificates tzdata sqlite nmap sudo
 
 # Set working directory
 WORKDIR /app
