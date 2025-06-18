@@ -37,3 +37,19 @@ temp/
 
 # Database files
 backend/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Go binaries
+backend/main
+backend/reconya
+backend/reconya-api
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Editor backup files
+*~
+.#*
