@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"reconya-ai/db"
@@ -16,6 +17,7 @@ import (
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/nicidentifier"
+	"reconya-ai/internal/oui"
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/systemstatus"
@@ -60,6 +62,12 @@ func main() {
 		log.Fatalf("Failed to initialize database schema: %v", err)
 	}
 
+	// Reset port scan cooldowns for development
+	log.Println("Resetting port scan cooldowns for development...")
+	if err := db.ResetPortScanCooldowns(sqliteDB); err != nil {
+		log.Printf("Warning: Failed to reset port scan cooldowns: %v", err)
+	}
+
 	repoFactory = db.NewRepositoryFactory(sqliteDB, cfg.DatabaseName)
 
 	// Create repositories
@@ -71,9 +79,23 @@ func main() {
 	// Create database manager for concurrent access control
 	dbManager := db.NewDBManager()
 
+	// Initialize OUI service for MAC address vendor lookup
+	ouiDataPath := filepath.Join(filepath.Dir(cfg.SQLitePath), "oui")
+	ouiService := oui.NewOUIService(ouiDataPath)
+	log.Println("Initializing OUI service...")
+	if err := ouiService.Initialize(); err != nil {
+		log.Printf("Warning: Failed to initialize OUI service: %v", err)
+		log.Println("Continuing without OUI service - vendor lookup will rely on Nmap only")
+		ouiService = nil
+	} else {
+		stats := ouiService.GetStatistics()
+		log.Printf("OUI service initialized successfully - %v entries loaded, last updated: %v", 
+			stats["total_entries"], stats["last_updated"])
+	}
+
 	// Initialize services with repositories
 	networkService := network.NewNetworkService(networkRepo, cfg, dbManager)
-	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg, dbManager)
+	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg, dbManager, ouiService)
 	eventLogService := eventlog.NewEventLogService(eventLogRepo, deviceService, dbManager)
 	systemStatusService := systemstatus.NewSystemStatusService(systemStatusRepo)
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)

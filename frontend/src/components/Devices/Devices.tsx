@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircle } from '@fortawesome/free-solid-svg-icons';
+import { faGlobe, faShield, faShieldAlt, faExclamationTriangle, faCamera } from '@fortawesome/free-solid-svg-icons';
 import DeviceModal from '../DeviceModal/DeviceModal';
 import { Device } from '../../models/device.model';
 
@@ -19,6 +19,8 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
   const getDeviceHostname = (device: Device) => device.hostname || device.Hostname;
   const getDeviceStatus = (device: Device) => device.status || device.Status;
   const getDevicePorts = (device: Device) => device.ports || device.Ports || [];
+  const getDeviceWebServices = (device: Device) => device.web_services || device.WebServices || [];
+  const getDeviceType = (device: Device) => device.device_type || device.DeviceType;
 
   const hasOpenPorts = (device: Device) => {
     return getDevicePorts(device).some((port) => port.state === 'open');
@@ -26,6 +28,14 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
 
   const hasFilteredPorts = (device: Device) => {
     return getDevicePorts(device).some((port) => port.state === 'filtered');
+  };
+
+  const hasWebServices = (device: Device) => {
+    return getDeviceWebServices(device).length > 0;
+  };
+
+  const hasScreenshots = (device: Device) => {
+    return getDeviceWebServices(device).some(service => service.screenshot);
   };
 
   const getDeviceOpacity = (device: Device) => {
@@ -68,41 +78,74 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
           <button
             key={getDeviceID(device)}
             type="button"
-            className={`device-box-btn bg-very-dark d-block p-2 me-2 mb-2 w-20-fit text-decoration-none text-start ${ipv4 === localIpv4 ? 'text-primary' : 'text-success'} border-0`}
+            className={`device-box-btn bg-very-dark d-block p-2 me-2 mb-2 text-decoration-none text-start ${ipv4 === localIpv4 ? 'text-primary' : 'text-success'} border-0`}
             style={{
               minWidth: 205,
+              height: 120,
               opacity: getDeviceOpacity(device),
             }}
             onClick={() => setSelectedDevice(device)}
           >
-            <div className="d-flex justify-content-end align-items-center">
-              {hasOpenPorts(device) && (
-                <FontAwesomeIcon 
-                  icon={faCircle} 
-                  className="text-danger me-1" 
-                  style={{ fontSize: '0.4rem' }} 
-                />
-              )}
-              {hasFilteredPorts(device) && (
-                <FontAwesomeIcon 
-                  icon={faCircle} 
-                  className="text-warning" 
-                  style={{ fontSize: '0.4rem' }} 
-                />
-              )}
-              {!hasFilteredPorts(device) && !hasOpenPorts(device) && (
-                <FontAwesomeIcon 
-                  icon={faCircle} 
-                  className="text-success" 
-                  style={{ fontSize: '0.4rem' }}
-                />
-              )}
-            </div>
-            <div className="mt-3">
-              <span className="" style={{ fontSize: 24, fontWeight: 600 }}>{ipv4}</span><br />
-              <span>{mac}</span>
-              {hostname && <div><span className="f-xs">{hostname}</span></div>}
-              {ipv4 === localIpv4 && <div><span className="f-xs">This device</span></div>}
+            <div className="d-flex flex-column h-100">
+              <div className="d-flex justify-content-between align-items-start">
+                <div className="flex-grow-1">
+                  <span className="" style={{ fontSize: 24, fontWeight: 600 }}>{ipv4}</span><br />
+                  <span style={{ fontSize: '0.85rem' }}>{mac}</span>
+                  {hostname && <div><span className="f-xs">{hostname}</span></div>}
+                </div>
+                <div className="d-flex flex-column align-items-end" style={{ gap: '6px' }}>
+                  {hasWebServices(device) && (
+                    <FontAwesomeIcon 
+                      icon={faGlobe} 
+                      className="text-success" 
+                      style={{ fontSize: '0.7rem' }}
+                      title={`${getDeviceWebServices(device).length} web service(s) available`}
+                    />
+                  )}
+                  {hasScreenshots(device) && (
+                    <FontAwesomeIcon 
+                      icon={faCamera} 
+                      className="text-info" 
+                      style={{ fontSize: '0.7rem' }}
+                      title="Screenshots available"
+                    />
+                  )}
+                  {hasOpenPorts(device) && (
+                    <FontAwesomeIcon 
+                      icon={faExclamationTriangle} 
+                      className="text-danger" 
+                      style={{ fontSize: '0.7rem' }}
+                      title="Open ports detected"
+                    />
+                  )}
+                  {hasFilteredPorts(device) && !hasOpenPorts(device) && (
+                    <FontAwesomeIcon 
+                      icon={faShieldAlt} 
+                      className="text-warning" 
+                      style={{ fontSize: '0.7rem' }}
+                      title="Filtered ports detected"
+                    />
+                  )}
+                  {!hasFilteredPorts(device) && !hasOpenPorts(device) && (
+                    <FontAwesomeIcon 
+                      icon={faShield} 
+                      className="text-success" 
+                      style={{ fontSize: '0.7rem' }}
+                      title="No open ports - secure"
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="mt-auto">
+                {getDeviceType(device) && (
+                  <div className="mb-1">
+                    <span className="badge bg-dark border border-success text-success" style={{ fontSize: '0.6rem' }}>
+                      {getDeviceType(device)?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                {ipv4 === localIpv4 && <div><span className="f-xs">This device</span></div>}
+              </div>
             </div>
           </button>
         );

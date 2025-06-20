@@ -1,24 +1,30 @@
 package portscan
 
 import (
+	"context"
 	"encoding/xml"
 	"log"
 	"os/exec"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/util"
+	"reconya-ai/internal/webservice"
 	"reconya-ai/models"
+	"strings"
+	"time"
 )
 
 type PortScanService struct {
 	DeviceService   *device.DeviceService
 	EventLogService *eventlog.EventLogService
+	WebService      *webservice.WebService
 }
 
 func NewPortScanService(deviceService *device.DeviceService, eventLogService *eventlog.EventLogService) *PortScanService {
 	return &PortScanService{
 		DeviceService:   deviceService,
 		EventLogService: eventLogService,
+		WebService:      webservice.NewWebService(),
 	}
 }
 
@@ -55,6 +61,8 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 		return
 	}
 
+	// Always update ports when a portscan completes, even if no ports are found
+	// This distinguishes between "no scan performed" and "scan completed with no open ports"
 	device.Ports = ports
 	if vendor != "" {
 		device.Vendor = &vendor
@@ -62,8 +70,17 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 	if hostname != "" {
 		device.Hostname = &hostname
 	}
-	// Use retry logic for saving device with updated ports
-	_, err = util.RetryOnLockWithResult(func() (*models.Device, error) {
+	
+	// Set port scan ended timestamp
+	now := time.Now()
+	device.PortScanEndedAt = &now
+	
+	// Perform device fingerprinting before saving (analyzes ports, vendor, etc.)
+	log.Printf("Performing device fingerprinting for IP [%s]", device.IPv4)
+	s.DeviceService.PerformDeviceFingerprinting(device)
+	
+	// Use retry logic for saving device with updated ports and fingerprint data
+	updatedDevice, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
 		return s.DeviceService.CreateOrUpdate(device)
 	})
 	
@@ -71,7 +88,13 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 		log.Printf("Error saving device with updated ports: %v", err)
 		return
 	}
-	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Vendor: %s", device.IPv4, ports, vendor)
+	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Type: %s, Vendor: %s", device.IPv4, ports, device.DeviceType, vendor)
+	
+	// Start web service scanning if we found open ports (with screenshots during portscan)
+	if len(ports) > 0 {
+		log.Printf("Starting web service scan with screenshots for IP [%s]", device.IPv4)
+		s.scanWebServicesWithScreenshots(updatedDevice)
+	}
 	
 	// Use retry logic for creating event log
 	err = util.RetryOnLock(func() error {
@@ -87,12 +110,21 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 }
 
 func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, string, error) {
-	// Use simpler scan options that don't require the NSE script engine
-	// -sT: TCP connect scan, -p-: all ports, -oX: XML output
-	log.Printf("Running basic port scan for IP %s", ipv4)
-	cmd := exec.Command("nmap", "-sT", "-p1-1000", "-oX", "-", ipv4)
+	// Use optimized scan options with timeout
+	// -sT: TCP connect scan (reliable), -T4: aggressive timing, --top-ports: scan most common ports
+	log.Printf("Running optimized port scan for IP %s (top 100 ports, 2min timeout)", ipv4)
+	
+	// Create context with 2 minute timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "nmap", "-sT", "-T4", "--top-ports", "100", "-oX", "-", ipv4)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			log.Printf("Port scan timeout for %s after 2 minutes", ipv4)
+			return nil, "", "", ctx.Err()
+		}
 		log.Printf("nmap error: %v, output: %s", err, string(output))
 		return nil, "", "", err
 	}
@@ -135,4 +167,97 @@ func (s *PortScanService) ParseNmapOutput(output string) ([]models.Port, string,
 		}
 	}
 	return ports, vendor, hostname
+}
+
+// scanWebServices scans for web services on the device and updates the device with web info (no screenshots)
+func (s *PortScanService) scanWebServices(device *models.Device) {
+	if device == nil {
+		return
+	}
+
+	webInfos := s.WebService.ScanWebServices(device)
+	s.saveWebServices(device, webInfos)
+}
+
+// scanWebServicesWithScreenshots scans for web services on the device with screenshot capture
+func (s *PortScanService) scanWebServicesWithScreenshots(device *models.Device) {
+	if device == nil {
+		return
+	}
+
+	webInfos := s.WebService.ScanWebServicesWithScreenshots(device, true)
+	s.saveWebServices(device, webInfos)
+}
+
+// saveWebServices saves web service information to the device
+func (s *PortScanService) saveWebServices(device *models.Device, webInfos []webservice.WebInfo) {
+	if len(webInfos) == 0 {
+		log.Printf("No web services found on device %s", device.IPv4)
+		return
+	}
+
+	// Convert webservice.WebInfo to models.WebService
+	var webServices []models.WebService
+	for _, webInfo := range webInfos {
+		webService := models.WebService{
+			URL:         webInfo.URL,
+			Title:       webInfo.Title,
+			Server:      webInfo.Server,
+			StatusCode:  webInfo.StatusCode,
+			ContentType: webInfo.ContentType,
+			Size:        webInfo.Size,
+			Screenshot:  webInfo.Screenshot,
+			Port:        s.extractPortFromURL(webInfo.URL),
+			Protocol:    s.extractProtocolFromURL(webInfo.URL),
+			ScannedAt:   time.Now(),
+		}
+		webServices = append(webServices, webService)
+	}
+
+	// Update device with web services
+	device.WebServices = webServices
+	now := time.Now()
+	device.WebScanEndedAt = &now
+
+	// Save device with web services
+	_, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
+		return s.DeviceService.CreateOrUpdate(device)
+	})
+
+	if err != nil {
+		log.Printf("Error saving device with web services: %v", err)
+		return
+	}
+
+	log.Printf("Web service scan completed for IP [%s]. Found %d web services", device.IPv4, len(webServices))
+	for _, ws := range webServices {
+		log.Printf("  - %s: %s (Status: %d)", ws.URL, ws.Title, ws.StatusCode)
+	}
+}
+
+// extractPortFromURL extracts port number from URL
+func (s *PortScanService) extractPortFromURL(url string) int {
+	// Simple extraction - could be improved with proper URL parsing
+	if strings.Contains(url, ":80/") || strings.HasSuffix(url, ":80") {
+		return 80
+	}
+	if strings.Contains(url, ":443/") || strings.HasSuffix(url, ":443") {
+		return 443
+	}
+	if strings.Contains(url, ":8080/") || strings.HasSuffix(url, ":8080") {
+		return 8080
+	}
+	if strings.Contains(url, ":8443/") || strings.HasSuffix(url, ":8443") {
+		return 8443
+	}
+	// Add more port extractions as needed
+	return 80 // Default
+}
+
+// extractProtocolFromURL extracts protocol from URL
+func (s *PortScanService) extractProtocolFromURL(url string) string {
+	if strings.HasPrefix(url, "https://") {
+		return "https"
+	}
+	return "http"
 }

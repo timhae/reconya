@@ -110,21 +110,26 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	defer tx.Rollback()
 
 	query := `
-	SELECT id, name, ipv4, mac, vendor, status, network_id, hostname, 
-	       created_at, updated_at, last_seen_online_at, port_scan_started_at, port_scan_ended_at
+	SELECT id, name, ipv4, mac, vendor, device_type, os_name, os_version, os_family, os_confidence,
+	       status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
+	       port_scan_started_at, port_scan_ended_at, web_scan_ended_at
 	FROM devices WHERE id = ?`
 
 	row := tx.QueryRowContext(ctx, query, id)
 
 	var device models.Device
 	var mac, vendor, hostname sql.NullString
+	var deviceType sql.NullString
+	var osName, osVersion, osFamily sql.NullString
+	var osConfidence sql.NullInt64
 	var networkID sql.NullString
-	var lastSeenOnlineAt, portScanStartedAt, portScanEndedAt sql.NullTime
+	var lastSeenOnlineAt, portScanStartedAt, portScanEndedAt, webScanEndedAt sql.NullTime
 
 	err = row.Scan(
-		&device.ID, &device.Name, &device.IPv4, &mac, &vendor, &device.Status,
-		&networkID, &hostname, &device.CreatedAt, &device.UpdatedAt,
-		&lastSeenOnlineAt, &portScanStartedAt, &portScanEndedAt,
+		&device.ID, &device.Name, &device.IPv4, &mac, &vendor, &deviceType,
+		&osName, &osVersion, &osFamily, &osConfidence,
+		&device.Status, &networkID, &hostname, &device.CreatedAt, &device.UpdatedAt,
+		&lastSeenOnlineAt, &portScanStartedAt, &portScanEndedAt, &webScanEndedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -144,6 +149,9 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	if vendor.Valid {
 		device.Vendor = &vendor.String
 	}
+	if deviceType.Valid {
+		device.DeviceType = models.DeviceType(deviceType.String)
+	}
 	if hostname.Valid {
 		device.Hostname = &hostname.String
 	}
@@ -155,6 +163,26 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	}
 	if portScanEndedAt.Valid {
 		device.PortScanEndedAt = &portScanEndedAt.Time
+	}
+	if webScanEndedAt.Valid {
+		device.WebScanEndedAt = &webScanEndedAt.Time
+	}
+	
+	// Set OS information
+	if osName.Valid || osVersion.Valid || osFamily.Valid || osConfidence.Valid {
+		device.OS = &models.DeviceOS{}
+		if osName.Valid {
+			device.OS.Name = osName.String
+		}
+		if osVersion.Valid {
+			device.OS.Version = osVersion.String
+		}
+		if osFamily.Valid {
+			device.OS.Family = osFamily.String
+		}
+		if osConfidence.Valid {
+			device.OS.Confidence = int(osConfidence.Int64)
+		}
 	}
 
 	portsQuery := `
@@ -173,6 +201,44 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 			return nil, fmt.Errorf("error scanning port: %w", err)
 		}
 		device.Ports = append(device.Ports, port)
+	}
+
+	// Load web services
+	webServicesQuery := `
+	SELECT url, title, server, status_code, content_type, size, screenshot, port, protocol, scanned_at
+	FROM web_services WHERE device_id = ?`
+
+	webServiceRows, err := tx.QueryContext(ctx, webServicesQuery, device.ID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying device web services: %w", err)
+	}
+	defer webServiceRows.Close()
+
+	for webServiceRows.Next() {
+		var ws models.WebService
+		var title, server, contentType, screenshot sql.NullString
+		var size sql.NullInt64
+		if err := webServiceRows.Scan(&ws.URL, &title, &server, &ws.StatusCode, &contentType, &size, &screenshot, &ws.Port, &ws.Protocol, &ws.ScannedAt); err != nil {
+			return nil, fmt.Errorf("error scanning web service: %w", err)
+		}
+		
+		if title.Valid {
+			ws.Title = title.String
+		}
+		if server.Valid {
+			ws.Server = server.String
+		}
+		if contentType.Valid {
+			ws.ContentType = contentType.String
+		}
+		if size.Valid {
+			ws.Size = size.Int64
+		}
+		if screenshot.Valid {
+			ws.Screenshot = screenshot.String
+		}
+		
+		device.WebServices = append(device.WebServices, ws)
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -252,34 +318,93 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		// Update existing device with the same IP address
 		device.ID = existingID
 		
-		// Get the existing created_at timestamp
+		// Get the existing created_at timestamp and preserve device type/OS if not provided
 		var createdAt time.Time
-		err = tx.QueryRowContext(ctx, "SELECT created_at FROM devices WHERE id = ?", device.ID).Scan(&createdAt)
+		var existingDeviceType sql.NullString
+		var existingOsName, existingOsVersion, existingOsFamily sql.NullString
+		var existingOsConfidence sql.NullInt64
+		
+		err = tx.QueryRowContext(ctx, 
+			"SELECT created_at, device_type, os_name, os_version, os_family, os_confidence FROM devices WHERE id = ?", 
+			device.ID).Scan(&createdAt, &existingDeviceType, &existingOsName, &existingOsVersion, &existingOsFamily, &existingOsConfidence)
 		if err != nil {
-			return nil, fmt.Errorf("error getting existing created_at: %w", err)
+			return nil, fmt.Errorf("error getting existing device data: %w", err)
 		}
 		device.CreatedAt = createdAt
+		
+		// Preserve existing device type if not provided in update
+		if device.DeviceType == "" && existingDeviceType.Valid {
+			device.DeviceType = models.DeviceType(existingDeviceType.String)
+		}
+		
+		// Preserve existing OS data if not provided in update
+		if device.OS == nil && (existingOsName.Valid || existingOsVersion.Valid || existingOsFamily.Valid || existingOsConfidence.Valid) {
+			device.OS = &models.DeviceOS{}
+			if existingOsName.Valid {
+				device.OS.Name = existingOsName.String
+			}
+			if existingOsVersion.Valid {
+				device.OS.Version = existingOsVersion.String
+			}
+			if existingOsFamily.Valid {
+				device.OS.Family = existingOsFamily.String
+			}
+			if existingOsConfidence.Valid {
+				device.OS.Confidence = int(existingOsConfidence.Int64)
+			}
+		}
 
 		query := `
-		UPDATE devices SET name = ?, mac = ?, vendor = ?, status = ?, network_id = ?,
-			hostname = ?, updated_at = ?, last_seen_online_at = ?, port_scan_started_at = ?, port_scan_ended_at = ?
+		UPDATE devices SET name = ?, mac = ?, vendor = ?, device_type = ?, 
+			os_name = ?, os_version = ?, os_family = ?, os_confidence = ?,
+			status = ?, network_id = ?, hostname = ?, updated_at = ?, last_seen_online_at = ?, 
+			port_scan_started_at = ?, port_scan_ended_at = ?, web_scan_ended_at = ?
 		WHERE id = ?`
 
+		// Prepare OS fields
+		var osName, osVersion, osFamily sql.NullString
+		var osConfidence sql.NullInt64
+		if device.OS != nil {
+			if device.OS.Name != "" {
+				osName = sql.NullString{String: device.OS.Name, Valid: true}
+			}
+			if device.OS.Version != "" {
+				osVersion = sql.NullString{String: device.OS.Version, Valid: true}
+			}
+			if device.OS.Family != "" {
+				osFamily = sql.NullString{String: device.OS.Family, Valid: true}
+			}
+			if device.OS.Confidence > 0 {
+				osConfidence = sql.NullInt64{Int64: int64(device.OS.Confidence), Valid: true}
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, query,
-			device.Name, nullableString(device.MAC), nullableString(device.Vendor),
+			device.Name, nullableString(device.MAC), nullableString(device.Vendor), 
+			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
-			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt),
+			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt), nullableTime(device.WebScanEndedAt),
 			device.ID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error updating device: %w", err)
 		}
 
-		// Delete existing ports for this device
-		_, err = tx.ExecContext(ctx, "DELETE FROM ports WHERE device_id = ?", device.ID)
-		if err != nil {
-			return nil, fmt.Errorf("error deleting device ports: %w", err)
+		// Only delete existing ports if new ports are being provided
+		if len(device.Ports) > 0 {
+			_, err = tx.ExecContext(ctx, "DELETE FROM ports WHERE device_id = ?", device.ID)
+			if err != nil {
+				return nil, fmt.Errorf("error deleting device ports: %w", err)
+			}
+		}
+
+		// Only delete existing web services if new web services are being provided
+		if len(device.WebServices) > 0 {
+			_, err = tx.ExecContext(ctx, "DELETE FROM web_services WHERE device_id = ?", device.ID)
+			if err != nil {
+				return nil, fmt.Errorf("error deleting device web services: %w", err)
+			}
 		}
 	} else {
 		// Create new device
@@ -289,15 +414,36 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		device.CreatedAt = now
 
 		query := `
-		INSERT INTO devices (id, name, ipv4, mac, vendor, status, network_id, hostname,
-			created_at, updated_at, last_seen_online_at, port_scan_started_at, port_scan_ended_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		INSERT INTO devices (id, name, ipv4, mac, vendor, device_type, 
+			os_name, os_version, os_family, os_confidence,
+			status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
+			port_scan_started_at, port_scan_ended_at, web_scan_ended_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+		// Prepare OS fields for insert
+		var osName, osVersion, osFamily sql.NullString
+		var osConfidence sql.NullInt64
+		if device.OS != nil {
+			if device.OS.Name != "" {
+				osName = sql.NullString{String: device.OS.Name, Valid: true}
+			}
+			if device.OS.Version != "" {
+				osVersion = sql.NullString{String: device.OS.Version, Valid: true}
+			}
+			if device.OS.Family != "" {
+				osFamily = sql.NullString{String: device.OS.Family, Valid: true}
+			}
+			if device.OS.Confidence > 0 {
+				osConfidence = sql.NullInt64{Int64: int64(device.OS.Confidence), Valid: true}
+			}
+		}
 
 		_, err = tx.ExecContext(ctx, query,
 			device.ID, device.Name, device.IPv4, nullableString(device.MAC), nullableString(device.Vendor),
+			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.CreatedAt, device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
-			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt),
+			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt), nullableTime(device.WebScanEndedAt),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error inserting device: %w", err)
@@ -310,6 +456,17 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 			_, err = tx.ExecContext(ctx, portQuery, device.ID, port.Number, port.Protocol, port.State, port.Service)
 			if err != nil {
 				return nil, fmt.Errorf("error inserting port: %w", err)
+			}
+		}
+	}
+
+	// Insert web services
+	if len(device.WebServices) > 0 {
+		webServiceQuery := `INSERT INTO web_services (device_id, url, title, server, status_code, content_type, size, screenshot, port, protocol, scanned_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		for _, ws := range device.WebServices {
+			_, err = tx.ExecContext(ctx, webServiceQuery, device.ID, ws.URL, nullableString(&ws.Title), nullableString(&ws.Server), ws.StatusCode, nullableString(&ws.ContentType), ws.Size, nullableString(&ws.Screenshot), ws.Port, ws.Protocol, ws.ScannedAt)
+			if err != nil {
+				return nil, fmt.Errorf("error inserting web service: %w", err)
 			}
 		}
 	}
@@ -369,6 +526,11 @@ func (r *SQLiteDeviceRepository) DeleteByID(ctx context.Context, id string) erro
 	_, err = tx.ExecContext(ctx, "DELETE FROM ports WHERE device_id = ?", id)
 	if err != nil {
 		return fmt.Errorf("error deleting device ports: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "DELETE FROM web_services WHERE device_id = ?", id)
+	if err != nil {
+		return fmt.Errorf("error deleting device web services: %w", err)
 	}
 
 	_, err = tx.ExecContext(ctx, "DELETE FROM devices WHERE id = ?", id)
@@ -640,4 +802,11 @@ func stringToPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func nullableInt64(i *int64) sql.NullInt64 {
+	if i == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *i, Valid: true}
 }

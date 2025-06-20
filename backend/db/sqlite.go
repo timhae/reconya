@@ -167,6 +167,85 @@ func InitializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create local_devices table: %w", err)
 	}
 
+	// Add web_scan_ended_at column if it doesn't exist (for backward compatibility)
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN web_scan_ended_at TIMESTAMP`)
+	if err != nil {
+		// Column might already exist, so we ignore the error
+		log.Printf("Note: web_scan_ended_at column might already exist: %v", err)
+	}
+
+	// Add device fingerprinting columns if they don't exist (for backward compatibility)
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN device_type TEXT`)
+	if err != nil {
+		log.Printf("Note: device_type column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN os_name TEXT`)
+	if err != nil {
+		log.Printf("Note: os_name column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN os_version TEXT`)
+	if err != nil {
+		log.Printf("Note: os_version column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN os_family TEXT`)
+	if err != nil {
+		log.Printf("Note: os_family column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN os_confidence INTEGER`)
+	if err != nil {
+		log.Printf("Note: os_confidence column might already exist: %v", err)
+	}
+
+	// Create web_services table
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS web_services (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		device_id TEXT NOT NULL,
+		url TEXT NOT NULL,
+		title TEXT,
+		server TEXT,
+		status_code INTEGER NOT NULL,
+		content_type TEXT,
+		size INTEGER,
+		screenshot TEXT,
+		port INTEGER NOT NULL,
+		protocol TEXT NOT NULL,
+		scanned_at TIMESTAMP NOT NULL,
+		FOREIGN KEY (device_id) REFERENCES devices(id)
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create web_services table: %w", err)
+	}
+
+	// Create index on device_id for web_services
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_web_services_device_id ON web_services(device_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on web_services.device_id: %w", err)
+	}
+
 	log.Println("Database schema initialized successfully")
+	return nil
+}
+
+// ResetPortScanCooldowns clears all port scan timestamps to allow immediate re-scanning (for development)
+func ResetPortScanCooldowns(db *sql.DB) error {
+	// Clear port scan timestamps
+	_, err := db.Exec(`UPDATE devices SET port_scan_ended_at = NULL, port_scan_started_at = NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to reset port scan cooldowns: %w", err)
+	}
+
+	// Clear web scan timestamps if the column exists
+	_, err = db.Exec(`UPDATE devices SET web_scan_ended_at = NULL`)
+	if err != nil {
+		// Column might not exist yet, so we ignore this error
+		log.Printf("Note: web_scan_ended_at column might not exist yet: %v", err)
+	}
+
+	log.Println("Port scan cooldowns reset - all devices are now eligible for scanning")
 	return nil
 }

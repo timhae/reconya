@@ -9,10 +9,11 @@ import (
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/portscan"
+	"reconya-ai/internal/scanner"
 	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"strings"
-	"time"
+	"sync"
 )
 
 type PingSweepService struct {
@@ -21,6 +22,8 @@ type PingSweepService struct {
 	EventLogService *eventlog.EventLogService
 	NetworkService  *network.NetworkService
 	PortScanService *portscan.PortScanService
+	portScanQueue   chan models.Device
+	portScanWorkers sync.WaitGroup
 }
 
 func NewPingSweepService(
@@ -29,13 +32,20 @@ func NewPingSweepService(
 	eventLogService *eventlog.EventLogService,
 	networkService *network.NetworkService,
 	portScanService *portscan.PortScanService) *PingSweepService {
-	return &PingSweepService{
+	
+	service := &PingSweepService{
 		Config:          cfg,
 		DeviceService:   deviceService,
 		EventLogService: eventLogService,
 		NetworkService:  networkService,
 		PortScanService: portScanService,
+		portScanQueue:   make(chan models.Device, 100), // Buffer for 100 devices
 	}
+	
+	// Start 3 port scan workers
+	service.startPortScanWorkers(3)
+	
+	return service
 }
 func (s *PingSweepService) Run() {
 	log.Println("Starting new ping sweep scan...")
@@ -55,12 +65,12 @@ func (s *PingSweepService) Run() {
 		log.Printf("Error executing sweep scan: %v\n", err)
 		return
 	}
+	
+	log.Printf("Ping sweep found %d devices from scan", len(devices))
 
-	// Create a list of devices that need port scanning
-	var devicesToPingScan []models.Device
-
-	// First update all devices - ONE AT A TIME
-	for _, device := range devices {
+	// Update all devices and add eligible ones to port scan queue
+	for i, device := range devices {
+		log.Printf("Processing device %d/%d: %s", i+1, len(devices), device.IPv4)
 		// Use retry logic for updating device
 		updatedDevice, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
 			return s.DeviceService.CreateOrUpdate(&device)
@@ -70,6 +80,7 @@ func (s *PingSweepService) Run() {
 			log.Printf("Error updating device %s after retries: %v", device.IPv4, err)
 			continue
 		}
+		log.Printf("Successfully saved device: %s", device.IPv4)
 
 		deviceIDStr := device.ID
 		// Use retry logic for creating event log
@@ -84,21 +95,14 @@ func (s *PingSweepService) Run() {
 			log.Printf("Error creating device online event log: %v", eventLogErr)
 		}
 
-		// Add to the list if eligible for port scan - but limit to max 3 devices per scan
-		if s.DeviceService.EligibleForPortScan(updatedDevice) && len(devicesToPingScan) < 3 {
-			devicesToPingScan = append(devicesToPingScan, *updatedDevice)
-		}
-	}
-
-	// Run port scans ONE AT A TIME, not concurrently
-	if len(devicesToPingScan) > 0 {
-		log.Printf("Running port scans for %d devices, one at a time", len(devicesToPingScan))
-		for _, deviceToScan := range devicesToPingScan {
-			// Run the port scan synchronously
-			s.PortScanService.Run(deviceToScan)
-			
-			// Add a small delay between port scans to reduce database contention
-			time.Sleep(500 * time.Millisecond)
+		// Add to port scan queue if eligible
+		if s.DeviceService.EligibleForPortScan(updatedDevice) {
+			select {
+			case s.portScanQueue <- *updatedDevice:
+				log.Printf("Added device %s to port scan queue", updatedDevice.IPv4)
+			default:
+				log.Printf("Port scan queue full, skipping device %s", updatedDevice.IPv4)
+			}
 		}
 	}
 
@@ -108,22 +112,15 @@ func (s *PingSweepService) Run() {
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
 	log.Printf("Executing nmap command on network: %s", network)
-	// Enhanced scan to gather MAC addresses, hostnames, and vendor info
-	// -sn: ping scan, --send-ip: use IP packets, -T4: faster timing, -oX: XML output
-	// -R: resolve hostnames, --dns-servers: use specific DNS servers for resolution
-	// --system-dns: use system DNS resolution
-	// sudo required on macOS for proper MAC address and vendor detection
-	cmd := exec.Command("sudo", "nmap", "-sn", "--send-ip", "-T4", "-R", "--system-dns", "-oX", "-", network)
-	output, err := cmd.CombinedOutput()
+	
+	// Try multiple scan strategies for different environments
+	devices, err := s.executeWithFallback(network)
 	if err != nil {
-		log.Printf("nmap command failed: %s\n", string(output))
-		return nil, fmt.Errorf("error executing nmap: %w", err)
+		return nil, err
 	}
 
-	log.Printf("nmap command succeeded. Output length: %d bytes", len(output))
+	log.Printf("nmap command succeeded. Found %d devices", len(devices))
 
-	devices := s.DeviceService.ParseFromNmapXML(string(output))
-	
 	// If we didn't get hostnames from nmap, try to enhance with additional methods
 	for i, device := range devices {
 		if device.Hostname == nil || *device.Hostname == "" {
@@ -138,8 +135,95 @@ func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Dev
 	return devices, nil
 }
 
+// executeWithFallback tries different scan strategies based on environment
+func (s *PingSweepService) executeWithFallback(network string) ([]models.Device, error) {
+	// Skip native scanner - it's too slow for large networks
+	log.Printf("Skipping native Go scanner, using nmap directly")
+
+	// Strategy 1: Try sudo with IP packets (works on most systems, gets MAC/vendor)
+	devices, err := s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "--send-ip", "-T4", "-R", "--system-dns", "-oX", "-", network})
+	if err == nil && len(devices) > 0 {
+		log.Printf("Sudo IP scan successful, found %d devices", len(devices))
+		return devices, nil
+	}
+	log.Printf("Sudo IP scan failed or found no devices: %v", err)
+
+	// Strategy 3: Try IP packets without sudo (may still get some MAC info)
+	devices, err = s.tryNmapCommand([]string{"nmap", "-sn", "--send-ip", "-T4", "-oX", "-", network})
+	if err == nil && len(devices) > 0 {
+		log.Printf("IP scan without sudo successful, found %d devices", len(devices))
+		return devices, nil
+	}
+	log.Printf("IP scan without sudo failed or found no devices: %v", err)
+
+	// Strategy 4: Try ARP scan with sudo (best for local networks but needs interface access)
+	devices, err = s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "-PR", "-T4", "-R", "--system-dns", "-oX", "-", network})
+	if err == nil && len(devices) > 0 {
+		log.Printf("Sudo ARP scan successful, found %d devices", len(devices))
+		return devices, nil
+	}
+	log.Printf("Sudo ARP scan failed or found no devices: %v", err)
+
+	// Strategy 5: Try ARP scan without sudo
+	devices, err = s.tryNmapCommand([]string{"nmap", "-sn", "-PR", "-T4", "-oX", "-", network})
+	if err == nil && len(devices) > 0 {
+		log.Printf("ARP scan without sudo successful, found %d devices", len(devices))
+		return devices, nil
+	}
+	log.Printf("ARP scan without sudo failed or found no devices: %v", err)
+
+	// Strategy 6: Last resort - TCP SYN scan on common ports (minimal info but finds hosts)
+	devices, err = s.tryNmapCommand([]string{"nmap", "-sn", "-PS80,443,22,21,23,25,53,110,111,135,139,143,993,995", "-T4", "-oX", "-", network})
+	if err == nil && len(devices) > 0 {
+		log.Printf("TCP SYN probe scan successful, found %d devices", len(devices))
+		return devices, nil
+	}
+	log.Printf("TCP SYN probe scan failed or found no devices: %v", err)
+
+	return nil, fmt.Errorf("all scan strategies failed for network %s", network)
+}
+
+// tryNativeScanner uses the native Go scanner for network discovery
+func (s *PingSweepService) tryNativeScanner(network string) ([]models.Device, error) {
+	log.Printf("Trying native Go scanner on network: %s", network)
+	
+	nativeScanner := scanner.NewNativeScanner()
+	devices, err := nativeScanner.ScanNetwork(network)
+	if err != nil {
+		return nil, err
+	}
+	
+	return devices, nil
+}
+
+// tryNmapCommand executes a specific nmap command and returns parsed devices
+func (s *PingSweepService) tryNmapCommand(args []string) ([]models.Device, error) {
+	log.Printf("Trying nmap command: %s", strings.Join(args, " "))
+	
+	cmd := exec.Command(args[0], args[1:]...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("nmap command failed: %v, output: %s", err, string(output))
+		return nil, err
+	}
+
+	if len(output) == 0 {
+		return nil, fmt.Errorf("nmap returned empty output")
+	}
+
+	log.Printf("nmap command output length: %d bytes", len(output))
+	
+	devices := s.DeviceService.ParseFromNmapXML(string(output))
+	return devices, nil
+}
+
 // tryGetHostname attempts to get hostname using additional methods
 func (s *PingSweepService) tryGetHostname(ip string) string {
+	// Try a dedicated nmap hostname scan first (most reliable)
+	if hostname := s.tryNmapHostnameScan(ip); hostname != "" {
+		return hostname
+	}
+	
 	// Try DNS reverse lookup with timeout
 	if hostname := s.tryDNSReverseLookup(ip); hostname != "" {
 		return hostname
@@ -148,6 +232,24 @@ func (s *PingSweepService) tryGetHostname(ip string) string {
 	// Try alternative DNS lookup methods
 	if hostname := s.tryDigReverseLookup(ip); hostname != "" {
 		return hostname
+	}
+	
+	return ""
+}
+
+// tryNmapHostnameScan does a quick nmap scan focused on hostname resolution
+func (s *PingSweepService) tryNmapHostnameScan(ip string) string {
+	// Quick hostname-focused scan
+	cmd := exec.Command("nmap", "-sn", "-R", "--system-dns", "-oX", "-", ip)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	
+	// Parse the XML output for hostname
+	devices := s.DeviceService.ParseFromNmapXML(string(output))
+	if len(devices) > 0 && devices[0].Hostname != nil && *devices[0].Hostname != "" {
+		return *devices[0].Hostname
 	}
 	
 	return ""
@@ -197,4 +299,29 @@ func (s *PingSweepService) tryDigReverseLookup(ip string) string {
 	}
 	
 	return ""
+}
+
+// startPortScanWorkers starts background workers for port scanning
+func (s *PingSweepService) startPortScanWorkers(numWorkers int) {
+	log.Printf("Starting %d port scan workers", numWorkers)
+	
+	for i := 0; i < numWorkers; i++ {
+		s.portScanWorkers.Add(1)
+		go s.portScanWorker(i)
+	}
+}
+
+// portScanWorker continuously processes devices from the port scan queue
+func (s *PingSweepService) portScanWorker(workerID int) {
+	defer s.portScanWorkers.Done()
+	
+	log.Printf("Port scan worker %d started", workerID)
+	
+	for device := range s.portScanQueue {
+		log.Printf("Worker %d: Starting port scan for device %s", workerID, device.IPv4)
+		s.PortScanService.Run(device)
+		log.Printf("Worker %d: Completed port scan for device %s", workerID, device.IPv4)
+	}
+	
+	log.Printf("Port scan worker %d stopped", workerID)
 }

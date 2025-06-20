@@ -1,6 +1,6 @@
 import React from 'react';
 import useEventLogs from '../../hooks/useEventLogs'; // Adjust path as needed
-import { EventLog } from '../../models/eventLog.model';
+import { EventLog, EEventLogType } from '../../models/eventLog.model';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { EventLogIcons } from '../../models/eventLogIcons.model';
 
@@ -47,7 +47,10 @@ const EventLogs = () => {
                   <tr key={index}>
                     <td className="bg-transparent text-success px-3">
                       {icon ? (
-                        <FontAwesomeIcon icon={icon} className="text-success" />
+                        <FontAwesomeIcon 
+                          icon={icon} 
+                          className={`text-success ${logType === EEventLogType.PortScanStarted ? 'fa-spin' : ''}`} 
+                        />
                       ) : (
                         <span>??</span>
                       )}

@@ -1,7 +1,7 @@
-import React from "react";
-import { Device } from "../../models/device.model";
+import React, { useState } from "react";
+import { Device, WebService } from "../../models/device.model";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faCircle, faExternalLinkAlt, faGlobe, faLock, faTimes } from "@fortawesome/free-solid-svg-icons";
 
 interface DeviceModalProps {
   device: Device | null;
@@ -9,15 +9,20 @@ interface DeviceModalProps {
 }
 
 const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
+  const [selectedScreenshot, setSelectedScreenshot] = useState<{url: string, screenshot: string} | null>(null);
+  
   if (!device) return null;
   
   // Helper functions to normalize property access
   const getDeviceIPv4 = (d: Device) => d.ipv4 || d.IPv4 || '';
   const getDeviceMAC = (d: Device) => d.mac || d.MAC;
   const getDeviceVendor = (d: Device) => d.vendor || d.Vendor;
+  const getDeviceType = (d: Device) => d.device_type || d.DeviceType;
+  const getDeviceOS = (d: Device) => d.os || d.OS;
   const getDeviceHostname = (d: Device) => d.hostname || d.Hostname;
   const getDeviceStatus = (d: Device) => d.status || d.Status;
   const getDevicePorts = (d: Device) => d.ports || d.Ports || [];
+  const getDeviceWebServices = (d: Device) => d.web_services || d.WebServices || [];
   const getDeviceCreatedAt = (d: Device) => d.created_at || d.CreatedAt;
   const getDeviceLastSeen = (d: Device) => d.last_seen_online_at || d.LastSeenOnlineAt;
 
@@ -117,27 +122,56 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
     );
   };
 
+  const getWebServiceIcon = (protocol: string) => {
+    if (protocol.toLowerCase() === 'https') {
+      return <FontAwesomeIcon icon={faLock} className="text-success me-2" />;
+    }
+    return <FontAwesomeIcon icon={faGlobe} className="text-success me-2" />;
+  };
+
+  const getStatusBadgeColor = (statusCode: number) => {
+    if (statusCode >= 200 && statusCode < 300) {
+      return "bg-success";
+    } else if (statusCode >= 400 && statusCode < 500) {
+      return "bg-warning";
+    } else if (statusCode >= 500) {
+      return "bg-danger";
+    }
+    return "bg-secondary";
+  };
+
+  const formatFileSize = (bytes: number | undefined) => {
+    if (!bytes) return "N/A";
+    const kb = bytes / 1024;
+    if (kb < 1024) {
+      return `${kb.toFixed(1)} KB`;
+    }
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+  };
+
   const handleModalContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
   return (
-    <div
-      className="modal show d-block"
-      tabIndex={-1}
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", marginTop: "170px" }}
-      onClick={onClose}
-    >
+    <>
       <div
-        className="modal-dialog modal-lg"
-        onClick={handleModalContentClick}
-        style={{ minHeight: "400px" }}
+        className="modal show d-block"
+        tabIndex={-1}
+        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        onClick={onClose}
       >
-        <div className="modal-content">
-          <div
-            className="modal-body bg-black border border-success border-radius-0 text-success p-5"
-            style={{ minHeight: "400px" }}
-          >
+        <div
+          className="modal-dialog modal-lg"
+          onClick={handleModalContentClick}
+          style={{ maxHeight: "90vh", marginTop: "5vh", marginBottom: "5vh" }}
+        >
+          <div className="modal-content" style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div
+              className="modal-body bg-black border border-success border-radius-0 text-success p-5"
+              style={{ overflowY: "auto", flexGrow: 1 }}
+            >
             <div className="mb-3">
               <div className="border-bottom border-success pb-2 mb-3 d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
@@ -145,6 +179,12 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                 </div>
                 <div className="d-flex align-items-center">
                   {renderPortIcons()}
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white ms-3"
+                    onClick={onClose}
+                    aria-label="Close"
+                  ></button>
                 </div>
               </div>
 
@@ -158,6 +198,28 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                     <td className="w-25 ps-2 fw-bold">H/W vendor</td>
                     <td>{getDeviceVendor(device) || "Unknown"}</td>
                   </tr>
+                  <tr>
+                    <td className="w-25 ps-2 fw-bold">Device Type</td>
+                    <td>
+                      <span className="badge bg-dark border border-success text-success">
+                        {getDeviceType(device) ? getDeviceType(device)?.replace('_', ' ').toUpperCase() : "Unknown"}
+                      </span>
+                    </td>
+                  </tr>
+                  {getDeviceOS(device) && (
+                    <tr>
+                      <td className="w-25 ps-2 fw-bold">Operating System</td>
+                      <td>
+                        {getDeviceOS(device)?.name || "Unknown"}
+                        {getDeviceOS(device)?.version && ` ${getDeviceOS(device)?.version}`}
+                        {getDeviceOS(device)?.confidence && (
+                          <small className="text-muted ms-2">
+                            ({getDeviceOS(device)?.confidence}% confidence)
+                          </small>
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td className="w-25 ps-2 fw-bold">MAC Address</td>
                     <td>{getDeviceMAC(device) || "Unknown"}</td>
@@ -222,12 +284,150 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                 </tbody>
               </table>
 
+              {/* Web Services Section */}
+              {getDeviceWebServices(device)?.length > 0 && (
+                <>
+                  <h6>[ WEB SERVICES ]</h6>
+                  <div className="web-services-container">
+                    {getDeviceWebServices(device)?.map((webService, index) => (
+                      <div key={index} className="web-service-card mb-3 p-3 border border-success rounded">
+                        <div className="row">
+                          <div className="col-md-8">
+                            <div className="d-flex align-items-center mb-2">
+                              <span className="me-2">
+                                {getWebServiceIcon(webService.protocol)}
+                              </span>
+                              <a
+                                href={webService.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-success text-decoration-none fw-bold"
+                              >
+                                {webService.url}
+                                <FontAwesomeIcon
+                                  icon={faExternalLinkAlt}
+                                  className="ms-2"
+                                  style={{ fontSize: "0.8rem" }}
+                                />
+                              </a>
+                            </div>
+                            <div className="mb-2">
+                              <strong className="text-success">{webService.title || "No title"}</strong>
+                            </div>
+                            <div className="d-flex gap-3 text-muted small">
+                              <span>
+                                <span 
+                                  className={`badge ${getStatusBadgeColor(webService.status_code)} text-dark`}
+                                >
+                                  {webService.status_code}
+                                </span>
+                              </span>
+                              {webService.server && (
+                                <span>Server: {webService.server}</span>
+                              )}
+                              <span>Size: {formatFileSize(webService.size)}</span>
+                            </div>
+                          </div>
+                          <div className="col-md-4">
+                            {webService.screenshot && (
+                              <div className="screenshot-container text-center">
+                                <img
+                                  src={`data:image/png;base64,${webService.screenshot}`}
+                                  alt={`Screenshot of ${webService.url}`}
+                                  className="img-thumbnail"
+                                  style={{ 
+                                    maxWidth: "150px", 
+                                    maxHeight: "100px", 
+                                    objectFit: "contain",
+                                    cursor: "pointer"
+                                  }}
+                                  onClick={() => {
+                                    setSelectedScreenshot({
+                                      url: webService.url,
+                                      screenshot: webService.screenshot!
+                                    });
+                                  }}
+                                />
+                                <div className="small text-muted mt-1">Click to enlarge</div>
+                              </div>
+                            )}
+                            {!webService.screenshot && (
+                              <div className="text-center text-muted small">
+                                <div className="border border-secondary rounded p-3" style={{ height: "100px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  No screenshot available
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
               {/* Event Log section can be added here based on your data and requirements */}
             </div>
           </div>
         </div>
       </div>
     </div>
+
+      {/* Screenshot Modal */}
+      {selectedScreenshot && (
+        <div 
+          className="modal show d-block" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000 }}
+          onClick={() => setSelectedScreenshot(null)}
+        >
+          <div className="modal-dialog modal-xl modal-dialog-centered">
+            <div className="modal-content bg-black border-success">
+              <div className="modal-header border-success">
+                <h5 className="modal-title text-success">
+                  Screenshot - {selectedScreenshot.url}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setSelectedScreenshot(null)}
+                >
+                  <FontAwesomeIcon icon={faTimes} />
+                </button>
+              </div>
+              <div className="modal-body text-center p-2">
+                <img
+                  src={`data:image/png;base64,${selectedScreenshot.screenshot}`}
+                  alt={`Screenshot of ${selectedScreenshot.url}`}
+                  className="img-fluid"
+                  style={{ 
+                    maxWidth: "100%", 
+                    maxHeight: "80vh", 
+                    objectFit: "contain"
+                  }}
+                />
+              </div>
+              <div className="modal-footer border-success">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedScreenshot(null)}
+                >
+                  Close
+                </button>
+                <a
+                  href={selectedScreenshot.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-success"
+                >
+                  Open Website <FontAwesomeIcon icon={faExternalLinkAlt} className="ms-1" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

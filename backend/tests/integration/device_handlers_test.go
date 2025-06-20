@@ -29,7 +29,7 @@ func TestDeviceHandlers_Integration(t *testing.T) {
 	
 	// Create services
 	networkService := network.NewNetworkService(networkRepo, cfg, dbManager)
-	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg, dbManager)
+	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg, dbManager, nil) // nil OUI service for tests
 	
 	// Create handlers
 	deviceHandlers := device.NewDeviceHandlers(deviceService, cfg)

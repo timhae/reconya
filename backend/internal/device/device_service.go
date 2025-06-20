@@ -9,7 +9,9 @@ import (
 	"net"
 	"reconya-ai/db"
 	"reconya-ai/internal/config"
+	"reconya-ai/internal/fingerprint"
 	"reconya-ai/internal/network"
+	"reconya-ai/internal/oui"
 	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"sort"
@@ -17,18 +19,22 @@ import (
 	"time"
 )
 type DeviceService struct {
-	Config         *config.Config
-	repository     db.DeviceRepository
-	networkService *network.NetworkService
-	dbManager      *db.DBManager
+	Config              *config.Config
+	repository          db.DeviceRepository
+	networkService      *network.NetworkService
+	dbManager           *db.DBManager
+	fingerprintService  *fingerprint.FingerprintService
+	ouiService          *oui.OUIService
 }
 
-func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config, dbManager *db.DBManager) *DeviceService {
+func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config, dbManager *db.DBManager, ouiService *oui.OUIService) *DeviceService {
 	return &DeviceService{
-		Config:         cfg,
-		repository:     deviceRepo,
-		networkService: networkService,
-		dbManager:      dbManager,
+		Config:              cfg,
+		repository:          deviceRepo,
+		networkService:      networkService,
+		dbManager:           dbManager,
+		fingerprintService:  fingerprint.NewFingerprintService(),
+		ouiService:          ouiService,
 	}
 }
 
@@ -168,10 +174,16 @@ func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
 			log.Printf("Found MAC Address: %s for IP: %s", macAddress, device.IPv4)
 		}
 		
-		// Set vendor info if found
+		// Set vendor info if found from Nmap
 		if vendor != "" {
 			device.Vendor = &vendor
-			log.Printf("Found Vendor: %s for IP: %s", vendor, device.IPv4)
+			log.Printf("Found Vendor from Nmap: %s for IP: %s", vendor, device.IPv4)
+		} else if macAddress != "" && s.ouiService != nil {
+			// Fallback to OUI lookup if Nmap didn't provide vendor info
+			if ouiVendor := s.ouiService.LookupVendor(macAddress); ouiVendor != "" {
+				device.Vendor = &ouiVendor
+				log.Printf("Found Vendor from OUI: %s for MAC: %s (IP: %s)", ouiVendor, macAddress, device.IPv4)
+			}
 		}
 		
 		// Extract hostname if available
@@ -201,7 +213,7 @@ func (s *DeviceService) EligibleForPortScan(device *models.Device) bool {
 	}
 
 	now := time.Now()
-	if device.PortScanEndedAt != nil && device.PortScanEndedAt.Add(24*time.Hour).After(now) {
+	if device.PortScanEndedAt != nil && device.PortScanEndedAt.Add(30*time.Second).After(now) {
 		return false
 	}
 	return true
@@ -335,7 +347,7 @@ func (s *DeviceService) FindOnlineDevicesForNetwork(cidr string) ([]models.Devic
 			continue
 		}
 
-		// Skip offline devices - only show online and idle devices
+		// Show online and idle devices - only skip offline devices
 		if d.Status == models.DeviceStatusOffline {
 			continue
 		}
@@ -412,5 +424,13 @@ func (s *DeviceService) UpdateDeviceStatuses() error {
 	defer cancel()
 
 	// Use DB manager to serialize database access
-	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 7*time.Minute)
+	// Increased timeout to keep devices visible longer: 15 minutes total
+	// This means: online -> idle after 7.5 minutes, idle/online -> offline after 15 minutes
+	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 15*time.Minute)
+}
+
+// PerformDeviceFingerprinting analyzes device characteristics to determine type and OS
+func (s *DeviceService) PerformDeviceFingerprinting(device *models.Device) {
+	log.Printf("Starting device fingerprinting for %s", device.IPv4)
+	s.fingerprintService.AnalyzeDevice(device)
 }

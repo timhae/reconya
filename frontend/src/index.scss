@@ -200,6 +200,61 @@ body {
       transform: rotate(126deg);
   }
 }
+
+/* Ensure spinner animations work */
+@keyframes spinner-border {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner-border {
+  animation: spinner-border 0.75s linear infinite !important;
+  display: inline-block !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  vertical-align: -0.125em !important;
+  border: 0.25em solid currentColor !important;
+  border-right-color: transparent !important;
+  border-radius: 50% !important;
+}
+
+.spinner-border-sm {
+  width: 1rem !important;
+  height: 1rem !important;
+  border-width: 0.125em !important;
+}
+
+/* Override any reduced motion preferences for spinners */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-border {
+    animation: spinner-border 0.75s linear infinite !important;
+  }
+}
+
+/* FontAwesome spinner animation */
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.fa-spin {
+  animation: fa-spin 2s infinite linear !important;
+}
+
+/* Override reduced motion for FontAwesome spinners too */
+@media (prefers-reduced-motion: reduce) {
+  .fa-spin {
+    animation: fa-spin 2s infinite linear !important;
+  }
+}
 @media only screen and (max-width: 990px){
   .progress{ margin-bottom: 20px; }
 }

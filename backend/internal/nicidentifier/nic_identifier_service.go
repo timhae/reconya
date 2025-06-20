@@ -93,6 +93,9 @@ func (s *NicIdentifierService) getLocalNic() models.NIC {
 		return models.NIC{}
 	}
 
+	var candidates []models.NIC
+	var dockerInterfaces []models.NIC
+
 	for _, iface := range interfaces {
 		fmt.Printf("Checking interface: %s\n", iface.Name)
 		if iface.Flags&net.FlagUp == 0 {
@@ -118,13 +121,104 @@ func (s *NicIdentifierService) getLocalNic() models.NIC {
 			}
 
 			if !ip.IsLoopback() {
-				fmt.Printf("Found matching interface: %s with IPv4: %s\n", iface.Name, ip.String())
-				return models.NIC{Name: iface.Name, IPv4: ip.String()}
+				nic := models.NIC{Name: iface.Name, IPv4: ip.String()}
+				
+				// Check if this is a Docker or container network
+				if s.isDockerOrContainerNetwork(ip.String()) {
+					fmt.Printf("Found Docker/container interface: %s with IPv4: %s\n", iface.Name, ip.String())
+					dockerInterfaces = append(dockerInterfaces, nic)
+				} else {
+					fmt.Printf("Found potential host interface: %s with IPv4: %s\n", iface.Name, ip.String())
+					candidates = append(candidates, nic)
+				}
 			}
 		}
 	}
 
+	// Prefer non-Docker interfaces
+	if len(candidates) > 0 {
+		// Prioritize common home/office networks
+		for _, nic := range candidates {
+			if s.isCommonPrivateNetwork(nic.IPv4) {
+				fmt.Printf("Selected preferred interface: %s with IPv4: %s\n", nic.Name, nic.IPv4)
+				return nic
+			}
+		}
+		// If no common private networks, return first candidate
+		fmt.Printf("Selected first non-Docker interface: %s with IPv4: %s\n", candidates[0].Name, candidates[0].IPv4)
+		return candidates[0]
+	}
+
+	// Fallback to Docker interfaces if no others available
+	if len(dockerInterfaces) > 0 {
+		fmt.Printf("Using Docker interface as fallback: %s with IPv4: %s\n", dockerInterfaces[0].Name, dockerInterfaces[0].IPv4)
+		return dockerInterfaces[0]
+	}
+
 	return models.NIC{}
+}
+
+// isDockerOrContainerNetwork checks if an IP belongs to common container networks
+func (s *NicIdentifierService) isDockerOrContainerNetwork(ip string) bool {
+	// Common Docker and container network ranges
+	dockerRanges := []string{
+		"172.17.0.0/16",    // Default Docker bridge
+		"172.18.0.0/16",    // Docker custom networks
+		"172.19.0.0/16",
+		"172.20.0.0/16",
+		"172.21.0.0/16",
+		"172.22.0.0/16",
+		"172.23.0.0/16",
+		"172.24.0.0/16",
+		"172.25.0.0/16",
+		"172.26.0.0/16",
+		"172.27.0.0/16",
+		"172.28.0.0/16",
+		"172.29.0.0/16",
+		"172.30.0.0/16",
+		"172.31.0.0/16",
+	}
+
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return false
+	}
+
+	for _, cidr := range dockerRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(parsedIP) {
+			return true
+		}
+	}
+	return false
+}
+
+// isCommonPrivateNetwork checks if an IP belongs to common home/office networks
+func (s *NicIdentifierService) isCommonPrivateNetwork(ip string) bool {
+	// Common home/office network ranges
+	commonRanges := []string{
+		"192.168.0.0/16",   // Most common home networks
+		"10.0.0.0/8",       // Corporate networks
+	}
+
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return false
+	}
+
+	for _, cidr := range commonRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(parsedIP) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *NicIdentifierService) getPublicIp() (string, error) {

@@ -18,6 +18,7 @@ const DeviceList: React.FC<DeviceListProps> = ({ devices, localDevice }) => {
   const getDeviceStatus = (device: Device) => device.status || device.Status;
   const getDevicePorts = (device: Device) => device.ports || device.Ports || [];
   const getDeviceLastSeen = (device: Device) => device.last_seen_online_at || device.LastSeenOnlineAt;
+  const getDeviceType = (device: Device) => device.device_type || device.DeviceType;
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString || dateString.startsWith("0001-01-01")) return "Unknown";
@@ -78,6 +79,7 @@ const DeviceList: React.FC<DeviceListProps> = ({ devices, localDevice }) => {
             <th className="px-3 py-1">IPv4</th>
             <th className="px-3 py-1">MAC</th>
             <th className="px-3 py-1">Vendor</th>
+            <th className="px-3 py-1">Device Type</th>
             <th className="px-3 py-1 text-center" style={{ width: '120px' }}>Open Ports</th>
             <th className="px-3 py-1 text-center" style={{ width: '130px' }}>Filtered Ports</th>
             <th className="px-3 py-1">Last Seen Online</th>
@@ -97,6 +99,15 @@ const DeviceList: React.FC<DeviceListProps> = ({ devices, localDevice }) => {
                 <td className="px-3 py-1">{getDeviceIPv4(device)}</td>
                 <td className="px-3 py-1">{getDeviceMAC(device) || 'N/A'}</td>
                 <td className="px-3 py-1">{getDeviceVendor(device) || 'Unknown'}</td>
+                <td className="px-3 py-1">
+                  {getDeviceType(device) ? (
+                    <span className="badge bg-dark border border-success text-success" style={{ fontSize: '0.6rem' }}>
+                      {getDeviceType(device)?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  ) : (
+                    'Unknown'
+                  )}
+                </td>
                 <td className="px-3 py-1 text-center">
                   {getOpenPortsAmount(device) > 0 ? (
                     <span className="text-danger">
