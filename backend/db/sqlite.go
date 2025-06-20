@@ -200,6 +200,12 @@ func InitializeSchema(db *sql.DB) error {
 		log.Printf("Note: os_confidence column might already exist: %v", err)
 	}
 
+	// Add comment column if it doesn't exist (for device editing)
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN comment TEXT`)
+	if err != nil {
+		log.Printf("Note: comment column might already exist: %v", err)
+	}
+
 	// Create web_services table
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS web_services (

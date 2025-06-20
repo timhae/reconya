@@ -43,7 +43,18 @@ const useDevices = () => {
     };
   }, [getDevices]);
 
-  return { devices, isLoading, error };
+  // Function to update a specific device in the state
+  const updateDeviceInState = useCallback((updatedDevice: Device) => {
+    setDevices(prevDevices => 
+      prevDevices.map(device => {
+        const deviceId = device.id || device.ID;
+        const updatedDeviceId = updatedDevice.id || updatedDevice.ID;
+        return deviceId === updatedDeviceId ? updatedDevice : device;
+      })
+    );
+  }, []);
+
+  return { devices, isLoading, error, updateDeviceInState };
 };
 
 export default useDevices;

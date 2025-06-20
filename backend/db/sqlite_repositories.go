@@ -110,7 +110,7 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	defer tx.Rollback()
 
 	query := `
-	SELECT id, name, ipv4, mac, vendor, device_type, os_name, os_version, os_family, os_confidence,
+	SELECT id, name, comment, ipv4, mac, vendor, device_type, os_name, os_version, os_family, os_confidence,
 	       status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
 	       port_scan_started_at, port_scan_ended_at, web_scan_ended_at
 	FROM devices WHERE id = ?`
@@ -118,7 +118,7 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	row := tx.QueryRowContext(ctx, query, id)
 
 	var device models.Device
-	var mac, vendor, hostname sql.NullString
+	var mac, vendor, hostname, comment sql.NullString
 	var deviceType sql.NullString
 	var osName, osVersion, osFamily sql.NullString
 	var osConfidence sql.NullInt64
@@ -126,7 +126,7 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	var lastSeenOnlineAt, portScanStartedAt, portScanEndedAt, webScanEndedAt sql.NullTime
 
 	err = row.Scan(
-		&device.ID, &device.Name, &device.IPv4, &mac, &vendor, &deviceType,
+		&device.ID, &device.Name, &comment, &device.IPv4, &mac, &vendor, &deviceType,
 		&osName, &osVersion, &osFamily, &osConfidence,
 		&device.Status, &networkID, &hostname, &device.CreatedAt, &device.UpdatedAt,
 		&lastSeenOnlineAt, &portScanStartedAt, &portScanEndedAt, &webScanEndedAt,
@@ -148,6 +148,9 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	}
 	if vendor.Valid {
 		device.Vendor = &vendor.String
+	}
+	if comment.Valid {
+		device.Comment = &comment.String
 	}
 	if deviceType.Valid {
 		device.DeviceType = models.DeviceType(deviceType.String)
@@ -355,7 +358,7 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		}
 
 		query := `
-		UPDATE devices SET name = ?, mac = ?, vendor = ?, device_type = ?, 
+		UPDATE devices SET name = ?, comment = ?, mac = ?, vendor = ?, device_type = ?, 
 			os_name = ?, os_version = ?, os_family = ?, os_confidence = ?,
 			status = ?, network_id = ?, hostname = ?, updated_at = ?, last_seen_online_at = ?, 
 			port_scan_started_at = ?, port_scan_ended_at = ?, web_scan_ended_at = ?
@@ -380,7 +383,7 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		}
 
 		_, err = tx.ExecContext(ctx, query,
-			device.Name, nullableString(device.MAC), nullableString(device.Vendor), 
+			device.Name, nullableString(device.Comment), nullableString(device.MAC), nullableString(device.Vendor), 
 			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
@@ -414,11 +417,11 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		device.CreatedAt = now
 
 		query := `
-		INSERT INTO devices (id, name, ipv4, mac, vendor, device_type, 
+		INSERT INTO devices (id, name, comment, ipv4, mac, vendor, device_type, 
 			os_name, os_version, os_family, os_confidence,
 			status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
 			port_scan_started_at, port_scan_ended_at, web_scan_ended_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		// Prepare OS fields for insert
 		var osName, osVersion, osFamily sql.NullString
@@ -439,7 +442,7 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		}
 
 		_, err = tx.ExecContext(ctx, query,
-			device.ID, device.Name, device.IPv4, nullableString(device.MAC), nullableString(device.Vendor),
+			device.ID, device.Name, nullableString(device.Comment), device.IPv4, nullableString(device.MAC), nullableString(device.Vendor),
 			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.CreatedAt, device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),

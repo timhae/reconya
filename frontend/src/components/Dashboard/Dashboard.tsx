@@ -14,7 +14,7 @@ import useNetwork from '../../hooks/useNetwork';
 const Dashboard: React.FC = () => {
   const isAuthenticated = useAuth();
 
-  const { devices, isLoading: devicesLoading, error: devicesError } = useDevices();
+  const { devices, isLoading: devicesLoading, error: devicesError, updateDeviceInState } = useDevices();
   const { systemStatus, isLoading: systemStatusLoading, error: systemStatusError } = useSystemStatus();
   const { network } = useNetwork();
 
@@ -41,7 +41,7 @@ const Dashboard: React.FC = () => {
         <div className="col-md-9">
           {/* Interactive D3.js Network Graph */}
           <NetworkMap devices={devices} localDevice={localDevice} />
-          <Devices devices={devices} localDevice={localDevice} />
+          <Devices devices={devices} localDevice={localDevice} onDeviceUpdate={updateDeviceInState} />
         </div>
         <div className="col-md-3 d-flex flex-column">
           <div className="mb-4">

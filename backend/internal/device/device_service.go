@@ -18,23 +18,24 @@ import (
 	"strings"
 	"time"
 )
+
 type DeviceService struct {
-	Config              *config.Config
-	repository          db.DeviceRepository
-	networkService      *network.NetworkService
-	dbManager           *db.DBManager
-	fingerprintService  *fingerprint.FingerprintService
-	ouiService          *oui.OUIService
+	Config             *config.Config
+	repository         db.DeviceRepository
+	networkService     *network.NetworkService
+	dbManager          *db.DBManager
+	fingerprintService *fingerprint.FingerprintService
+	ouiService         *oui.OUIService
 }
 
 func NewDeviceService(deviceRepo db.DeviceRepository, networkService *network.NetworkService, cfg *config.Config, dbManager *db.DBManager, ouiService *oui.OUIService) *DeviceService {
 	return &DeviceService{
-		Config:              cfg,
-		repository:          deviceRepo,
-		networkService:      networkService,
-		dbManager:           dbManager,
-		fingerprintService:  fingerprint.NewFingerprintService(),
-		ouiService:          ouiService,
+		Config:             cfg,
+		repository:         deviceRepo,
+		networkService:     networkService,
+		dbManager:          dbManager,
+		fingerprintService: fingerprint.NewFingerprintService(),
+		ouiService:         ouiService,
 	}
 }
 
@@ -62,7 +63,17 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		device.Status = models.DeviceStatusOnline
 	}
 
-	// Set a meaningful device name
+	// Preserve name and comment if device already exists and incoming values are empty
+	if existingDevice != nil {
+		if device.Name == "" && existingDevice.Name != "" {
+			device.Name = existingDevice.Name
+		}
+		if (device.Comment == nil || *device.Comment == "") && existingDevice.Comment != nil && *existingDevice.Comment != "" {
+			device.Comment = existingDevice.Comment
+		}
+	}
+
+	// Set a meaningful device name if still empty
 	if device.Name == "" {
 		if device.Hostname != nil && *device.Hostname != "" {
 			device.Name = *device.Hostname
@@ -141,7 +152,7 @@ func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
 	log.Println("Starting Nmap XML parse")
 	var devices []models.Device
 	var nmapXML models.NmapXML
-	
+
 	err := xml.Unmarshal([]byte(xmlOutput), &nmapXML)
 	if err != nil {
 		log.Printf("Error parsing Nmap XML output: %v", err)
@@ -152,7 +163,7 @@ func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
 	for _, host := range nmapXML.Hosts {
 		device := models.Device{}
 		var macAddress, vendor string
-		
+
 		// Extract IP address, MAC address, and vendor info
 		for _, address := range host.Addresses {
 			if address.AddrType == "ipv4" {
@@ -162,18 +173,18 @@ func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
 				vendor = address.Vendor
 			}
 		}
-		
+
 		// Skip if no IP address found
 		if device.IPv4 == "" {
 			continue
 		}
-		
+
 		// Set MAC address if found
 		if macAddress != "" {
 			device.MAC = &macAddress
 			log.Printf("Found MAC Address: %s for IP: %s", macAddress, device.IPv4)
 		}
-		
+
 		// Set vendor info if found from Nmap
 		if vendor != "" {
 			device.Vendor = &vendor
@@ -185,20 +196,38 @@ func (s *DeviceService) ParseFromNmapXML(xmlOutput string) []models.Device {
 				log.Printf("Found Vendor from OUI: %s for MAC: %s (IP: %s)", ouiVendor, macAddress, device.IPv4)
 			}
 		}
-		
+
 		// Extract hostname if available
 		if len(host.Hostnames) > 0 && host.Hostnames[0].Name != "" {
 			hostname := host.Hostnames[0].Name
 			device.Hostname = &hostname
 			log.Printf("Found Hostname: %s for IP: %s", hostname, device.IPv4)
 		}
-		
-		log.Printf("Found device - IP: %s, MAC: %v, Vendor: %v, Hostname: %v", 
-			device.IPv4, 
-			func() string { if device.MAC != nil { return *device.MAC } else { return "<nil>" } }(),
-			func() string { if device.Vendor != nil { return *device.Vendor } else { return "<nil>" } }(),
-			func() string { if device.Hostname != nil { return *device.Hostname } else { return "<nil>" } }())
-		
+
+		log.Printf("Found device - IP: %s, MAC: %v, Vendor: %v, Hostname: %v",
+			device.IPv4,
+			func() string {
+				if device.MAC != nil {
+					return *device.MAC
+				} else {
+					return "<nil>"
+				}
+			}(),
+			func() string {
+				if device.Vendor != nil {
+					return *device.Vendor
+				} else {
+					return "<nil>"
+				}
+			}(),
+			func() string {
+				if device.Hostname != nil {
+					return *device.Hostname
+				} else {
+					return "<nil>"
+				}
+			}())
+
 		devices = append(devices, device)
 	}
 
@@ -300,12 +329,12 @@ func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) 
 			// The device might be in this network but the ID wasn't saved
 			// This is a workaround for existing data
 			d.NetworkID = network.ID
-			
+
 			// Use retry logic for updating the device
 			_, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
 				return s.repository.CreateOrUpdate(context.Background(), d)
 			})
-			
+
 			if err != nil {
 				log.Printf("Error updating device network ID: %v", err)
 			} else {
@@ -330,7 +359,7 @@ func (s *DeviceService) FindOnlineDevicesForNetwork(cidr string) ([]models.Devic
 	if network == nil {
 		return []models.Device{}, nil
 	}
-	
+
 	// Get all devices first
 	ctx := context.Background()
 	allDevices, err := s.repository.FindAll(ctx)
@@ -364,12 +393,12 @@ func (s *DeviceService) FindOnlineDevicesForNetwork(cidr string) ([]models.Devic
 		} else if d.NetworkID == "" && network.ID != "" {
 			// If device has no network ID but belongs to the current network
 			d.NetworkID = network.ID
-			
+
 			// Use retry logic for updating the device
 			_, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
 				return s.repository.CreateOrUpdate(context.Background(), d)
 			})
-			
+
 			if err != nil {
 				log.Printf("Error updating device network ID: %v", err)
 			}
@@ -430,6 +459,29 @@ func (s *DeviceService) UpdateDeviceStatuses() error {
 }
 
 // PerformDeviceFingerprinting analyzes device characteristics to determine type and OS
+func (s *DeviceService) UpdateDevice(deviceID string, name *string, comment *string) (*models.Device, error) {
+	ctx := context.Background()
+
+	device, err := s.repository.FindByID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("device not found: %v", err)
+	}
+
+	if name != nil {
+		device.Name = *name
+	}
+	if comment != nil {
+		device.Comment = comment
+	}
+
+	updatedDevice, err := s.repository.CreateOrUpdate(ctx, device)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update device: %v", err)
+	}
+
+	return updatedDevice, nil
+}
+
 func (s *DeviceService) PerformDeviceFingerprinting(device *models.Device) {
 	log.Printf("Starting device fingerprinting for %s", device.IPv4)
 	s.fingerprintService.AnalyzeDevice(device)

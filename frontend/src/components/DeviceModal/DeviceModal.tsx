@@ -1,15 +1,21 @@
 import React, { useState } from "react";
 import { Device, WebService } from "../../models/device.model";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faExternalLinkAlt, faGlobe, faLock, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faCircle, faExternalLinkAlt, faGlobe, faLock, faTimes, faEdit, faSave, faTimes as faCancel } from "@fortawesome/free-solid-svg-icons";
+import { updateDevice } from "../../api/axiosConfig";
 
 interface DeviceModalProps {
   device: Device | null;
   onClose: () => void;
+  onDeviceUpdate?: (updatedDevice: Device) => void;
 }
 
-const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
+const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose, onDeviceUpdate }) => {
   const [selectedScreenshot, setSelectedScreenshot] = useState<{url: string, screenshot: string} | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [editingComment, setEditingComment] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   if (!device) return null;
   
@@ -25,6 +31,49 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
   const getDeviceWebServices = (d: Device) => d.web_services || d.WebServices || [];
   const getDeviceCreatedAt = (d: Device) => d.created_at || d.CreatedAt;
   const getDeviceLastSeen = (d: Device) => d.last_seen_online_at || d.LastSeenOnlineAt;
+  const getDeviceName = (d: Device) => d.name || d.Name || '';
+  const getDeviceComment = (d: Device) => d.comment || d.Comment || '';
+  const getDeviceID = (d: Device) => d.id || d.ID || '';
+
+  const handleEditClick = () => {
+    setEditingName(getDeviceName(device));
+    setEditingComment(getDeviceComment(device));
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingName('');
+    setEditingComment('');
+  };
+
+  const handleSaveEdit = async () => {
+    const deviceId = getDeviceID(device);
+    if (!deviceId) {
+      console.error('Device ID not found');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updateData = {
+        name: editingName || undefined,
+        comment: editingComment || undefined
+      };
+
+      const updatedDevice = await updateDevice(deviceId, updateData);
+      
+      if (onDeviceUpdate) {
+        onDeviceUpdate(updatedDevice);
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update device:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const calcTimeElapsed = (dateString: string | undefined) => {
     if (!dateString) return "N/A";
@@ -179,6 +228,37 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
                 </div>
                 <div className="d-flex align-items-center">
                   {renderPortIcons()}
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      className="btn btn-outline-success btn-sm ms-3"
+                      onClick={handleEditClick}
+                      title="Edit device"
+                    >
+                      <FontAwesomeIcon icon={faEdit} />
+                    </button>
+                  ) : (
+                    <div className="d-flex gap-2 ms-3">
+                      <button
+                        type="button"
+                        className="btn btn-success btn-sm"
+                        onClick={handleSaveEdit}
+                        disabled={isSaving}
+                        title="Save changes"
+                      >
+                        <FontAwesomeIcon icon={faSave} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                        title="Cancel editing"
+                      >
+                        <FontAwesomeIcon icon={faCancel} />
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="btn-close btn-close-white ms-3"
@@ -190,6 +270,38 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ device, onClose }) => {
 
               <table className="text-success w-100 p-2 mb-4">
                 <tbody className="p-2">
+                  <tr>
+                    <td className="w-25 ps-2 fw-bold">Name</td>
+                    <td>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="form-control form-control-sm bg-dark text-success border-success"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          placeholder="Device name"
+                        />
+                      ) : (
+                        getDeviceName(device) || "Unknown"
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="w-25 ps-2 fw-bold">Comment</td>
+                    <td>
+                      {isEditing ? (
+                        <textarea
+                          className="form-control form-control-sm bg-dark text-success border-success"
+                          rows={3}
+                          value={editingComment}
+                          onChange={(e) => setEditingComment(e.target.value)}
+                          placeholder="Add a comment about this device"
+                        />
+                      ) : (
+                        getDeviceComment(device) || "No comment"
+                      )}
+                    </td>
+                  </tr>
                   <tr>
                     <td className="w-25 ps-2 fw-bold">Hostname</td>
                     <td>{getDeviceHostname(device) || "Unknown"}</td>

@@ -7,10 +7,20 @@ import { Device } from '../../models/device.model';
 interface DevicesProps {
   devices: Device[];
   localDevice?: Device;
+  onDeviceUpdate?: (updatedDevice: Device) => void;
 }
 
-const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
+const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate }) => {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+
+  const handleDeviceUpdate = (updatedDevice: Device) => {
+    // Update the selected device with the new data
+    setSelectedDevice(updatedDevice);
+    // Call the parent's update function
+    if (onDeviceUpdate) {
+      onDeviceUpdate(updatedDevice);
+    }
+  };
 
   // Helper functions to normalize property access
   const getDeviceID = (device: Device) => device.id || device.ID || '';
@@ -21,6 +31,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
   const getDevicePorts = (device: Device) => device.ports || device.Ports || [];
   const getDeviceWebServices = (device: Device) => device.web_services || device.WebServices || [];
   const getDeviceType = (device: Device) => device.device_type || device.DeviceType;
+  const getDeviceName = (device: Device) => device.name || device.Name;
 
   const hasOpenPorts = (device: Device) => {
     return getDevicePorts(device).some((port) => port.state === 'open');
@@ -90,7 +101,22 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
               <div className="d-flex justify-content-between align-items-start">
                 <div className="flex-grow-1">
                   <span className="" style={{ fontSize: 24, fontWeight: 600 }}>{ipv4}</span><br />
-                  <span style={{ fontSize: '0.85rem' }}>{mac}</span>
+                  {/* {mac && <span style={{ fontSize: '0.85rem' }}>{mac}</span>} */}
+                  {getDeviceName(device) && (
+                    <div
+                      style={{
+                        width: '160px', // match or slightly less than card minWidth
+                        display: 'block',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontSize: '0.85rem',
+                        paddingRight: 2
+                      }}
+                    >
+                      <span className="f-xs text-success">{getDeviceName(device)}</span>
+                    </div>
+                  )}
                   {hostname && <div><span className="f-xs">{hostname}</span></div>}
                 </div>
                 <div className="d-flex flex-column align-items-end" style={{ gap: '6px' }}>
@@ -151,7 +177,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice }) => {
         );
       })}
 
-      <DeviceModal device={selectedDevice} onClose={() => setSelectedDevice(null)} />
+      <DeviceModal device={selectedDevice} onClose={() => setSelectedDevice(null)} onDeviceUpdate={handleDeviceUpdate} />
     </div>
   );
 };

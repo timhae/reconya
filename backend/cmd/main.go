@@ -148,7 +148,24 @@ func setupRouter(
 	
 	// In development Docker environment, make these endpoints accessible without auth
 	// In production, uncomment the middlewareHandlers.AuthMiddleware wrapper
-	mux.HandleFunc("/devices", deviceHandlers.GetAllDevices)
+	mux.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			deviceHandlers.GetAllDevices(w, r)
+		case http.MethodPost:
+			deviceHandlers.CreateDevice(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/devices/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			deviceHandlers.UpdateDevice(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc("/system-status/latest", systemStatusHandlers.GetLatestSystemStatus)
 	mux.HandleFunc("/event-log", eventLogHandlers.FindLatest)
 	mux.HandleFunc("/event-log/", eventLogHandlers.FindAllByDeviceId)

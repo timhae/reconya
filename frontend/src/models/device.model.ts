@@ -9,6 +9,7 @@ export interface Device {
   // CamelCase properties (original)
   ID?: string;
   Name?: string;
+  Comment?: string;
   IPv4?: string;
   MAC?: string;
   Vendor?: string;
@@ -29,6 +30,7 @@ export interface Device {
   // snake_case properties (from backend JSON)
   id?: string;
   name?: string;
+  comment?: string;
   ipv4?: string;
   mac?: string;
   vendor?: string;

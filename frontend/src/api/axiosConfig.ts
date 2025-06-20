@@ -90,6 +90,21 @@ export const fetchDevices = async (): Promise<Device[]> => {
   }
 };
 
+export interface DeviceUpdateData {
+  name?: string;
+  comment?: string;
+}
+
+export const updateDevice = async (deviceId: string, updateData: DeviceUpdateData): Promise<Device> => {
+  try {
+    const response = await axiosInstance.put<Device>(`/devices/${deviceId}`, updateData);
+    return response.data;
+  } catch (error) {
+    logger.error("Error updating device:", error);
+    throw error;
+  }
+};
+
 export const fetchSystemStatus = async (): Promise<SystemStatus> => {
   try {
     const response = await axiosInstance.get<SystemStatus>('/system-status/latest');

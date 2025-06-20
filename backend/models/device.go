@@ -42,6 +42,7 @@ type DeviceOS struct {
 type Device struct {
 	ID                string        `bson:"_id,omitempty" json:"id"`
 	Name              string        `bson:"name" json:"name"`
+	Comment           *string       `bson:"comment,omitempty" json:"comment,omitempty"`
 	IPv4              string        `bson:"ipv4" json:"ipv4"`
 	MAC               *string       `bson:"mac,omitempty" json:"mac,omitempty"`
 	Vendor            *string       `bson:"vendor,omitempty" json:"vendor,omitempty"`

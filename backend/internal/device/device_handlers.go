@@ -36,6 +36,33 @@ func (h *DeviceHandlers) CreateDevice(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createdDevice)
 }
 
+func (h *DeviceHandlers) UpdateDevice(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.URL.Path[len("/devices/"):]
+	if deviceID == "" {
+		http.Error(w, "device ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var updateData struct {
+		Name    *string `json:"name,omitempty"`
+		Comment *string `json:"comment,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	updatedDevice, err := h.Service.UpdateDevice(deviceID, updateData.Name, updateData.Comment)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedDevice)
+}
+
 func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
 	devices := []models.Device{}
 	log.Printf("CIDR: %s", h.Config.NetworkCIDR)
