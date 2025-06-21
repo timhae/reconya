@@ -1,0 +1,32 @@
+.heart-icon {
+  animation: heart-pulse 1.2s infinite;
+  transition: filter 0.2s;
+}
+.heart-icon.offline {
+  animation: none;
+  opacity: 0.5;
+  filter: none;
+}
+.heart-icon.online {
+  animation: heart-pulse 1.2s infinite;
+  opacity: 1;
+}
+
+@keyframes heart-pulse {
+  0% {
+    transform: scale(1);
+    filter: none;
+  }
+  30% {
+    transform: scale(1.15);
+    filter: none;
+  }
+  50% {
+    transform: scale(1);
+    filter: none;
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}

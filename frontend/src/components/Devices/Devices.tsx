@@ -78,10 +78,11 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate 
 
   return (
     <div className="device-container mt-5 d-flex align-items-start">
-      <h6 className="text-success d-block w-100">[ DEVICES ]</h6>
+      <div className="d-flex align-items-center mb-2 w-100">
+        <h6 className="text-success d-block w-100">[ DEVICES ]</h6>
+      </div>
       {uniqueDevices.map((device) => {
         const ipv4 = getDeviceIPv4(device);
-        const mac = getDeviceMAC(device);
         const hostname = getDeviceHostname(device);
         const localIpv4 = localDevice ? getDeviceIPv4(localDevice) : '';
         
@@ -93,7 +94,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate 
             style={{
               minWidth: 205,
               height: 120,
-              opacity: getDeviceOpacity(device),
+              opacity: getDeviceOpacity(device)
             }}
             onClick={() => setSelectedDevice(device)}
           >
@@ -101,7 +102,6 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate 
               <div className="d-flex justify-content-between align-items-start">
                 <div className="flex-grow-1">
                   <span className="" style={{ fontSize: 24, fontWeight: 600 }}>{ipv4}</span><br />
-                  {/* {mac && <span style={{ fontSize: '0.85rem' }}>{mac}</span>} */}
                   {getDeviceName(device) && (
                     <div
                       style={{
@@ -139,7 +139,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate 
                   {hasOpenPorts(device) && (
                     <FontAwesomeIcon 
                       icon={faExclamationTriangle} 
-                      className="text-danger" 
+                      className="text-danger blink-danger" 
                       style={{ fontSize: '0.7rem' }}
                       title="Open ports detected"
                     />
@@ -147,7 +147,7 @@ const Devices: React.FC<DevicesProps> = ({ devices, localDevice, onDeviceUpdate 
                   {hasFilteredPorts(device) && !hasOpenPorts(device) && (
                     <FontAwesomeIcon 
                       icon={faShieldAlt} 
-                      className="text-warning" 
+                      className="text-warning blink-warning" 
                       style={{ fontSize: '0.7rem' }}
                       title="Filtered ports detected"
                     />

@@ -1,0 +1,40 @@
+/* Minimal Blinking Animations */
+
+/* Device card danger icons */
+.blink-danger {
+  animation: blink-danger 1s ease-in-out infinite;
+}
+
+@keyframes blink-danger {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+/* Device card warning icons */
+.blink-warning {
+  animation: blink-warning 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-warning {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.5; }
+}
+
+/* System status icons */
+.blink-online {
+  animation: blink-online 2s ease-in-out infinite;
+}
+
+@keyframes blink-online {
+  0%, 70% { opacity: 1; }
+  71%, 100% { opacity: 0.6; }
+}
+
+.blink-active {
+  animation: blink-active 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-active {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.7; }
+}

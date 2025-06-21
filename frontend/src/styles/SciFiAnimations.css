@@ -1,0 +1,494 @@
+/* Sci-Fi System Alive Animations */
+
+/* Heartbeat Animation */
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  14% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  28% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  42% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* System Pulse */
+@keyframes system-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4);
+    border-color: rgba(0, 255, 0, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(0, 255, 0, 0);
+    border-color: rgba(0, 255, 0, 1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+    border-color: rgba(0, 255, 0, 0.8);
+  }
+}
+
+/* Data Flow Animation */
+@keyframes data-flow {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Breathing Effect */
+@keyframes breathing {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* Scanner Line */
+@keyframes scanner-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(400%);
+    opacity: 0;
+  }
+}
+
+/* Energy Flow */
+@keyframes energy-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Status Indicator Blink */
+@keyframes status-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0.3;
+  }
+}
+
+/* Circuit Pattern Animation */
+@keyframes circuit-flow {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hologram Flicker */
+@keyframes hologram-flicker {
+  0%, 98%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  1% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
+  3% {
+    opacity: 0.9;
+    transform: scale(0.99);
+  }
+  99% {
+    opacity: 0.95;
+    transform: scale(1.005);
+  }
+}
+
+/* CSS Classes for Components */
+
+/* System Status Heartbeat */
+.system-heartbeat {
+  animation: heartbeat 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Component Breathing */
+.component-breathing {
+  animation: breathing 4s ease-in-out infinite;
+}
+
+/* System Pulse Effect */
+.system-pulse {
+  animation: system-pulse 2s ease-in-out infinite;
+}
+
+/* Data Flow Container */
+.data-flow-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.data-flow-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 12px;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, #00ff0040, transparent);
+  animation: data-pipe-glow 4s ease-in-out infinite;
+}
+
+@keyframes data-pipe-glow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+.data-flow-particle {
+  position: absolute;
+  right: 10px;
+  width: 4px;
+  height: 4px;
+  background: #00ff00;
+  border-radius: 50%;
+  animation: data-flow-vertical 3s ease-in-out infinite;
+  opacity: 0.6;
+  box-shadow: 0 0 6px #00ff00;
+}
+
+@keyframes data-flow-vertical {
+  0% { transform: translateY(-20px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100px); opacity: 0; }
+}
+
+.data-flow-particle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.data-flow-particle:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.data-flow-particle:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+.data-flow-particle:nth-child(4) {
+  animation-delay: 2.4s;
+}
+
+/* Scanner Effect */
+.scanner-line {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00ff00, transparent);
+  animation: scanner-sweep 4s ease-in-out infinite;
+  z-index: 10;
+}
+
+/* Traffic Core Specific Animations */
+.sweep-line {
+  transform-origin: 200px 200px;
+  animation: sweep 4s linear infinite;
+}
+
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.data-artery {
+  filter: drop-shadow(0 0 3px currentColor);
+  transition: all 0.3s ease;
+}
+
+.data-artery.active {
+  animation: data-pulse 2s ease-in-out infinite;
+}
+
+@keyframes data-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.pulse-ring {
+  animation: pulse-expand 3s ease-in-out infinite;
+}
+
+.pulse-ring-inner {
+  animation: pulse-expand 3s ease-in-out infinite 0.5s;
+}
+
+@keyframes pulse-expand {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.6; }
+}
+
+.globe-sphere {
+  animation: globe-rotation 20s linear infinite;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+@keyframes globe-rotation {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.globe-texture {
+  animation: texture-drift 15s linear infinite reverse;
+}
+
+@keyframes texture-drift {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.globe-mesh {
+  animation: mesh-flicker 4s ease-in-out infinite;
+}
+
+@keyframes mesh-flicker {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+
+.globe-highlight {
+  animation: highlight-shimmer 6s ease-in-out infinite;
+}
+
+@keyframes highlight-shimmer {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.02); }
+}
+
+.central-globe {
+  filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.3));
+}
+
+.network-node {
+  animation: node-activity 3s ease-in-out infinite;
+}
+
+@keyframes node-activity {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.network-core {
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+.scanning-sweep {
+  animation: sweep-fade 8s ease-in-out infinite;
+}
+
+@keyframes sweep-fade {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.circuit-elements {
+  animation: circuit-flicker 5s ease-in-out infinite;
+}
+
+@keyframes circuit-flicker {
+  0%, 100% { opacity: 0.4; }
+  25% { opacity: 0.6; }
+  75% { opacity: 0.3; }
+}
+
+.corner-brackets {
+  animation: bracket-glow 4s ease-in-out infinite;
+}
+
+@keyframes bracket-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.core-label {
+  animation: core-text-glow 4s ease-in-out infinite;
+}
+
+@keyframes core-text-glow {
+  0%, 100% { text-shadow: 0 0 5px currentColor; }
+  50% { text-shadow: 0 0 10px currentColor, 0 0 15px currentColor; }
+}
+
+/* Status Indicators */
+.status-online {
+  animation: status-blink 1s ease-in-out infinite;
+  color: #00ff00;
+}
+
+.status-active {
+  animation: heartbeat 1.5s ease-in-out infinite;
+  color: #00ff00;
+}
+
+.status-warning {
+  animation: status-blink 0.8s ease-in-out infinite;
+  color: #ffff00;
+}
+
+.status-error {
+  animation: status-blink 0.5s ease-in-out infinite;
+  color: #ff4444;
+}
+
+/* Energy Border */
+.energy-border {
+  border: 1px solid #00ff00;
+  background: linear-gradient(
+    45deg,
+    transparent 30%, 
+    rgba(0, 255, 0, 0.1) 50%, 
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: energy-flow 3s ease infinite;
+}
+
+/* Circuit Lines */
+.circuit-line {
+  stroke: #00ff00;
+  stroke-width: 1;
+  stroke-dasharray: 5, 5;
+  animation: circuit-flow 2s linear infinite;
+  opacity: 0.6;
+}
+
+/* Hologram Effect */
+.hologram-effect {
+  animation: hologram-flicker 5s ease-in-out infinite;
+  text-shadow: 
+    0 0 5px #00ff00,
+    0 0 10px #00ff00,
+    0 0 15px #00ff00;
+}
+
+/* Alive System Indicator */
+.system-alive {
+  position: relative;
+}
+
+.system-alive::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #00ff00, transparent, #00ff00);
+  border-radius: inherit;
+  z-index: -1;
+  animation: energy-flow 2s ease infinite;
+  opacity: 0.3;
+}
+
+/* Data Pipes */
+.data-pipe {
+  position: absolute;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(0, 255, 0, 0.1) 25%,
+    rgba(0, 255, 0, 0.3) 50%,
+    rgba(0, 255, 0, 0.1) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: energy-flow 2s linear infinite;
+  z-index: 1;
+}
+
+.data-pipe-vertical {
+  width: 2px;
+  height: 100%;
+}
+
+.data-pipe-horizontal {
+  width: 100%;
+  height: 2px;
+}
+
+/* Activity Indicator */
+.activity-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ff00;
+  animation: system-pulse 1s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+/* Performance optimizations */
+.system-heartbeat,
+.component-breathing,
+.system-pulse,
+.data-flow-particle,
+.scanner-line,
+.energy-border,
+.circuit-line,
+.hologram-effect,
+.system-alive,
+.data-pipe,
+.sweep-line,
+.data-artery,
+.pulse-ring,
+.globe-sphere,
+.globe-texture,
+.network-node,
+.core-label,
+.circuit-elements,
+.corner-brackets {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}

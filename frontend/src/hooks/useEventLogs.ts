@@ -15,8 +15,11 @@ const useEventLogs = () => {
   const [error, setError] = useState<Error | null>(null);
 
   // Use callback to avoid recreating this function on every render
-  const fetchLogs = useCallback(async () => {
-    setIsLoading(true);
+  const fetchLogs = useCallback(async (isInitialLoad = false) => {
+    // Only show loading on initial load, not on subsequent polls
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
     try {
       const logs = await fetchEventLogs();
       logger.debug(`Fetched ${logs.length} event logs`);
@@ -26,18 +29,20 @@ const useEventLogs = () => {
       logger.error("Error fetching event logs:", error);
       setError(error);
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     logger.info('Setting up event logs polling');
     
-    // Initial fetch
-    fetchLogs();
+    // Initial fetch with loading indicator
+    fetchLogs(true);
 
-    // Set up polling interval
-    const interval = setInterval(fetchLogs, POLL_INTERVAL);
+    // Set up polling interval for subsequent fetches (without loading)
+    const interval = setInterval(() => fetchLogs(false), POLL_INTERVAL);
 
     // Clean up interval on unmount
     return () => {

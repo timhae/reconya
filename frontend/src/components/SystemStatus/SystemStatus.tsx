@@ -12,14 +12,16 @@ const SystemStatusComponent: React.FC<{systemStatus: SystemStatus | undefined, n
   console.log("SystemStatus component:", {systemStatus, network, publicIP, networkCIDR});
   
   return (
-    <div className="">
-      <h6 className="text-success d-block w-100">[ SYSTEM STATUS ]</h6>
+    <div>
+      <div className="d-flex align-items-center mb-2">
+        <h6 className="text-success d-block w-100">[ SYSTEM STATUS ]</h6>
+      </div>
       <div className="card bg-very-dark text-success border-0 rounded-0">
         <div className="card-body">
           <div className="px-4 py-2 text-success fs-4">
             <div className="text-start mb-2">
               <div className="d-inline-block align-middle text-center" style={{width: 30}}>
-                <FontAwesomeIcon icon={faNetworkWired} />
+                <FontAwesomeIcon icon={faNetworkWired} className="blink-online" />
               </div>
               <div className="d-inline-block align-middle ms-4">
                 { networkCIDR }
@@ -28,7 +30,7 @@ const SystemStatusComponent: React.FC<{systemStatus: SystemStatus | undefined, n
 
             <div className="text-start">
               <div className="d-inline-block align-middle text-center" style={{width: 30}}>
-                <FontAwesomeIcon icon={faGlobe} />
+                <FontAwesomeIcon icon={faGlobe} className="blink-active" />
               </div>
               <div className="d-inline-block align-middle ms-4">
                 { publicIP }

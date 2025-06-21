@@ -8,8 +8,10 @@ import Devices from '../Devices/Devices';
 import DeviceList from '../DeviceList/DeviceList';
 import EventLogs from '../EventLog/EventLogs';
 import SystemStatusComponent from '../SystemStatus/SystemStatus';
+import TrafficCore from '../TrafficCore/TrafficCore';
 import LoadingSpinner from '../Common/LoadingSpinner';
 import useNetwork from '../../hooks/useNetwork';
+import '../../styles/MinimalAnimations.css';
 
 const Dashboard: React.FC = () => {
   const isAuthenticated = useAuth();
@@ -20,12 +22,13 @@ const Dashboard: React.FC = () => {
 
   const localDevice = systemStatus?.local_device || systemStatus?.LocalDevice;
 
-  const isLoading = devicesLoading || systemStatusLoading;
+  // Only show loading on initial load, not on subsequent polling
+  const isInitialLoading = (devicesLoading && devices.length === 0) || (systemStatusLoading && !systemStatus);
   const error = devicesError || systemStatusError;
 
   
   if (!isAuthenticated) return null;
-  if (isLoading) return <LoadingSpinner message="Loading dashboard data..." />;
+  if (isInitialLoading) return <LoadingSpinner message="Loading dashboard data..." />;
   if (error) return (
     <div className="alert alert-danger">
       <h4 className="alert-heading">Error</h4>
@@ -47,13 +50,19 @@ const Dashboard: React.FC = () => {
           <div className="mb-4">
             <SystemStatusComponent systemStatus={systemStatus} network={network} />
           </div>
+          <div className="mt-4">
+            <TrafficCore devices={devices} localDevice={localDevice} />
+          </div>
           <div className="flex-grow-1">
             <EventLogs />
           </div>
         </div>
       </div>
-      <div className="mt-4">
-        <DeviceList devices={devices} localDevice={localDevice} />
+      
+      <div className="row mt-4">
+        <div className="col-12">
+          <DeviceList devices={devices} localDevice={localDevice} />
+        </div>
       </div>
     </div>
   );

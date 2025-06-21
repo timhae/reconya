@@ -21,7 +21,9 @@ const EventLogs = () => {
 
   return (
     <div className="mt-5">
-      <h6 className="text-success d-block w-100">[ EVENT LOG ]</h6>
+      <div className="d-flex align-items-center mb-2">
+        <h6 className="text-success d-block w-100">[ EVENT LOG ]</h6>
+      </div>
       
       {isLoading && eventLogs.length === 0 ? (
         <div className="text-center my-4">
@@ -35,7 +37,7 @@ const EventLogs = () => {
         <table className="table table-dark table-sm table-compact border-dark border-bottom text-success" style={{ fontSize: '13px' }}>
           <tbody>
             {eventLogs.length > 0 ? (
-              eventLogs.map((log: EventLog, index: React.Key | null | undefined) => {
+              eventLogs.map((log: EventLog, index: number) => {
                 // Handle both snake_case and camelCase properties
                 const logType = log.type || log.Type;
                 const logDescription = log.description || log.Description;
@@ -69,18 +71,6 @@ const EventLogs = () => {
             )}
           </tbody>
         </table>
-      )}
-      
-      {/* Small loading indicator when refreshing data */}
-      {isLoading && eventLogs.length > 0 && (
-        <div className="text-end">
-          <small className="text-success">
-            <div className="spinner-border spinner-border-sm text-success me-2" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            Refreshing...
-          </small>
-        </div>
       )}
     </div>
   );
