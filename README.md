@@ -49,10 +49,9 @@ Reconya discovers and monitors devices on your network with real-time updates. S
 
 ## Advanced
 
-<details>
-<summary>Development Setup</summary>
+### Development Setup
 
-### Backend
+#### Backend
 ```bash
 cd backend
 cp .env.example .env
@@ -60,16 +59,14 @@ go mod download
 go run cmd/main.go
 ```
 
-### Frontend
+#### Frontend
 ```bash
 cd frontend
 npm install
 npm start
 ```
-</details>
 
-<details>
-<summary>Network Scanning Issues</summary>
+### Network Scanning Issues
 
 For MAC address detection, install nmap:
 ```bash
@@ -82,12 +79,10 @@ Grant nmap privileges:
 sudo chown root:admin $(which nmap)
 sudo chmod u+s $(which nmap)
 ```
-</details>
 
-<details>
-<summary>Troubleshooting</summary>
+### Troubleshooting
 
-### Common Issues
+#### Common Issues
 
 **Python 3.12 errors**
 - Error: `ModuleNotFoundError: No module named 'distutils.spawn'`
