@@ -41,21 +41,26 @@ func (h *AuthHandlers) GenerateJWT(username string) (string, error) {
 }
 
 func (h *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
 	var creds Credentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request format"})
 		return
 	}
 
 	if creds.Username != h.Config.Username || creds.Password != h.Config.Password {
 		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid username or password"})
 		return
 	}
 
 	tokenString, err := h.GenerateJWT(creds.Username)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to generate token"})
 		return
 	}
 

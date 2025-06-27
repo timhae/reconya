@@ -70,9 +70,12 @@ axiosInstance.interceptors.response.use(
     
     // Handle token expiration (401) errors
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Don't redirect if this is a login request failure
+      if (!error.config?.url?.includes('/login')) {
+        // Clear token and redirect to login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     
     return Promise.reject(error);
