@@ -2,6 +2,8 @@
 
 Network reconnaissance and asset discovery tool built with Go and React.
 
+![Dashboard Screenshot](screenshots/dashboard.png)
+
 ## Overview
 
 Reconya discovers and monitors devices on your network with real-time updates. Suitable for network administrators, security professionals, and home users.
