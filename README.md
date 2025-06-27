@@ -1,275 +1,146 @@
 # Reconya
 
-A powerful network reconnaissance and asset discovery tool built with Go and React, designed to help map and monitor network devices with precision and elegance.
+Network reconnaissance and asset discovery tool built with Go and React.
 
-<div align="center">
-  <img src="screenshots/dashboard.png" alt="Reconya Dashboard" width="80%">
-</div>
+## Overview
 
-## 🌟 Overview
+Reconya discovers and monitors devices on your network with real-time updates. Suitable for network administrators, security professionals, and home users.
 
-Reconya helps users discover, identify, and monitor devices on their network with real-time updates and an intuitive interface. Our tool is perfect for network administrators, security professionals, and tech enthusiasts.
+### Features
 
-### ✨ Key Features
+- Network scanning with nmap integration
+- Device identification (MAC addresses, vendor detection, hostnames)
+- Real-time monitoring and event logging
+- Web-based dashboard
+- Device fingerprinting
 
-- 🔎 **Advanced Network Scanning** - Comprehensive port scanning and ping sweeping with nmap integration
-- 🧩 **Enhanced Device Identification** - MAC addresses, vendor detection, and hostname resolution
-- 🕸️ **Network Visualization** - Clear and interactive network topology mapping
-- 📊 **Event Monitoring** - Real-time logging and monitoring of network events
-- 🖥️ **Modern Dashboard** - Sleek, responsive web interface for all devices
-- 🔍 **Deep Device Fingerprinting** - Hardware vendor identification and network interface details
+## Installation
 
-## 🚀 Installation
+### Prerequisites
 
-### 📋 Prerequisites
+- Docker and Docker Compose
+- Python 3.9+ (for docker-compose compatibility)
 
-- 🐳 Docker and Docker Compose (for easy deployment)
-- 🔹 Go 1.16+ (for development only)
-- 🟢 Node.js 14+ and npm (for development only)
+### Python 3.12 Users
 
-### 🚀 Quick Start (Recommended)
+If using Python 3.12, you may encounter docker-compose issues. Solutions:
 
-The easiest way to get started is using our setup script:
+**Option 1: Use Docker Compose V2 (recommended)**
+```bash
+docker compose version  # verify V2 installation
+docker compose up -d    # note: no hyphen
+```
 
-1. Clone the repository:
+**Option 2: Legacy docker-compose**
+```bash
+pip install docker-compose  # requires Python 3.11 or earlier
+# or
+pipx install docker-compose
+```
+
+### Quick Start
+
+1. Clone and setup:
    ```bash
    git clone https://github.com/Dyneteq/reconya-ai-go.git
    cd reconya-ai-go
-   ```
-
-2. Run the setup script:
-   ```bash
    ./setup.sh
    ```
-   
-   The script will:
-   - Check for dependencies
-   - Guide you through configuration
-   - Set up environment variables
-   - Build and start the application
 
-3. Access the application at `http://localhost:3001`
+2. Access at `http://localhost:3001`
 
-### 🏭 Manual Deployment
+### Manual Setup
 
-If you prefer to set things up manually:
-
-1. Configure environment variables:
+1. Configure environment:
    ```bash
    cp .env.example .env
+   # edit .env with your settings
    ```
-   
-   Edit `.env` with your configuration (network range, credentials, etc.)
 
-2. Build and start the containers:
+2. Start containers:
    ```bash
    docker compose up -d
    ```
 
-3. Access the application at `http://localhost:3001`
+## Usage
 
-### 🛠️ Helper Scripts
+1. Login with credentials from your `.env` file
+2. Configure network range in settings
+3. Run discovery to scan your network
+4. Monitor devices in the dashboard
 
-We provide several convenient scripts to manage Reconya:
+## Development
 
-- `setup.sh` - Interactive setup script (recommended for first-time users)
-- `start.sh` - Start the application
-- `stop.sh` - Stop the application
-- `logs.sh` - View application logs
-  ```bash
-  # View all logs
-  ./logs.sh
-  
-  # Follow logs (live updates)
-  ./logs.sh -f
-  
-  # View only backend or frontend logs
-  ./logs.sh backend
-  ./logs.sh frontend
-  ```
+### Backend
+```bash
+cd backend
+cp .env.example .env
+go mod download
+go run cmd/main.go
+```
 
-### 💻 Development Setup
+### Frontend
+```bash
+cd frontend
+npm install
+npm start
+```
 
-For development purposes:
+### Network Scanning Setup
 
-#### 🔧 Backend Setup
+For MAC address detection, install nmap:
+```bash
+# macOS
+brew install nmap
 
-1. Set up environment variables:
-   ```bash
-   cd backend
-   cp .env.example .env
-   ```
-   Edit `.env` with your configuration.
+# Ubuntu/Debian
+sudo apt-get install nmap
+```
 
-2. Install dependencies:
-   ```bash
-   cd backend
-   go mod download
-   ```
+Grant nmap privileges:
+```bash
+sudo chown root:admin $(which nmap)
+sudo chmod u+s $(which nmap)
+```
 
-3. **Enhanced Network Scanning Setup** (Required for MAC addresses and vendor detection):
-
-   Install nmap:
-   ```bash
-   # macOS (using Homebrew)
-   brew install nmap
-   
-   # Ubuntu/Debian
-   sudo apt-get install nmap
-   
-   # CentOS/RHEL
-   sudo yum install nmap
-   ```
-
-   Configure nmap for enhanced device detection:
-   ```bash
-   # Allow nmap to run with elevated privileges for MAC address detection
-   echo "$(whoami) ALL=(ALL) NOPASSWD: $(which nmap)" | sudo tee /etc/sudoers.d/reconya-nmap
-   sudo chmod 440 /etc/sudoers.d/reconya-nmap
-   
-   # Set nmap to run with setuid (alternative approach for better performance)
-   sudo chown root:admin $(which nmap)
-   sudo chmod u+s $(which nmap)
-   ```
-
-   **Note**: These commands enable nmap to capture MAC addresses and vendor information from network devices. Without elevated privileges, you'll only see IP addresses and hostnames.
-
-4. Run the backend:
-   ```bash
-   go run cmd/main.go
-   ```
-
-#### 🎨 Frontend Setup
-
-1. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. Configure environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Start the development server:
-   ```bash
-   npm start
-   ```
-
-4. Access the web interface at `http://localhost:3001`
-
-#### ⚙️ Production Customization
-
-- 🔧 **NGINX Configuration**: Edit `frontend/nginx.conf` to customize the web server settings
-- 🔒 **SSL/TLS**: For HTTPS, use a reverse proxy like Traefik or modify the NGINX configuration
-- 💾 **Persistence**: Database files are stored in the `backend/data` directory. Consider mounting this to a persistent volume
-- 🔄 **Auto-updates**: Set up a CI/CD pipeline for automated deployments
-
-## 📝 Usage
-
-1. 🔑 Log in with credentials configured in your `.env` file
-2. 🌐 Configure network range to scan in the settings
-3. 🔍 Run discovery to find devices on your network
-4. 📱 View and manage discovered devices in the dashboard
-5. 📊 Monitor network activity through event logs
-
-## 🏗️ Architecture
-
-- 🔙 **Backend**: Go API server with SQLite for storage
-- 🖌️ **Frontend**: React/TypeScript web application with responsive Bootstrap UI
-- 🔍 **Scanning**: Network operations performed through native Go libraries
-- 🔄 **Real-time Updates**: Polling system with configurable intervals
-- 🐳 **Deployment**: Docker Compose for easy setup and production use
-
-### 💾 Database
-
-The application uses SQLite for its database, offering several advantages:
-
-#### 🔶 SQLite Benefits
-- 📦 Self-contained, no separate database service required
-- 🧩 Simple setup with minimal configuration
-- 🏠 Perfect for personal or organizational deployments
-- 🪶 Lightweight and portable
-- 🔒 Data is stored locally in a single file
-- 🚫 No need for database administration
-
-## 🔐 Security Notes
-
-- 🔑 Always use strong passwords in production environments
-- 🔒 Use an `.env` file for all sensitive configuration
-- 🛡️ Never expose the backend API directly to the internet
-- 👮 Run with least privilege required for network scanning
-- 🔄 Keep dependencies updated to patch security vulnerabilities
-- 🧪 Regularly test your deployment for security issues
-
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-#### Application Not Accessible
-- Make sure ports 3001 and 3008 are not in use by other applications
-- Check that Docker containers are running with `docker ps`
-- View logs with `./logs.sh` to identify any startup errors
-- If the page is blank or shows "Cannot GET /", check the nginx configuration to ensure static files are being served correctly from `/usr/share/nginx/html`
+**Python 3.12 errors**
+- Error: `ModuleNotFoundError: No module named 'distutils.spawn'`
+- Solution: Use `docker compose` instead of `docker-compose`
 
-#### CORS Issues
-- If you see CORS errors in the browser console, check:
-  - The CORS configuration in `backend/middleware/cors.go`
-  - The proxy configuration in nginx.conf to ensure proper API routing
-  - The axiosConfig.ts to ensure it's using the correct API URL
-- For local development, set the Access-Control-Allow-Origin header to "*" 
-- For production, set it to your specific domain
+**App not accessible**
+- Check ports 3001 and 3008 aren't in use
+- Verify containers are running: `docker ps`
+- Check logs: `./logs.sh`
 
-#### Authentication Issues
-- For development, API endpoints are set to bypass authentication
-- For production, uncomment the middleware.AuthMiddleware wrapper in main.go
-- If you see "Unauthorized" errors, ensure the JWT token is properly set
-- The default login is admin/admin for development environment
+**Missing MAC addresses**
+- Ensure nmap is installed and has proper permissions
+- MAC addresses only visible on same network segment
 
-#### Permission Issues
-- Some network scanning operations require elevated privileges
-- Make sure Docker has the necessary network permissions
-- If using host networking, run with appropriate privileges
+**CORS issues**
+- Check CORS config in `backend/middleware/cors.go`
+- Verify API routing in nginx.conf
 
-#### Database Issues
-- Check that the data directory is writable by the application
-- If database errors occur, try removing and recreating the data directory
+## Architecture
 
-#### Network Scanning Not Working
-- Verify the network range is correctly specified in the .env file
-- Ensure the application has access to the target network
-- Check that nmap is installed and properly configured
-- Check firewall settings that might block ICMP or TCP scanning
-- Note: Docker containers may have limited network scanning capabilities due to container isolation
+- **Backend**: Go API with SQLite database
+- **Frontend**: React/TypeScript with Bootstrap
+- **Scanning**: Native Go libraries with nmap integration
+- **Deployment**: Docker Compose
 
-#### Missing MAC Addresses or Vendor Information
-- Ensure nmap is installed: `which nmap`
-- Verify nmap has elevated privileges (see Enhanced Network Scanning Setup above)
-- Check that the setuid bit is set: `ls -la $(which nmap)` (should show 's' in permissions)
-- Run a test scan: `nmap -sn -T4 -R -oX - 192.168.1.1` (should show XML output with address elements)
-- MAC addresses are only visible for devices on the same network segment
-- Some devices may not respond to ping scans or may hide their MAC addresses
+## Contributing
 
-### Getting Help
-If you're experiencing issues not covered here, please:
-1. Check the logs using `./logs.sh`
-2. Open an issue in the GitHub repository with detailed information
-3. Include log output and system information in your report
+1. Fork the repository
+2. Create feature branch
+3. Make changes and test
+4. Submit pull request
 
-## 🤝 Contributing
+## License
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. 🍴 Fork the repository
-2. 🌿 Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. 💾 Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. 🚀 Push to the branch (`git push origin feature/amazing-feature`)
-5. 🔍 Open a Pull Request with a detailed description
-
-## 📄 License
-
-This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](LICENSE) file for details. Commercial use requires explicit permission from the author.
+Creative Commons Attribution-NonCommercial 4.0 International License. Commercial use requires permission.
 
 ## 🌟 Please check my other projects!
 
