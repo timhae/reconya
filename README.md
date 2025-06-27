@@ -14,66 +14,41 @@ Reconya discovers and monitors devices on your network with real-time updates. S
 - Web-based dashboard
 - Device fingerprinting
 
-## Installation
+## Quick Start
 
-### Prerequisites
-
-- Docker and Docker Compose
-- Python 3.9+ (for docker-compose compatibility)
-
-### Python 3.12 Users
-
-If using Python 3.12, you may encounter docker-compose issues. Solutions:
-
-**Option 1: Use Docker Compose V2 (recommended)**
-```bash
-docker compose version  # verify V2 installation
-docker compose up -d    # note: no hyphen
-```
-
-**Option 2: Legacy docker-compose**
-```bash
-pip install docker-compose  # requires Python 3.11 or earlier
-# or
-pipx install docker-compose
-```
-
-### Quick Start
-
-1. Clone and setup:
+1. **Clone and run:**
    ```bash
    git clone https://github.com/Dyneteq/reconya-ai-go.git
    cd reconya-ai-go
    ./setup.sh
    ```
 
-2. Access at `http://localhost:3001`
+2. **Access at:** `http://localhost:3001`
 
-### Manual Setup
+3. **Login:** `admin` / `password`
 
-1. Configure environment:
-   ```bash
-   cp .env.example .env
-   # edit .env with your settings
-   ```
+## Daily Usage
 
-2. Start containers:
-   ```bash
-   # Standard setup (bridge networking)
-   docker compose up -d
-   
-   # OR for full host network access (solves Docker IP detection issues)
-   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
-   ```
+```bash
+./start.sh    # Start
+./stop.sh     # Stop  
+./logs.sh     # View logs
+```
 
-## Usage
+## How to Use
 
-1. Login with credentials from your `.env` file
-2. Configure network range in settings
-3. Run discovery to scan your network
-4. Monitor devices in the dashboard
+1. Login with `admin` / `password` (or check your `.env` file for custom credentials)
+2. Devices will automatically appear as they're discovered  
+3. Click on devices to see details and edit information
 
-## Development
+> **Note:** The setup script creates a `.env` file with default credentials. You can edit this file to change the username, password, and network range.
+
+---
+
+## Advanced
+
+<details>
+<summary>Development Setup</summary>
 
 ### Backend
 ```bash
@@ -89,16 +64,15 @@ cd frontend
 npm install
 npm start
 ```
+</details>
 
-### Network Scanning Setup
+<details>
+<summary>Network Scanning Issues</summary>
 
 For MAC address detection, install nmap:
 ```bash
-# macOS
-brew install nmap
-
-# Ubuntu/Debian
-sudo apt-get install nmap
+# macOS: brew install nmap
+# Ubuntu: sudo apt-get install nmap
 ```
 
 Grant nmap privileges:
@@ -106,8 +80,10 @@ Grant nmap privileges:
 sudo chown root:admin $(which nmap)
 sudo chmod u+s $(which nmap)
 ```
+</details>
 
-## Troubleshooting
+<details>
+<summary>Troubleshooting</summary>
 
 ### Common Issues
 

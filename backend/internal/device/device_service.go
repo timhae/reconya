@@ -442,8 +442,7 @@ func (s *DeviceService) UpdateDeviceStatuses() error {
 	defer cancel()
 
 	// Use DB manager to serialize database access
-	// Increased timeout to keep devices visible longer: 15 minutes total
-	// This means: online -> idle after 7.5 minutes, idle/online -> offline after 15 minutes
+	// Device status transitions: online -> idle after 1 minute, idle/online -> offline after 15 minutes
 	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 15*time.Minute)
 }
 

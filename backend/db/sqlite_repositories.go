@@ -500,7 +500,8 @@ func (r *SQLiteDeviceRepository) UpdateDeviceStatuses(ctx context.Context, timeo
 		return fmt.Errorf("error updating device statuses: %w", err)
 	}
 
-	idleThreshold := now.Add(-timeout / 2)
+	// Set devices to idle after 1 minute of inactivity
+	idleThreshold := now.Add(-1 * time.Minute)
 	query = `
 	UPDATE devices 
 	SET status = ?, updated_at = ?

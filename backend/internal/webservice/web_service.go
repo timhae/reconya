@@ -22,7 +22,8 @@ import (
 )
 
 type WebService struct {
-	client *http.Client
+	client             *http.Client
+	screenshotsEnabled bool
 }
 
 type WebInfo struct {
@@ -242,6 +243,12 @@ func (w *WebService) captureScreenshot(urlStr string) string {
 		return screenshot
 	}
 
+	// Try Firefox ESR headless if available
+	screenshot = w.captureWithFirefox(urlStr, screenshotPath)
+	if screenshot != "" {
+		return screenshot
+	}
+
 	// Try Chrome/Chromium headless if available
 	screenshot = w.captureWithChrome(urlStr, screenshotPath)
 	if screenshot != "" {
@@ -378,6 +385,47 @@ func (w *WebService) captureWithChrome(urlStr, outputPath string) string {
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("Chrome screenshot failed for %s: %v", urlStr, err)
+		return ""
+	}
+
+	return w.encodeScreenshotToBase64(outputPath)
+}
+
+// captureWithFirefox captures screenshot using Firefox ESR headless
+func (w *WebService) captureWithFirefox(urlStr, outputPath string) string {
+	// Check if firefox is available
+	if _, err := exec.LookPath("firefox"); err != nil {
+		log.Printf("Firefox not found in PATH")
+		return ""
+	}
+
+	log.Printf("Using Firefox ESR for screenshot")
+
+	// Firefox headless command with screenshot
+	args := []string{
+		"--headless",
+		"--screenshot",
+		outputPath,
+		"--window-size=1280,1024",
+		urlStr,
+	}
+
+	// Use xvfb-run to provide virtual display for Firefox
+	cmd := exec.Command("xvfb-run", append([]string{"-a", "firefox"}, args...)...)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	
+	// Set timeout for screenshot capture
+	timer := time.AfterFunc(15*time.Second, func() {
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+	})
+	defer timer.Stop()
+
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("Firefox screenshot failed for %s: %v", urlStr, err)
 		return ""
 	}
 

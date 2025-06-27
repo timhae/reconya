@@ -16,26 +16,37 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -o reconya-api ./cmd/main.go
+# Build the application with optimizations
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o reconya-api ./cmd/main.go
 
-# Runtime stage
+# Runtime stage - with lightweight Firefox ESR for screenshots
 FROM alpine:latest
 
-# Install runtime dependencies including sudo for nmap
-RUN apk add --no-cache ca-certificates tzdata sqlite nmap sudo chromium
-RUN ln -s /usr/bin/chromium /usr/bin/google-chrome
+# Install runtime dependencies with Firefox ESR (lighter than Chromium)
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    sqlite \
+    nmap \
+    sudo \
+    firefox-esr \
+    xvfb \
+    && rm -rf /var/cache/apk/* \
+    && adduser -D -s /bin/sh reconya
 
 # Set working directory
 WORKDIR /app
 
-# Copy binary from build stage
+# Copy binary from build stage and set permissions
 COPY --from=builder /app/reconya-api /app/
+RUN chmod +x /app/reconya-api
 
-# Environment files will be passed through environment variables in docker-compose
+# Create directories with proper permissions
+RUN mkdir -p /app/data \
+    && chown -R reconya:reconya /app
 
-# Create directories
-RUN mkdir -p /app/data
+# Switch to non-root user for security
+USER reconya
 
 # Expose port
 EXPOSE 3008
