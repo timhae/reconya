@@ -35,10 +35,12 @@ services:
     networks:
       - reconya-network
     restart: unless-stopped
-    # Optional: Uncomment these lines to enable more network capabilities
-    # cap_add:
-    #   - NET_ADMIN
-    #   - NET_RAW
+    # Network scanning capabilities - uncomment for enhanced scanning
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # For full host network access (alternative to bridge mode)
+    # Uncomment the next line and comment out the networks section above
     # network_mode: host
 
 networks:

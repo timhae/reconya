@@ -59,7 +59,11 @@ pipx install docker-compose
 
 2. Start containers:
    ```bash
+   # Standard setup (bridge networking)
    docker compose up -d
+   
+   # OR for full host network access (solves Docker IP detection issues)
+   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
    ```
 
 ## Usage
@@ -123,6 +127,23 @@ sudo chmod u+s $(which nmap)
 **CORS issues**
 - Check CORS config in `backend/middleware/cors.go`
 - Verify API routing in nginx.conf
+
+**Docker IP detection issues**
+- Error: Reconya detects Docker internal IP instead of host network
+- **Solution 1**: Set correct network range in `.env`:
+  ```bash
+  NETWORK_RANGE=192.168.1.0/24  # Replace with your actual network
+  ```
+- **Solution 2**: Use host networking for full network access:
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
+  ```
+- **Solution 3**: Enable network capabilities (already enabled by default):
+  ```yaml
+  cap_add:
+    - NET_ADMIN
+    - NET_RAW
+  ```
 
 ## Architecture
 
