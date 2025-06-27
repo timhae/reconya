@@ -271,8 +271,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](LICENSE) file for details. Commercial use requires explicit permission from the author.
 
-## ✨ Features Added in Latest Update
+## 🌟 Please check my other projects!
 
-- [Nmap](https://nmap.org/) for inspiration and scanning techniques
-- [React](https://reactjs.org/) for the frontend framework
-- [Go](https://golang.org/) for the backend language
+- **[Tududi](https://tududi.com)** -  Self-hosted task management with hierarchical organization, multi-language support, and Telegram integration
+- **[BreachHarbor](https://breachharbor.com)** - Cybersecurity suite for digital asset protection  
+- **[Hevetra](https://hevetra.com)** - Digital tracking for child health milestones
