@@ -73,18 +73,7 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		}
 	}
 
-	// Set a meaningful device name if still empty
-	if device.Name == "" {
-		if device.Hostname != nil && *device.Hostname != "" {
-			device.Name = *device.Hostname
-		} else if device.Vendor != nil && *device.Vendor != "" {
-			// Create a name based on vendor and IP
-			device.Name = fmt.Sprintf("%s Device (%s)", *device.Vendor, device.IPv4)
-		} else {
-			// Fallback to IP address
-			device.Name = device.IPv4
-		}
-	}
+	// Leave device name empty if not explicitly set
 
 	// Use DB manager to serialize database access
 	return s.dbManager.CreateOrUpdateDevice(s.repository, context.Background(), device)

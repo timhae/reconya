@@ -44,8 +44,18 @@ const Dashboard: React.FC = () => {
         <div className="col-md-9">
           {/* Interactive D3.js Network Graph */}
           <NetworkMap devices={devices} localDevice={localDevice} />
-          <Devices devices={devices} localDevice={localDevice} onDeviceUpdate={updateDeviceInState} />
+          
+          {/* Devices section */}
+          <div className="mt-4">
+            <Devices devices={devices} localDevice={localDevice} onDeviceUpdate={updateDeviceInState} />
+          </div>
+          
+          {/* Device List right under Devices */}
+          <div className="mt-4">
+            <DeviceList devices={devices} localDevice={localDevice} />
+          </div>
         </div>
+        
         <div className="col-md-3 d-flex flex-column">
           <div className="mb-4">
             <SystemStatusComponent systemStatus={systemStatus} network={network} />
@@ -53,15 +63,9 @@ const Dashboard: React.FC = () => {
           <div className="mt-4">
             <TrafficCore devices={devices} localDevice={localDevice} />
           </div>
-          <div className="flex-grow-1">
+          <div className="flex-grow-1 mt-4">
             <EventLogs />
           </div>
-        </div>
-      </div>
-      
-      <div className="row mt-4">
-        <div className="col-12">
-          <DeviceList devices={devices} localDevice={localDevice} />
         </div>
       </div>
     </div>

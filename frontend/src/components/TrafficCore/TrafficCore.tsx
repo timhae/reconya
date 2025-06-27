@@ -163,7 +163,7 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
       </div>
 
       <div className="traffic-core-visualization">
-        <svg width="300" height="300" viewBox="0 0 400 400">
+        <svg width="700" height="250" viewBox="0 0 800 300">
           {/* Background grid and gradients */}
           <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -187,19 +187,10 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
               </feMerge>
             </filter>
             
-            {/* Globe 3D gradients */}
-            <radialGradient id="globeGradient" cx="0.3" cy="0.3" r="0.8">
-              <stop offset="0%" stopColor={getSaturationColor()} stopOpacity="0.8"/>
-              <stop offset="30%" stopColor={getSaturationColor()} stopOpacity="0.6"/>
-              <stop offset="70%" stopColor="#000000" stopOpacity="0.4"/>
-              <stop offset="100%" stopColor="#000000" stopOpacity="0.8"/>
-            </radialGradient>
-            
-            {/* Globe highlight */}
-            <radialGradient id="globeHighlight" cx="0.25" cy="0.25" r="0.4">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6"/>
-              <stop offset="50%" stopColor={getSaturationColor()} stopOpacity="0.3"/>
-              <stop offset="100%" stopColor="transparent" stopOpacity="0"/>
+            {/* Globe flat gradient */}
+            <radialGradient id="globeGradient" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%" stopColor={getSaturationColor()} stopOpacity="0.6"/>
+              <stop offset="100%" stopColor={getSaturationColor()} stopOpacity="0.3"/>
             </radialGradient>
             
             {/* Network circuit pattern */}
@@ -217,12 +208,6 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
               <path d="M4,0 L4,8 M0,4 L8,4" stroke={getSaturationColor()} strokeWidth="0.1" opacity="0.15"/>
             </pattern>
             
-            {/* Globe shadow */}
-            <radialGradient id="globeShadow" cx="0.5" cy="0.5" r="0.8">
-              <stop offset="0%" stopColor="#000000" stopOpacity="0.6"/>
-              <stop offset="70%" stopColor="#000000" stopOpacity="0.3"/>
-              <stop offset="100%" stopColor="#000000" stopOpacity="0"/>
-            </radialGradient>
           </defs>
 
           {/* Grid background */}
@@ -230,8 +215,8 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
 
           {/* Data arteries radiating from center */}
           {dataArteries.map((artery) => {
-            const x1 = 200;
-            const y1 = 200;
+            const x1 = 400;
+            const y1 = 150;
             const length = 120 + (artery.intensity * 60);
             const x2 = x1 + Math.cos((artery.angle - 90) * Math.PI / 180) * length;
             const y2 = y1 + Math.sin((artery.angle - 90) * Math.PI / 180) * length;
@@ -305,243 +290,166 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
             );
           })}
 
-          {/* Central 3D globe */}
-          <g className="central-globe">
-            {/* Outer pulse ring */}
-            <circle
-              cx="200"
-              cy="200"
-              r={60 + (pulseIntensity * 15)}
-              fill="none"
-              stroke={getSaturationColor()}
-              strokeWidth="1"
-              opacity={pulseIntensity * 0.3}
-              filter="url(#glow)"
-              className="pulse-ring"
-            />
-            
-            {/* Inner pulse ring */}
-            <circle
-              cx="200"
-              cy="200"
-              r={45 + (pulseIntensity * 8)}
-              fill="none"
-              stroke={getSaturationColor()}
-              strokeWidth="1"
-              opacity={pulseIntensity * 0.2}
-              className="pulse-ring-inner"
-            />
-            
-            {/* Globe shadow/base */}
-            <ellipse
-              cx="200"
-              cy="235"
-              rx="32"
-              ry="8"
-              fill="url(#globeShadow)"
-              opacity="0.6"
-            />
-            
-            {/* Main globe sphere */}
-            <circle
-              cx="200"
-              cy="200"
-              r="35"
-              fill="url(#globeGradient)"
-              className="globe-sphere"
-            />
-            
-            {/* Globe surface texture overlay */}
-            <circle
-              cx="200"
-              cy="200"
-              r="35"
-              fill="url(#globeTexture)"
-              opacity="0.4"
-              className="globe-texture"
-            />
-            
-            {/* Digital mesh overlay */}
-            <circle
-              cx="200"
-              cy="200"
-              r="35"
-              fill="url(#digitalMesh)"
-              opacity="0.2"
-              className="globe-mesh"
-            />
-            
-            {/* Network grid lines - horizontal */}
-            <g className="globe-lines" opacity="0.6">
-              {/* Core network rings */}
-              <ellipse cx="200" cy="200" rx="35" ry="8" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.8" strokeDasharray="2,1"/>
-              <ellipse cx="200" cy="190" rx="30" ry="6" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" opacity="0.6" strokeDasharray="3,2"/>
-              <ellipse cx="200" cy="180" rx="22" ry="4" fill="none" stroke={getSaturationColor()} strokeWidth="0.6" opacity="0.5" strokeDasharray="1,1"/>
-              <ellipse cx="200" cy="172" rx="12" ry="2" fill="none" stroke={getSaturationColor()} strokeWidth="0.4" opacity="0.4"/>
-              <ellipse cx="200" cy="210" rx="30" ry="6" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" opacity="0.6" strokeDasharray="3,2"/>
-              <ellipse cx="200" cy="220" rx="22" ry="4" fill="none" stroke={getSaturationColor()} strokeWidth="0.6" opacity="0.5" strokeDasharray="1,1"/>
-              <ellipse cx="200" cy="228" rx="12" ry="2" fill="none" stroke={getSaturationColor()} strokeWidth="0.4" opacity="0.4"/>
-            </g>
-            
-            {/* Network connection paths */}
-            <g className="globe-meridians" opacity="0.5">
-              <path d="M 200 165 Q 185 200 200 235" fill="none" stroke={getSaturationColor()} strokeWidth="1" strokeDasharray="4,2"/>
-              <path d="M 200 165 Q 215 200 200 235" fill="none" stroke={getSaturationColor()} strokeWidth="1" strokeDasharray="4,2"/>
-              <path d="M 200 165 Q 175 200 200 235" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" strokeDasharray="2,3"/>
-              <path d="M 200 165 Q 225 200 200 235" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" strokeDasharray="2,3"/>
-              <path d="M 165 200 Q 200 185 235 200" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" strokeDasharray="3,1"/>
-              <path d="M 165 200 Q 200 215 235 200" fill="none" stroke={getSaturationColor()} strokeWidth="0.8" strokeDasharray="3,1"/>
-              
-              {/* Additional network paths */}
-              <path d="M 180 175 Q 200 190 220 175" fill="none" stroke={getSaturationColor()} strokeWidth="0.6" strokeDasharray="1,2" opacity="0.7"/>
-              <path d="M 180 225 Q 200 210 220 225" fill="none" stroke={getSaturationColor()} strokeWidth="0.6" strokeDasharray="1,2" opacity="0.7"/>
-            </g>
-            
-            {/* Globe highlight */}
-            <circle
-              cx="200"
-              cy="200"
-              r="35"
-              fill="url(#globeHighlight)"
-              opacity="0.8"
-              className="globe-highlight"
-            />
-            
-            {/* Network nodes and data packets */}
-            <g className="globe-data-points">
-              {/* Primary network nodes */}
-              <g className="network-node">
-                <circle cx="185" cy="190" r="2" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.8">
-                  <animate attributeName="r" values="2;3;2" dur="3s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="185" cy="190" r="1" fill={getSaturationColor()} opacity="0.9"/>
-              </g>
-              
-              <g className="network-node">
-                <circle cx="215" cy="185" r="2" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.6">
-                  <animate attributeName="r" values="2;2.5;2" dur="4s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="215" cy="185" r="0.8" fill={getSaturationColor()} opacity="0.7"/>
-              </g>
-              
-              <g className="network-node">
-                <circle cx="190" cy="210" r="2" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.7">
-                  <animate attributeName="r" values="2;2.8;2" dur="2.5s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="190" cy="210" r="1.2" fill={getSaturationColor()} opacity="0.8"/>
-              </g>
-              
-              <g className="network-node">
-                <circle cx="210" cy="205" r="2" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.5">
-                  <animate attributeName="r" values="2;2.5;2" dur="3.5s" repeatCount="indefinite"/>
-                </circle>
-                <circle cx="210" cy="205" r="0.8" fill={getSaturationColor()} opacity="0.6"/>
-              </g>
-              
-              {/* Additional network connection points */}
-              <circle cx="175" cy="200" r="1" fill={getSaturationColor()} opacity="0.4">
-                <animate attributeName="opacity" values="0.2;0.6;0.2" dur="5s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="225" cy="200" r="1" fill={getSaturationColor()} opacity="0.4">
-                <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4.5s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="200" cy="175" r="1" fill={getSaturationColor()} opacity="0.3">
-                <animate attributeName="opacity" values="0.1;0.5;0.1" dur="6s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="200" cy="225" r="1" fill={getSaturationColor()} opacity="0.3">
-                <animate attributeName="opacity" values="0.1;0.5;0.1" dur="5.5s" repeatCount="indefinite"/>
-              </circle>
-            </g>
-            
-            {/* Central network core */}
-            <g className="network-core">
-              {/* Core outer ring */}
-              <circle
-                cx="200"
-                cy="200"
-                r="6"
+          {/* Hexagonal Network Hub */}
+          <g className="network-hub">
+            {/* Outer hexagonal frame */}
+            <g className="hex-frame">
+              <polygon
+                points="400,90 450,115 450,150 450,185 400,210 350,185 350,150 350,115"
                 fill="none"
                 stroke={getSaturationColor()}
-                strokeWidth="1"
-                opacity="0.8"
-                strokeDasharray="1,1"
-              >
-                <animate attributeName="r" values="6;8;6" dur="4s" repeatCount="indefinite"/>
-                <animateTransform attributeName="transform" type="rotate" values="0 200 200;360 200 200" dur="8s" repeatCount="indefinite"/>
-              </circle>
+                strokeWidth="2"
+                opacity="0.6"
+                strokeDasharray="8,4"
+              />
               
-              {/* Core middle ring */}
-              <circle
-                cx="200"
-                cy="200"
-                r="4"
+              {/* Middle hexagon */}
+              <polygon
+                points="400,105 435,125 435,150 435,175 400,195 365,175 365,150 365,125"
                 fill="none"
                 stroke={getSaturationColor()}
                 strokeWidth="1.5"
-                opacity="0.9"
+                opacity="0.5"
+                strokeDasharray="4,2"
+              />
+              
+              {/* Inner hexagon */}
+              <polygon
+                points="400,120 420,135 420,150 420,165 400,180 380,165 380,150 380,135"
+                fill="none"
+                stroke={getSaturationColor()}
+                strokeWidth="1"
+                opacity="0.4"
                 strokeDasharray="2,1"
-              >
-                <animateTransform attributeName="transform" type="rotate" values="360 200 200;0 200 200" dur="6s" repeatCount="indefinite"/>
-              </circle>
-              
-              {/* Core center */}
-              <circle
-                cx="200"
-                cy="200"
-                r="2.5"
-                fill={getSaturationColor()}
-                opacity="0.9"
-                filter="url(#glow)"
-              >
-                <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/>
-              </circle>
-              
-              {/* Core data indicators */}
-              <circle cx="200" cy="194" r="0.5" fill={getSaturationColor()} opacity="0.6">
-                <animate attributeName="cy" values="194;206;194" dur="2s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="194" cy="200" r="0.5" fill={getSaturationColor()} opacity="0.6">
-                <animate attributeName="cx" values="194;206;194" dur="2.5s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="206" cy="200" r="0.5" fill={getSaturationColor()} opacity="0.6">
-                <animate attributeName="cx" values="206;194;206" dur="2.5s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="200" cy="206" r="0.5" fill={getSaturationColor()} opacity="0.6">
-                <animate attributeName="cy" values="206;194;206" dur="2s" repeatCount="indefinite"/>
-              </circle>
+              />
             </g>
             
-            {/* Network core text */}
+            {/* Data connection nodes */}
+            <g className="connection-nodes">
+              {[0, 60, 120, 180, 240, 300].map((angle, index) => {
+                const x = 400 + Math.cos((angle - 90) * Math.PI / 180) * 60;
+                const y = 150 + Math.sin((angle - 90) * Math.PI / 180) * 60;
+                const isActive = index < dataArteries.length && dataArteries[index]?.isActive;
+                
+                return (
+                  <g key={`node-${index}`}>
+                    {/* Connection line to center */}
+                    <line
+                      x1="400"
+                      y1="150"
+                      x2={x}
+                      y2={y}
+                      stroke={isActive ? getSaturationColor() : '#00ff0040'}
+                      strokeWidth={isActive ? "2" : "1"}
+                      opacity={isActive ? "0.8" : "0.3"}
+                      strokeDasharray="3,3"
+                    />
+                    
+                    {/* Node circle */}
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={isActive ? "6" : "4"}
+                      fill={isActive ? getSaturationColor() : '#00ff0060'}
+                      opacity={isActive ? "0.8" : "0.5"}
+                    />
+                    
+                    
+                  </g>
+                );
+              })}
+            </g>
+            
+            {/* Central processing core */}
+            <g className="processing-core">
+              {/* Core hexagon */}
+              <polygon
+                points="400,135 415,142.5 415,157.5 400,165 385,157.5 385,142.5"
+                fill={getSaturationColor()}
+                opacity="0.3"
+                stroke={getSaturationColor()}
+                strokeWidth="2"
+              />
+              
+              {/* Inner core circle */}
+              <circle
+                cx="400"
+                cy="150"
+                r="8"
+                fill={getSaturationColor()}
+                opacity="0.8"
+                filter="url(#glow)"
+              />
+              
+              {/* Core ring */}
+              <circle
+                cx="400"
+                cy="150"
+                r="12"
+                fill="none"
+                stroke={getSaturationColor()}
+                strokeWidth="1"
+                opacity="0.6"
+                strokeDasharray="2,2"
+              />
+            </g>
+            
+            {/* Data flow indicators */}
+            <g className="data-flow">
+              <circle
+                cx="400"
+                cy="150"
+                r="25"
+                fill="none"
+                stroke={getSaturationColor()}
+                strokeWidth="1"
+                opacity="0.3"
+                strokeDasharray="2,6"
+              />
+              
+              <circle
+                cx="400"
+                cy="150"
+                r="35"
+                fill="none"
+                stroke={getSaturationColor()}
+                strokeWidth="1"
+                opacity="0.2"
+                strokeDasharray="4,8"
+              />
+            </g>
+            
+            {/* Status display */}
+            <g className="status-display">
+              <text x="580" y="100" fontSize="8" fill={getSaturationColor()} opacity="0.8">HUB ACTIVE</text>
+              <text x="580" y="115" fontSize="7" fill={getSaturationColor()} opacity="0.7">
+                {devices.filter(d => getDeviceStatus(d) === 'online').length} NODES
+              </text>
+              <text x="580" y="130" fontSize="6" fill={getSaturationColor()} opacity="0.6">
+                NETWORK STATUS
+              </text>
+              
+              {/* Status indicator */}
+              <rect x="565" y="95" width="6" height="6" fill="none" stroke={getSaturationColor()} strokeWidth="1" opacity="0.7"/>
+              
+              {/* Status bars */}
+              <rect x="580" y="140" width="15" height="2" fill={getSaturationColor()} opacity="0.6"/>
+              <rect x="580" y="145" width="20" height="2" fill={getSaturationColor()} opacity="0.4"/>
+            </g>
+            
+            {/* Network label */}
             <text
-              x="200"
-              y="260"
-              fontSize="8"
+              x="400"
+              y="250"
+              fontSize="10"
               fill={getSaturationColor()}
               textAnchor="middle"
-              opacity="0.8"
-              className="core-label"
+              opacity="0.9"
             >
-              NETWORK CORE
+              NETWORK HUB
             </text>
           </g>
 
-          {/* Scanning sweep effect */}
-          <g className="scanning-sweep" opacity="0.3">
-            <line
-              x1="200"
-              y1="200"
-              x2="350"
-              y2="200"
-              stroke="#00ff00"
-              strokeWidth="1"
-              opacity="0.8"
-              className="sweep-line"
-              transform="rotate(0 200 200)"
-              style={{
-                animation: 'sweep 4s linear infinite'
-              }}
-            />
-          </g>
           
           {/* Circuit board elements */}
           <g className="circuit-elements" opacity="0.4">
@@ -585,11 +493,11 @@ const TrafficCore: React.FC<TrafficCoreProps> = ({ devices, localDevice }) => {
             {/* Top-left */}
             <path d="M20,20 L40,20 M20,20 L20,40"/>
             {/* Top-right */}
-            <path d="M360,20 L380,20 M380,20 L380,40"/>
-            {/* Bottom-left - rotated 90deg counter-clockwise */}
-            <path d="M20,380 L20,360 M20,380 L40,380"/>
-            {/* Bottom-right - rotated 90deg clockwise */}
-            <path d="M380,380 L360,380 M380,380 L380,360"/>
+            <path d="M760,20 L780,20 M780,20 L780,40"/>
+            {/* Bottom-left */}
+            <path d="M20,280 L20,260 M20,280 L40,280"/>
+            {/* Bottom-right */}
+            <path d="M780,280 L760,280 M780,280 L780,260"/>
           </g>
         </svg>
       </div>
