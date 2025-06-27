@@ -128,8 +128,61 @@ sudo chmod u+s $(which nmap)
 
 - **Backend**: Go API with SQLite database
 - **Frontend**: React/TypeScript with Bootstrap
-- **Scanning**: Native Go libraries with nmap integration
+- **Scanning**: Multi-strategy network discovery with nmap integration
 - **Deployment**: Docker Compose
+
+## Scanning Algorithm
+
+### Discovery Process
+
+Reconya uses a multi-layered scanning approach that combines nmap integration with native Go implementations:
+
+**1. Network Discovery (Every 30 seconds)**
+- Multiple nmap strategies with automatic fallback
+- ICMP ping sweeps (privileged mode)
+- TCP connect probes to common ports (fallback)
+- ARP table lookups for MAC address resolution
+
+**2. Device Identification**
+- IEEE OUI database for vendor identification
+- Multi-method hostname resolution (DNS, NetBIOS, mDNS)
+- Operating system fingerprinting via nmap
+- Device type classification based on ports and vendors
+
+**3. Port Scanning (Background workers)**
+- Top 100 ports scan for active services
+- Service detection and banner grabbing
+- Concurrent scanning with worker pool pattern
+
+**4. Web Service Detection**
+- Automatic discovery of HTTP/HTTPS services
+- Screenshot capture using headless Chrome
+- Service metadata extraction (titles, server headers)
+
+### Scanning Strategies
+
+The system attempts these nmap commands in order:
+
+```bash
+# Primary: Privileged ICMP scan
+sudo nmap -sn --send-ip -T4 -R --system-dns -oX - <network>
+
+# Fallback 1: Unprivileged ICMP
+nmap -sn --send-ip -T4 -oX - <network>
+
+# Fallback 2: ARP scan
+nmap -sn -PR -T4 -R --system-dns -oX - <network>
+
+# Fallback 3: TCP SYN probe
+nmap -sn -PS80,443,22,21,23,25,53,110,111,135,139,143,993,995 -T4 -oX - <network>
+```
+
+### Concurrency Model
+
+- **50 concurrent goroutines** for network scanning
+- **3 background workers** for port scanning queue
+- **Producer-consumer pattern** for efficient resource utilization
+- **Database locking** with retry mechanism for data consistency
 
 ## Contributing
 
