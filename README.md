@@ -33,8 +33,8 @@ Docker files have been moved to the `experimental/` directory for those who want
 The easiest way to install RecoNya with all dependencies:
 
 ```bash
-git clone https://github.com/Dyneteq/reconya-ai-go.git
-cd reconya-ai-go
+git clone https://github.com/Dyneteq/reconya.git
+cd reconya
 npm run install
 ```
 
@@ -86,8 +86,8 @@ If you prefer to install manually or the script doesn't work on your system:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Dyneteq/reconya-ai-go.git
-   cd reconya-ai-go
+   git clone https://github.com/Dyneteq/reconya.git
+   cd reconya
    ```
 
 2. **Setup backend:**
