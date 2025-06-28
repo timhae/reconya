@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the username and command to be added to the sudoers file
-USERNAME="tonystark"
+USERNAME="admin"
 COMMAND="/usr/bin/nmap"
 
 # Create the sudoers entry

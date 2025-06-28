@@ -1,0 +1,25 @@
+{
+  "name": "reconya-scripts",
+  "version": "1.0.0",
+  "description": "RecoNya installation and management scripts",
+  "main": "index.js",
+  "scripts": {
+    "install": "node install.js",
+    "uninstall": "node uninstall.js",
+    "start": "node start.js",
+    "stop": "node stop.js",
+    "status": "node status.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^9.4.1",
+    "inquirer": "^8.2.6",
+    "cross-spawn": "^7.0.3",
+    "find-process": "^1.4.7"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "RecoNya",
+  "license": "CC-BY-NC-4.0"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "reconya",
+  "version": "1.0.0",
+  "description": "Network reconnaissance and asset discovery tool",
+  "scripts": {
+    "install": "cd scripts && npm install && node install.js",
+    "start": "cd scripts && node start.js",
+    "stop": "cd scripts && node stop.js",
+    "status": "cd scripts && node status.js",
+    "uninstall": "cd scripts && node uninstall.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dyneteq/reconya-ai-go.git"
+  },
+  "keywords": [
+    "network",
+    "reconnaissance",
+    "security",
+    "nmap",
+    "asset-discovery"
+  ],
+  "author": "RecoNya",
+  "license": "CC-BY-NC-4.0",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -16,114 +16,143 @@ Reconya discovers and monitors devices on your network with real-time updates. S
 - Web-based dashboard
 - Device fingerprinting
 
-## Quick Start
+## Important Notice: Docker Implementation Status
 
-1. **Clone and run:**
+⚠️ **Docker networking has been moved to experimental status due to fundamental limitations.**
+
+The fundamental limitation is Docker's network architecture. Even with comprehensive MAC discovery methods, privileged mode, and enhanced capabilities, Docker containers cannot reliably access Layer 2 (MAC address) information across different network segments.
+
+**For full functionality, including complete MAC address discovery, please use the local installation method below.**
+
+Docker files have been moved to the `experimental/` directory for those who want to experiment with containerized deployment, but local installation is the recommended approach.
+
+## Local Installation (Recommended)
+
+### One-Command Installation
+
+The easiest way to install RecoNya with all dependencies:
+
+```bash
+git clone https://github.com/Dyneteq/reconya-ai-go.git
+cd reconya-ai-go
+npm run install
+```
+
+This will:
+- Detect your operating system (macOS, Windows, Debian, or Red Hat-based)
+- Install all required dependencies (Go, Node.js, nmap)
+- Configure nmap permissions for MAC address detection
+- Set up the RecoNya application
+- Install all Node.js dependencies
+
+**After installation, use these commands:**
+```bash
+npm run start    # Start RecoNya
+npm run stop     # Stop RecoNya  
+npm run status   # Check service status
+npm run uninstall # Uninstall RecoNya
+```
+
+Then open your browser to: `http://localhost:3000`  
+Default login: `admin` / `password`
+
+### Manual Installation
+
+If you prefer to install manually or the script doesn't work on your system:
+
+#### Prerequisites
+
+1. **Install Go** (1.21 or later): https://golang.org/dl/
+2. **Install Node.js** (18 or later): https://nodejs.org/
+3. **Install nmap**:
+   ```bash
+   # macOS
+   brew install nmap
+   
+   # Ubuntu/Debian
+   sudo apt-get install nmap
+   
+   # RHEL/CentOS/Fedora
+   sudo yum install nmap  # or dnf install nmap
+   ```
+
+4. **Grant nmap privileges** (for MAC address detection):
+   ```bash
+   sudo chown root:admin $(which nmap)
+   sudo chmod u+s $(which nmap)
+   ```
+
+#### Setup & Run
+
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/Dyneteq/reconya-ai-go.git
    cd reconya-ai-go
-   ./setup.sh
    ```
 
-2. **Access at:** `http://localhost:3001`
+2. **Setup backend:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env file to set your network range and credentials
+   go mod download
+   ```
 
-3. **Login:** `admin` / `password`
+3. **Setup frontend:**
+   ```bash
+   cd ../frontend
+   npm install
+   ```
 
-## Daily Usage
+4. **Start the application:**
 
-```bash
-./start.sh    # Start
-./stop.sh     # Stop  
-./logs.sh     # View logs
-```
+   **Terminal 1 - Backend:**
+   ```bash
+   cd backend
+   go run ./cmd
+   ```
+
+   **Terminal 2 - Frontend:**
+   ```bash
+   cd frontend
+   npm start
+   ```
+
+5. **Access the application:**
+   - Open your browser to: `http://localhost:3000`
+   - Default login: `admin` / `password` (check your `.env` file for custom credentials)
 
 ## How to Use
 
-1. Login with `admin` / `password` (or check your `.env` file for custom credentials)
-2. Devices will automatically appear as they're discovered  
-3. Click on devices to see details and edit information
+1. Login with your credentials (default: `admin` / `password`)
+2. Devices will automatically appear as they're discovered on your network
+3. Click on devices to see details including:
+   - MAC addresses and vendor information
+   - Open ports and running services
+   - Operating system fingerprints
+   - Device screenshots (for web services)
+4. Use the network map to visualize device locations
+5. Monitor the event log for network activity
 
-> **Note:** The setup script creates a `.env` file with default credentials. You can edit this file to change the username, password, and network range.
+## Configuration
 
----
+Edit the `backend/.env` file to customize:
 
-## Advanced
-
-### Development Setup
-
-#### Backend
 ```bash
-cd backend
-cp .env.example .env
-go mod download
-go run cmd/main.go
+LOGIN_USERNAME=admin
+LOGIN_PASSWORD=your_secure_password
+NETWORK_RANGE="192.168.1.0/24"  # Set to your actual network range
+DATABASE_NAME="reconya-dev"
+JWT_SECRET_KEY="your_jwt_secret"
+SQLITE_PATH="data/reconya-dev.db"
 ```
-
-#### Frontend
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### Network Scanning Issues
-
-For MAC address detection, install nmap:
-```bash
-# macOS: brew install nmap
-# Ubuntu: sudo apt-get install nmap
-```
-
-Grant nmap privileges:
-```bash
-sudo chown root:admin $(which nmap)
-sudo chmod u+s $(which nmap)
-```
-
-### Troubleshooting
-
-#### Common Issues
-
-**Python 3.12 errors**
-- Error: `ModuleNotFoundError: No module named 'distutils.spawn'`
-- Solution: Use `docker compose` instead of `docker-compose`
-
-**App not accessible**
-- Check ports 3001 and 3008 aren't in use
-- Verify containers are running: `docker ps`
-- Check logs: `./logs.sh`
-
-**Missing MAC addresses**
-- Ensure nmap is installed and has proper permissions
-- MAC addresses only visible on same network segment
-
-**CORS issues**
-- Check CORS config in `backend/middleware/cors.go`
-- Verify API routing in nginx.conf
-
-**Docker IP detection issues**
-- Error: Reconya detects Docker internal IP instead of host network
-- **Solution 1**: Set correct network range in `.env`:
-  ```bash
-  NETWORK_RANGE=192.168.1.0/24  # Replace with your actual network
-  ```
-- **Solution 2**: Use host networking for full network access:
-  ```bash
-  docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
-  ```
-- **Solution 3**: Enable network capabilities (already enabled by default):
-  ```yaml
-  cap_add:
-    - NET_ADMIN
-    - NET_RAW
-  ```
 
 ## Architecture
 
-- **Backend**: Go API with SQLite database
-- **Frontend**: React/TypeScript with Bootstrap
+- **Backend**: Go API with SQLite database (Port 3008)
+- **Frontend**: React/TypeScript with Bootstrap (Port 3000)
 - **Scanning**: Multi-strategy network discovery with nmap integration
-- **Deployment**: Docker Compose
+- **Database**: SQLite for device storage and event logging
 
 ## Scanning Algorithm
 
@@ -153,30 +182,58 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 - Screenshot capture using headless Chrome
 - Service metadata extraction (titles, server headers)
 
-### Scanning Strategies
+## Troubleshooting
 
-The system attempts these nmap commands in order:
+### Common Issues
+
+**Installation problems**
+- Run `npm run status` to check what's missing
+- Ensure you have Node.js 14+ installed
+- Try running `npm run install` again
+
+**No devices found**
+- Verify your network range is correct in `backend/.env` file
+- Run `npm run status` to check if nmap is installed and configured
+- Check that you're on the same network segment as target devices
+
+**Services won't start**
+- Run `npm run stop` to kill any stuck processes
+- Check `npm run status` for dependency issues
+- Ensure ports 3000 and 3008 are available
+
+**Missing MAC addresses**
+- Run `npm run status` to verify nmap permissions
+- MAC addresses only visible on same network segment
+- Some devices may not respond to ARP requests
+
+**Permission denied errors**
+- The installer should handle nmap permissions automatically
+- If issues persist, manually run: `sudo chmod u+s $(which nmap)`
+
+**Services keep crashing**
+- Check if dependencies are properly installed with `npm run status`
+- Verify your `.env` configuration is correct
+- Try stopping and restarting: `npm run stop && npm run start`
+
+## Uninstalling RecoNya
+
+To completely remove RecoNya and optionally its dependencies:
 
 ```bash
-# Primary: Privileged ICMP scan
-sudo nmap -sn --send-ip -T4 -R --system-dns -oX - <network>
-
-# Fallback 1: Unprivileged ICMP
-nmap -sn --send-ip -T4 -oX - <network>
-
-# Fallback 2: ARP scan
-nmap -sn -PR -T4 -R --system-dns -oX - <network>
-
-# Fallback 3: TCP SYN probe
-nmap -sn -PS80,443,22,21,23,25,53,110,111,135,139,143,993,995 -T4 -oX - <network>
+npm run uninstall
 ```
 
-### Concurrency Model
+The uninstall process will:
+- Stop any running RecoNya processes
+- Remove application files and data
+- Remove nmap setuid permissions  
+- Optionally remove system dependencies (Go, Node.js, nmap)
 
-- **50 concurrent goroutines** for network scanning
-- **3 background workers** for port scanning queue
-- **Producer-consumer pattern** for efficient resource utilization
-- **Database locking** with retry mechanism for data consistency
+**Note:** You'll be asked for confirmation before removing system dependencies since they might be used by other applications.
+
+## Experimental Docker Support
+
+Docker files are available in the `experimental/` directory but are not recommended due to network isolation limitations that prevent proper MAC address discovery. Use local installation for full functionality.
 
 ## Contributing
 
