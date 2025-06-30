@@ -36,7 +36,7 @@ func runDeviceUpdater(service *device.DeviceService, done <-chan bool) {
 		}
 		infoLogger.Println("Device updater service stopped")
 	}()
-	
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -74,7 +74,7 @@ var (
 func main() {
 	// Ignore common termination signals to prevent external kills
 	signal.Ignore(syscall.SIGTERM, syscall.SIGQUIT)
-	
+
 	// Set up global panic recovery with restart
 	defer func() {
 		if r := recover(); r != nil {
@@ -86,11 +86,11 @@ func main() {
 			main()
 		}
 	}()
-	
-	infoLogger.Printf("Starting RecoNya backend - Process ID: %d", os.Getpid())
+
+	infoLogger.Printf("Starting reconYa backend - Process ID: %d", os.Getpid())
 	infoLogger.Printf("Runtime: %s/%s, Go version: %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 	infoLogger.Printf("🛡️ Backend is protected against external termination")
-	
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		infoLogger.Printf("Failed to load configuration: %v", err)
@@ -113,7 +113,7 @@ func main() {
 		main() // Restart instead of fatal exit
 		return
 	}
-	
+
 	// Initialize database schema
 	if err := db.InitializeSchema(sqliteDB); err != nil {
 		infoLogger.Printf("Failed to initialize database schema: %v", err)
@@ -150,7 +150,7 @@ func main() {
 		ouiService = nil
 	} else {
 		stats := ouiService.GetStatistics()
-		infoLogger.Printf("OUI service initialized successfully - %v entries loaded, last updated: %v", 
+		infoLogger.Printf("OUI service initialized successfully - %v entries loaded, last updated: %v",
 			stats["total_entries"], stats["last_updated"])
 	}
 
@@ -163,10 +163,10 @@ func main() {
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
 
 	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService)
-	
+
 	// Create a done channel to coordinate graceful shutdown
 	done := make(chan bool)
-	
+
 	nicService.Identify()
 	go runPingSweepService(pingSweepService, done)
 	go runDeviceUpdater(deviceService, done)
@@ -183,14 +183,14 @@ func main() {
 	}
 
 	infoLogger.Println("Backend initialization completed successfully")
-	
+
 	// Channel to signal server startup completion
 	serverReady := make(chan bool)
-	
+
 	go func() {
 		defer close(serverReady)
 		infoLogger.Println("Server is starting on port 3008...")
-		
+
 		// Test if port is available before starting
 		ln, err := net.Listen("tcp", ":3008")
 		if err != nil {
@@ -199,7 +199,7 @@ func main() {
 			return
 		}
 		ln.Close()
-		
+
 		// Start the actual server
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			infoLogger.Printf("Server ListenAndServe error: %v", err)
@@ -226,15 +226,15 @@ func main() {
 			infoLogger.Printf("Server health check failed: %v", err)
 		}
 	}()
-	
+
 	// Wait for startup completion
 	select {
 	case ready := <-serverReady:
 		if ready {
-			infoLogger.Println("✅ RecoNya backend is ready and accepting connections on port 3008")
+			infoLogger.Println("✅ reconYa backend is ready and accepting connections on port 3008")
 			infoLogger.Println("🚀 Backend startup completed successfully")
 			infoLogger.Println("[INFO] Server started successfully on port 3008")
-			infoLogger.Println("[READY] RecoNya backend is ready to serve requests")
+			infoLogger.Println("[READY] reconYa backend is ready to serve requests")
 		} else {
 			infoLogger.Println("❌ Backend startup failed")
 		}
@@ -245,7 +245,6 @@ func main() {
 	waitForShutdown(server, done)
 }
 
-
 func runPingSweepService(service *pingsweep.PingSweepService, done <-chan bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -254,7 +253,7 @@ func runPingSweepService(service *pingsweep.PingSweepService, done <-chan bool) 
 		}
 		infoLogger.Println("Ping sweep service stopped")
 	}()
-	
+
 	infoLogger.Println("Starting initial ping sweep service run...")
 	func() {
 		defer func() {
@@ -299,30 +298,30 @@ func waitForShutdown(server *http.Server, done chan bool) {
 	stop := make(chan os.Signal, 1)
 	// Only listen for manual interrupt (Ctrl+C), ignore automated termination
 	signal.Notify(stop, os.Interrupt)
-	
+
 	// Log runtime and system information for debugging
 	infoLogger.Printf("Runtime info - OS: %s, Arch: %s, Go version: %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 	infoLogger.Printf("Process ID: %d", os.Getpid())
 
 	infoLogger.Println("Waiting for interrupt signal (Ctrl+C) to shutdown...")
 	infoLogger.Println("Server is running and ready to accept connections...")
-	
+
 	// Add a ticker to show the server is alive
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Add a context with cancel to handle potential deadlocks
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	for {
 		select {
 		case sig := <-stop:
 			infoLogger.Printf("Received shutdown signal: %v", sig)
-			
+
 			// Signal background services to stop
 			close(done)
-			
+
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer shutdownCancel()
 

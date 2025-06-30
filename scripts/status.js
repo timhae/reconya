@@ -7,12 +7,12 @@ const http = require('http');
 class StatusChecker {
   async check() {
     console.log('==========================================');
-    console.log('         RecoNya Service Status           ');
+    console.log('         reconYa Service Status           ');
     console.log('==========================================\n');
 
     try {
       // Check directory and get project root
-      const projectRoot = Utils.validateRecoNyaDirectory();
+      const projectRoot = Utils.validatereconYaDirectory();
 
       // Check dependencies
       await this.checkDependencies();
@@ -208,7 +208,7 @@ class StatusChecker {
 if (require.main === module) {
   program
     .name('reconya-status')
-    .description('Check RecoNya service status')
+    .description('Check reconYa service status')
     .version('1.0.0');
 
   program.parse();

@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { logger } from '../../api/axiosConfig';
 
 // Get app name from environment variable with fallback
-const APP_NAME = process.env.REACT_APP_NAME || 'RecoNya';
+const APP_NAME = process.env.REACT_APP_NAME || 'reconYa';
 
 interface Props {
   children: ReactNode;

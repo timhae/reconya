@@ -20,7 +20,7 @@
     "nmap",
     "asset-discovery"
   ],
-  "author": "RecoNya",
+  "author": "reconYa",
   "license": "CC-BY-NC-4.0",
   "engines": {
     "node": ">=14.0.0"

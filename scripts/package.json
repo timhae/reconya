@@ -1,7 +1,7 @@
 {
   "name": "reconya-scripts",
   "version": "1.0.0",
-  "description": "RecoNya installation and management scripts",
+  "description": "reconYa installation and management scripts",
   "main": "index.js",
   "scripts": {
     "install": "node install.js",
@@ -20,6 +20,6 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "author": "RecoNya",
+  "author": "reconYa",
   "license": "CC-BY-NC-4.0"
 }

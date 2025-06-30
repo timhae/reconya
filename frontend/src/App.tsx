@@ -12,7 +12,7 @@ import 'bootstrap/dist/js/bootstrap.bundle.min';
 // import './App.scss';
 
 // Get app name from environment variable with fallback
-const APP_NAME = process.env.REACT_APP_NAME || 'RecoNya';
+const APP_NAME = process.env.REACT_APP_NAME || 'reconYa';
 const APP_VERSION = process.env.REACT_APP_VERSION || '1.0.0';
 
 function App() {

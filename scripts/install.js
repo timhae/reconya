@@ -13,26 +13,34 @@ class Installer {
 
   async run() {
     console.log('==========================================');
-    console.log('       RecoNya Installation Script       ');
+    console.log('       reconYa Installation Script       ');
     console.log('==========================================\n');
 
-    Utils.log.info(`Detected ${this.os}`);
+    Utils.log.info(`Detected OS: ${this.os}`);
+    Utils.log.info(`Node.js version: ${process.version}`);
+    Utils.log.info(`Platform: ${process.platform} ${process.arch}`);
+    Utils.log.info(`Working directory: ${process.cwd()}`);
 
     try {
+      Utils.log.info('Step 1: Installing dependencies...');
       await this.installDependencies();
-      await this.setupRecoNya();
+      
+      Utils.log.info('Step 2: Setting up reconYa...');
+      await this.setupreconYa();
+      
+      Utils.log.info('Step 3: Creating scripts...');
       await this.createScripts();
       
       console.log('\n==========================================');
-      Utils.log.success('RecoNya installation completed!');
+      Utils.log.success('reconYa installation completed!');
       console.log('==========================================\n');
       
-      Utils.log.info('To start RecoNya, run:');
+      Utils.log.info('To start reconYa, run:');
       console.log('  npm run start\n');
       Utils.log.info('Or use the individual commands:');
       console.log('  npm run status  - Check service status');
-      console.log('  npm run start   - Start RecoNya');
-      console.log('  npm run stop    - Stop RecoNya');
+      console.log('  npm run start   - Start reconYa');
+      console.log('  npm run stop    - Stop reconYa');
       console.log('  npm run install - Reinstall dependencies\n');
       Utils.log.info('Then open your browser to: http://localhost:3000');
       Utils.log.info('Default login: admin / password\n');
@@ -107,10 +115,25 @@ class Installer {
 
   async installDebianDeps() {
     Utils.log.info('Installing dependencies for Debian-based Linux...');
+    
+    // Check if running in container environment
+    try {
+      const { stdout } = await Utils.runCommandWithOutput('systemd-detect-virt', []);
+      if (stdout.trim() !== 'none') {
+        Utils.log.warning(`Detected container/VM environment: ${stdout.trim()}`);
+        Utils.log.info('This may require additional configuration for nmap functionality');
+      }
+    } catch (error) {
+      // systemd-detect-virt not available, ignore
+    }
 
     // Update package list
     Utils.log.info('Updating package list...');
-    await Utils.runCommand('sudo', ['apt-get', 'update']);
+    try {
+      await Utils.runCommand('sudo', ['apt-get', 'update']);
+    } catch (error) {
+      throw new Error(`Failed to update package list: ${error.message}`);
+    }
 
     // Install basic tools
     await Utils.runCommand('sudo', ['apt-get', 'install', '-y', 
@@ -152,10 +175,20 @@ class Installer {
     // Install Node.js
     if (!Utils.commandExists('node')) {
       Utils.log.info('Installing Node.js...');
-      await Utils.runCommand('curl', ['-fsSL', 
-        'https://deb.nodesource.com/setup_18.x', '|', 'sudo', '-E', 'bash', '-'
-      ]);
-      await Utils.runCommand('sudo', ['apt-get', 'install', '-y', 'nodejs']);
+      try {
+        // Download the setup script first
+        await Utils.runCommand('curl', ['-fsSL', 
+          'https://deb.nodesource.com/setup_18.x', '-o', '/tmp/nodesource_setup.sh'
+        ]);
+        // Run the setup script
+        await Utils.runCommand('sudo', ['bash', '/tmp/nodesource_setup.sh']);
+        // Install Node.js
+        await Utils.runCommand('sudo', ['apt-get', 'install', '-y', 'nodejs']);
+        // Clean up
+        await Utils.runCommand('rm', ['-f', '/tmp/nodesource_setup.sh']);
+      } catch (error) {
+        throw new Error(`Failed to install Node.js: ${error.message}`);
+      }
     } else {
       const { stdout } = await Utils.runCommandWithOutput('node', ['--version']);
       Utils.log.success(`Node.js is already installed (${stdout.trim()})`);
@@ -250,11 +283,25 @@ class Installer {
     if (!Utils.commandExists('nmap')) throw new Error('nmap not found in PATH');
   }
 
-  async setupRecoNya() {
-    Utils.log.info('Setting up RecoNya...');
+  async setupreconYa() {
+    Utils.log.info('Setting up reconYa...');
 
     // Go up one directory to get to project root (we're in scripts/ dir)
     const projectRoot = path.join(process.cwd(), '..');
+    Utils.log.info(`Project root: ${projectRoot}`);
+    
+    // Verify directory structure
+    const backendPath = path.join(projectRoot, 'backend');
+    const frontendPath = path.join(projectRoot, 'frontend');
+    
+    if (!fs.existsSync(backendPath)) {
+      throw new Error(`Backend directory not found: ${backendPath}`);
+    }
+    if (!fs.existsSync(frontendPath)) {
+      throw new Error(`Frontend directory not found: ${frontendPath}`);
+    }
+    
+    Utils.log.info('Directory structure verified');
     
     // Create .env file
     const envPath = path.join(projectRoot, 'backend', '.env');
@@ -282,14 +329,33 @@ SQLITE_PATH="data/reconya-dev.db"
     // Install Go dependencies
     Utils.log.info('Installing Go dependencies...');
     const backendPath = path.join(projectRoot, 'backend');
-    await Utils.runCommand('go', ['mod', 'download'], { cwd: backendPath });
+    
+    // Verify Go is available
+    if (!Utils.commandExists('go')) {
+      throw new Error('Go not found in PATH. Please install Go and ensure it is in your PATH.');
+    }
+    
+    try {
+      Utils.log.info(`Running: go mod download in ${backendPath}`);
+      await Utils.runCommand('go', ['mod', 'download'], { cwd: backendPath });
+      Utils.log.success('Go dependencies installed');
+    } catch (error) {
+      throw new Error(`Failed to install Go dependencies: ${error.message}`);
+    }
 
     // Install Node.js dependencies for frontend
     Utils.log.info('Installing frontend dependencies...');
     const frontendPath = path.join(projectRoot, 'frontend');
-    await Utils.runCommand('npm', ['install'], { cwd: frontendPath });
+    
+    try {
+      Utils.log.info(`Running: npm install in ${frontendPath}`);
+      await Utils.runCommand('npm', ['install'], { cwd: frontendPath });
+      Utils.log.success('Frontend dependencies installed');
+    } catch (error) {
+      throw new Error(`Failed to install frontend dependencies: ${error.message}`);
+    }
 
-    Utils.log.success('RecoNya setup complete!');
+    Utils.log.success('reconYa setup complete!');
   }
 
   async createScripts() {
@@ -326,7 +392,7 @@ SQLITE_PATH="data/reconya-dev.db"
         "nmap",
         "asset-discovery"
       ],
-      "author": "RecoNya",
+      "author": "reconYa",
       "license": "CC-BY-NC-4.0",
       "engines": {
         "node": ">=14.0.0"
@@ -342,7 +408,7 @@ SQLITE_PATH="data/reconya-dev.db"
 if (require.main === module) {
   program
     .name('reconya-install')
-    .description('RecoNya installation script')
+    .description('reconYa installation script')
     .version('1.0.0');
 
   program.parse();

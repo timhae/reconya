@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 export TEST_ENV="test"
 export LOG_LEVEL="error"
 
-echo -e "${GREEN}RecoNya - Test Suite${NC}"
+echo -e "${GREEN}reconYa - Test Suite${NC}"
 echo "=============================="
 
 # Function to run tests

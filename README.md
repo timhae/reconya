@@ -192,6 +192,65 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 
 ## Troubleshooting
 
+### Proxmox Container Issues
+
+If you're experiencing installation failures in Proxmox LXC containers:
+
+**1. Container Configuration Requirements:**
+```bash
+# Enable nesting in container config (on Proxmox host):
+nano /etc/pve/lxc/CONTAINER_ID.conf
+# Add: features: nesting=1
+
+# For full nmap functionality, use privileged containers
+# In Proxmox UI: Container → Options → Features → Uncheck "Unprivileged"
+```
+
+**2. Manual Installation (Recommended for Containers):**
+```bash
+# Clone repository
+git clone https://github.com/Dyneteq/reconya.git
+cd reconya
+
+# Install system dependencies first
+sudo apt update
+sudo apt install -y curl wget software-properties-common
+
+# Install Go manually
+wget https://golang.org/dl/go1.21.5.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install nmap
+sudo apt-get install -y nmap
+
+# Setup reconYa manually
+cd backend
+cp .env.example .env
+go mod download
+cd ../frontend
+npm install
+cd ../scripts
+npm install
+
+# Configure nmap permissions
+sudo chown root:root $(which nmap)
+sudo chmod u+s $(which nmap)
+```
+
+**3. Alternative: Try Docker instead of LXC**
+```bash
+# If containers continue to have issues, try Docker
+cd reconya/experimental
+docker-compose up -d
+```
+
 ### Common Issues
 
 **Installation problems**

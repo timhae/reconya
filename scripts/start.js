@@ -14,13 +14,13 @@ class ServiceManager {
 
   async start() {
     console.log('==========================================');
-    console.log('         Starting RecoNya Backend        ');
+    console.log('         Starting reconYa Backend        ');
     console.log('==========================================\n');
 
     // Validate directory and get project root
-    const projectRoot = Utils.validateRecoNyaDirectory();
+    const projectRoot = Utils.validatereconYaDirectory();
 
-    Utils.log.info('RecoNya backend will run on: http://localhost:3008');
+    Utils.log.info('reconYa backend will run on: http://localhost:3008');
     Utils.log.info('HTMX frontend is served directly from the backend\n');
 
     try {
@@ -36,7 +36,7 @@ class ServiceManager {
       // Start backend
       await this.startBackend();
 
-      Utils.log.success('RecoNya backend is starting up...');
+      Utils.log.success('reconYa backend is starting up...');
       Utils.log.info('Open your browser to: http://localhost:3008');
       Utils.log.info('Default login: admin / password\n');
 
@@ -44,7 +44,7 @@ class ServiceManager {
       await this.waitForShutdown();
 
     } catch (error) {
-      Utils.log.error('Failed to start RecoNya: ' + error.message);
+      Utils.log.error('Failed to start reconYa: ' + error.message);
       await this.cleanup();
       process.exit(1);
     }
@@ -53,7 +53,7 @@ class ServiceManager {
   async startBackend() {
     Utils.log.info('Starting backend with immortal restart capability...');
     
-    const projectRoot = Utils.validateRecoNyaDirectory();
+    const projectRoot = Utils.validatereconYaDirectory();
     const backendPath = path.join(projectRoot, 'backend');
     let restartCount = 0;
     let isFirstStart = true;
@@ -122,7 +122,7 @@ class ServiceManager {
       
       // Look for multiple startup indicators
       if (output.includes('Backend startup completed successfully') ||
-          output.includes('RecoNya backend is ready') ||
+          output.includes('reconYa backend is ready') ||
           output.includes('Server is starting on port 3008') || 
           output.includes('Starting new ping sweep scan')) {
         if (!isStarted) {
@@ -279,7 +279,7 @@ class ServiceManager {
 if (require.main === module) {
   program
     .name('reconya-start')
-    .description('Start RecoNya services')
+    .description('Start reconYa services')
     .version('1.0.0');
 
   program.parse();

@@ -15,16 +15,17 @@ import (
 	"sync"
 	"time"
 
+	"reconya-ai/models"
+
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
-	"reconya-ai/models"
 )
 
 type NativeScanner struct {
-	timeout           time.Duration
-	concurrent        int
-	enableMACLookup   bool
-	enableHostnameLookup bool
+	timeout                  time.Duration
+	concurrent               int
+	enableMACLookup          bool
+	enableHostnameLookup     bool
 	enableOnlineVendorLookup bool
 }
 
@@ -40,10 +41,10 @@ type ScanResult struct {
 
 func NewNativeScanner() *NativeScanner {
 	return &NativeScanner{
-		timeout:           time.Second * 3,
-		concurrent:        50, // Concurrent goroutines for scanning
-		enableMACLookup:   true,
-		enableHostnameLookup: true,
+		timeout:                  time.Second * 3,
+		concurrent:               50, // Concurrent goroutines for scanning
+		enableMACLookup:          true,
+		enableHostnameLookup:     true,
 		enableOnlineVendorLookup: true, // Allow online vendor lookups
 	}
 }
@@ -60,7 +61,7 @@ func (s *NativeScanner) SetOptions(timeout time.Duration, concurrent int, enable
 // ScanNetwork performs a ping sweep on the given CIDR network
 func (s *NativeScanner) ScanNetwork(network string) ([]models.Device, error) {
 	log.Printf("Starting native Go network scan on: %s", network)
-	
+
 	// Parse the network CIDR
 	_, ipNet, err := net.ParseCIDR(network)
 	if err != nil {
@@ -167,9 +168,9 @@ func (s *NativeScanner) scanIP(ip string) ScanResult {
 func (s *NativeScanner) tryPing(ip string) (bool, time.Duration) {
 	// Note: ICMP ping requires raw sockets on most systems (root privileges)
 	// For a more portable solution, we might want to use TCP connect instead
-	
+
 	start := time.Now()
-	
+
 	// Try to resolve the address first
 	addr, err := net.ResolveIPAddr("ip4", ip)
 	if err != nil {
@@ -191,7 +192,7 @@ func (s *NativeScanner) tryPing(ip string) (bool, time.Duration) {
 		Body: &icmp.Echo{
 			ID:   1,
 			Seq:  1,
-			Data: []byte("RecoNya ping"),
+			Data: []byte("reconYa ping"),
 		},
 	}
 
@@ -218,7 +219,7 @@ func (s *NativeScanner) tryPing(ip string) (bool, time.Duration) {
 
 	rtt := time.Since(start)
 
-	// Parse ICMP reply  
+	// Parse ICMP reply
 	rm, err := icmp.ParseMessage(int(ipv4.ICMPTypeEchoReply), reply[:n])
 	if err != nil {
 		return false, 0
@@ -234,9 +235,9 @@ func (s *NativeScanner) tryPing(ip string) (bool, time.Duration) {
 // tryTCPConnect attempts to connect to common ports to detect if host is alive
 func (s *NativeScanner) tryTCPConnect(ip string) (bool, time.Duration) {
 	commonPorts := []int{80, 443, 22, 21, 23, 25, 53, 135, 139, 445}
-	
+
 	start := time.Now()
-	
+
 	for _, port := range commonPorts {
 		address := fmt.Sprintf("%s:%d", ip, port)
 		conn, err := net.DialTimeout("tcp", address, time.Millisecond*500)
@@ -245,36 +246,36 @@ func (s *NativeScanner) tryTCPConnect(ip string) (bool, time.Duration) {
 			return true, time.Since(start)
 		}
 	}
-	
+
 	return false, 0
 }
 
 // getMACInfo attempts to get MAC address and vendor information
 func (s *NativeScanner) getMACInfo(ip string) (string, string) {
 	// Try multiple approaches to get MAC information
-	
+
 	// Approach 1: ARP table lookup
 	if mac, vendor := s.getARPInfo(ip); mac != "" {
 		return mac, vendor
 	}
-	
+
 	// Approach 2: Wake-on-LAN packet trigger + ARP lookup
 	if mac, vendor := s.triggerARPAndLookup(ip); mac != "" {
 		return mac, vendor
 	}
-	
+
 	// Approach 3: Network interface scanning for local subnet
 	if mac, vendor := s.scanNetworkInterface(ip); mac != "" {
 		return mac, vendor
 	}
-	
+
 	return "", ""
 }
 
 // getARPInfo looks up MAC address from ARP table (cross-platform)
 func (s *NativeScanner) getARPInfo(ip string) (string, string) {
 	var mac string
-	
+
 	switch runtime.GOOS {
 	case "linux":
 		mac = s.getARPLinux(ip)
@@ -285,12 +286,12 @@ func (s *NativeScanner) getARPInfo(ip string) (string, string) {
 	default:
 		return "", ""
 	}
-	
+
 	if mac != "" {
 		vendor := s.lookupVendor(mac)
 		return mac, vendor
 	}
-	
+
 	return "", ""
 }
 
@@ -300,7 +301,7 @@ func (s *NativeScanner) getARPLinux(ip string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines[1:] { // Skip header
 		fields := strings.Fields(line)
@@ -321,7 +322,7 @@ func (s *NativeScanner) getARPMacOS(ip string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, ip) {
@@ -347,7 +348,7 @@ func (s *NativeScanner) getARPWindows(ip string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, ip) {
@@ -392,19 +393,19 @@ func (s *NativeScanner) lookupVendor(mac string) string {
 	if len(mac) < 8 {
 		return ""
 	}
-	
+
 	// Extract OUI (first 3 octets)
 	oui := strings.ReplaceAll(mac[:8], ":", "")
 	oui = strings.ToUpper(oui)
-	
+
 	// Built-in vendor database (most common vendors)
 	vendors := map[string]string{
 		"000040": "Applicon",
 		"0000FF": "Camtec Electronics",
 		"000020": "Dataindustrier Diab AB",
 		"001B63": "Apple",
-		"8C859": "Apple", 
-		"F0189": "Apple",
+		"8C859":  "Apple",
+		"F0189":  "Apple",
 		"00226B": "Cisco Systems",
 		"0007EB": "Cisco Systems",
 		"5C5948": "Samsung Electronics",
@@ -419,7 +420,7 @@ func (s *NativeScanner) lookupVendor(mac string) string {
 		"E45F01": "Intel Corporate",
 		"38D547": "Apple",
 		"A4C361": "Apple",
-		"F02475": "Apple", 
+		"F02475": "Apple",
 		"14109F": "Apple",
 		"3451C9": "Apple",
 		"BC52B7": "Apple",
@@ -440,16 +441,16 @@ func (s *NativeScanner) lookupVendor(mac string) string {
 		"002332": "Apple",
 		"002608": "Apple",
 	}
-	
+
 	if vendor, exists := vendors[oui]; exists {
 		return vendor
 	}
-	
+
 	// Try online OUI lookup if local database doesn't have it and online lookup is enabled
 	if s.enableOnlineVendorLookup {
 		return s.lookupVendorOnline(oui)
 	}
-	
+
 	return ""
 }
 
@@ -457,16 +458,16 @@ func (s *NativeScanner) lookupVendor(mac string) string {
 func (s *NativeScanner) lookupVendorOnline(oui string) string {
 	// For production use, you might want to cache these lookups
 	// This is a simple implementation
-	
+
 	client := &http.Client{Timeout: time.Second * 2}
 	url := fmt.Sprintf("https://api.macvendors.com/%s", oui)
-	
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return ""
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode == 200 {
 		body, err := io.ReadAll(resp.Body)
 		if err == nil {
@@ -477,7 +478,7 @@ func (s *NativeScanner) lookupVendorOnline(oui string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -487,27 +488,27 @@ func (s *NativeScanner) getHostname(ip string) string {
 	if hostname := s.reverseDNSLookup(ip); hostname != "" {
 		return hostname
 	}
-	
+
 	// Method 2: NetBIOS name resolution (Windows networks)
 	if hostname := s.netBIOSLookup(ip); hostname != "" {
 		return hostname
 	}
-	
-	// Method 3: mDNS/Bonjour lookup (Apple/local networks)  
+
+	// Method 3: mDNS/Bonjour lookup (Apple/local networks)
 	if hostname := s.mDNSLookup(ip); hostname != "" {
 		return hostname
 	}
-	
+
 	// Method 4: SNMP system name (if available)
 	if hostname := s.snmpSystemName(ip); hostname != "" {
 		return hostname
 	}
-	
+
 	// Method 5: HTTP banner grabbing
 	if hostname := s.httpBannerHostname(ip); hostname != "" {
 		return hostname
 	}
-	
+
 	return ""
 }
 
@@ -552,7 +553,7 @@ func (s *NativeScanner) netBIOSLookup(ip string) string {
 			}
 		}
 	}
-	
+
 	// For Windows, could use nbtstat command
 	if runtime.GOOS == "windows" {
 		cmd := exec.Command("nbtstat", "-A", ip)
@@ -573,7 +574,7 @@ func (s *NativeScanner) netBIOSLookup(ip string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -584,12 +585,12 @@ func (s *NativeScanner) mDNSLookup(ip string) string {
 		ip + ".local",
 		// Could add more patterns here
 	}
-	
+
 	for _, name := range mdnsNames {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
 		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, name)
 		cancel()
-		
+
 		if err == nil {
 			for _, addr := range addrs {
 				if addr.IP.String() == ip {
@@ -598,7 +599,7 @@ func (s *NativeScanner) mDNSLookup(ip string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -606,14 +607,14 @@ func (s *NativeScanner) mDNSLookup(ip string) string {
 func (s *NativeScanner) snmpSystemName(ip string) string {
 	// This would require an SNMP library - simplified version
 	// In practice, you'd use a library like "github.com/soniah/gosnmp"
-	
+
 	// Try connecting to SNMP port to see if it's available
 	conn, err := net.DialTimeout("udp", ip+":161", time.Millisecond*500)
 	if err != nil {
 		return ""
 	}
 	conn.Close()
-	
+
 	// For now, return empty - would need proper SNMP implementation
 	return ""
 }
@@ -626,19 +627,19 @@ func (s *NativeScanner) httpBannerHostname(ip string) string {
 			DisableKeepAlives: true,
 		},
 	}
-	
+
 	// Try common HTTP ports
 	ports := []string{"80", "8080", "443", "8443"}
-	
+
 	for _, port := range ports {
 		url := fmt.Sprintf("http://%s:%s/", ip, port)
-		
+
 		resp, err := client.Head(url)
 		if err != nil {
 			continue
 		}
 		resp.Body.Close()
-		
+
 		// Check Server header for hostname hints
 		if server := resp.Header.Get("Server"); server != "" {
 			// Look for hostname patterns in server header
@@ -646,7 +647,7 @@ func (s *NativeScanner) httpBannerHostname(ip string) string {
 				return hostname
 			}
 		}
-		
+
 		// Check Location header for redirects that might contain hostname
 		if location := resp.Header.Get("Location"); location != "" {
 			if hostname := s.extractHostnameFromURL(location); hostname != "" {
@@ -654,7 +655,7 @@ func (s *NativeScanner) httpBannerHostname(ip string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -705,7 +706,7 @@ func (s *NativeScanner) generateIPList(ipNet *net.IPNet) []string {
 	// Generate all IPs between network and broadcast (excluding them)
 	for ip := make(net.IP, len(network)); ; {
 		copy(ip, network)
-		
+
 		// Skip network address (.0) and broadcast address (.255)
 		if !ip.Equal(network) && !ip.Equal(broadcast) {
 			ips = append(ips, ip.String())

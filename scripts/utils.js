@@ -174,7 +174,7 @@ class Utils {
     return true;
   }
 
-  static validateRecoNyaDirectory() {
+  static validatereconYaDirectory() {
     // Check if we're in the scripts directory, if so, go up one level
     const currentDir = process.cwd();
     const projectRoot = currentDir.endsWith('scripts') ? path.join(currentDir, '..') : currentDir;
@@ -183,7 +183,7 @@ class Utils {
     const frontendExists = fs.existsSync(path.join(projectRoot, 'frontend', 'package.json'));
     
     if (!backendExists || !frontendExists) {
-      this.log.error('Please run this script from the RecoNya root directory');
+      this.log.error('Please run this script from the reconYa root directory');
       process.exit(1);
     }
     

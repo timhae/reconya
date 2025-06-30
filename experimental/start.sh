@@ -7,7 +7,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting RecoNya...${NC}"
+echo -e "${GREEN}Starting reconYa...${NC}"
 
 # Check if docker and docker-compose are installed
 if ! command -v docker &> /dev/null; then
@@ -80,7 +80,7 @@ if ! $COMPOSE_CMD up -d $REBUILD_FLAG; then
     $COMPOSE_CMD up -d --no-build
 fi
 
-echo -e "\n${GREEN}RecoNya is now running!${NC}"
+echo -e "\n${GREEN}reconYa is now running!${NC}"
 echo -e "Access the application at: ${YELLOW}http://localhost:${FRONTEND_PORT:-3001}${NC}"
 echo -e "API is available at: ${YELLOW}http://localhost:3008${NC}"
 echo

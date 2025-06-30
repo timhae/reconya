@@ -13,14 +13,14 @@ class Uninstaller {
 
   async run() {
     console.log('==========================================');
-    console.log('       RecoNya Uninstall Script          ');
+    console.log('       reconYa Uninstall Script          ');
     console.log('==========================================\n');
 
     const { confirmUninstall } = await inquirer.prompt([
       {
         type: 'confirm',
         name: 'confirmUninstall',
-        message: 'Are you sure you want to uninstall RecoNya?',
+        message: 'Are you sure you want to uninstall reconYa?',
         default: false
       }
     ]);
@@ -44,7 +44,7 @@ class Uninstaller {
       await this.handleDependencies();
 
       console.log('\n==========================================');
-      Utils.log.success('RecoNya uninstall completed!');
+      Utils.log.success('reconYa uninstall completed!');
       console.log('==========================================\n');
       
       Utils.log.info('To completely remove this directory, run:');
@@ -63,13 +63,13 @@ class Uninstaller {
   }
 
   async stopProcesses() {
-    Utils.log.info('Stopping any running RecoNya processes...');
+    Utils.log.info('Stopping any running reconYa processes...');
 
     // Stop services on standard ports
     await Utils.killProcessByPort(3008, 'backend');
     await Utils.killProcessByPort(3000, 'frontend');
 
-    // Kill any remaining RecoNya processes
+    // Kill any remaining reconYa processes
     try {
       if (Utils.isWindows()) {
         // Windows-specific process cleanup
@@ -88,7 +88,7 @@ class Uninstaller {
   }
 
   async removeApplicationFiles() {
-    Utils.log.info('Removing RecoNya application files...');
+    Utils.log.info('Removing reconYa application files...');
 
     // Remove generated files
     const filesToRemove = [
@@ -161,7 +161,7 @@ class Uninstaller {
       }
     }
 
-    Utils.log.success('RecoNya application files removed');
+    Utils.log.success('reconYa application files removed');
   }
 
   async removeNmapPermissions() {
@@ -399,7 +399,7 @@ class Uninstaller {
 if (require.main === module) {
   program
     .name('reconya-uninstall')
-    .description('RecoNya uninstall script')
+    .description('reconYa uninstall script')
     .version('1.0.0');
 
   program.parse();
