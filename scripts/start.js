@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const chalk = require('chalk');
 const Utils = require('./utils');
 const path = require('path');
+const fs = require('fs');
 
 class ServiceManager {
   constructor() {
@@ -20,13 +21,28 @@ class ServiceManager {
     // Validate directory and get project root
     const projectRoot = Utils.validatereconYaDirectory();
 
-    Utils.log.info('reconYa backend will run on: http://localhost:3008');
+    // Try to determine the port from .env file
+    const envPath = path.join(projectRoot, 'backend', '.env');
+    let port = '3008'; // default
+    try {
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const portMatch = envContent.match(/^PORT=(.+)$/m);
+        if (portMatch) {
+          port = portMatch[1].trim();
+        }
+      }
+    } catch (error) {
+      // Use default port if can't read .env
+    }
+
+    Utils.log.info(`reconYa backend will run on: http://localhost:${port}`);
     Utils.log.info('HTMX frontend is served directly from the backend\n');
 
     try {
       // Check and free required port
-      Utils.log.info('Checking for existing processes on port 3008...');
-      await Utils.killProcessByPort(3008, 'backend');
+      Utils.log.info(`Checking for existing processes on port ${port}...`);
+      await Utils.killProcessByPort(parseInt(port), 'backend');
 
       Utils.log.info('Press Ctrl+C to stop the service\n');
 
@@ -37,7 +53,7 @@ class ServiceManager {
       await this.startBackend();
 
       Utils.log.success('reconYa backend is starting up...');
-      Utils.log.info('Open your browser to: http://localhost:3008');
+      Utils.log.info(`Open your browser to: http://localhost:${port}`);
       Utils.log.info('Default login: admin / password\n');
 
       // Keep the process alive

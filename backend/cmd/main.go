@@ -178,7 +178,7 @@ func main() {
 	loggedRouter := middleware.LoggingMiddleware(router)
 
 	server := &http.Server{
-		Addr:    ":3008",
+		Addr:    ":" + cfg.Port,
 		Handler: loggedRouter,
 	}
 
@@ -189,12 +189,12 @@ func main() {
 
 	go func() {
 		defer close(serverReady)
-		infoLogger.Println("Server is starting on port 3008...")
+		infoLogger.Printf("Server is starting on port %s...", cfg.Port)
 
 		// Test if port is available before starting
-		ln, err := net.Listen("tcp", ":3008")
+		ln, err := net.Listen("tcp", ":"+cfg.Port)
 		if err != nil {
-			infoLogger.Printf("Port 3008 is not available: %v", err)
+			infoLogger.Printf("Port %s is not available: %v", cfg.Port, err)
 			serverReady <- false
 			return
 		}
@@ -218,7 +218,7 @@ func main() {
 	go func() {
 		time.Sleep(500 * time.Millisecond) // Give server time to start
 		// Test if server is actually responding
-		resp, err := http.Get("http://localhost:3008/")
+		resp, err := http.Get("http://localhost:" + cfg.Port + "/")
 		if err == nil {
 			resp.Body.Close()
 			serverReady <- true
@@ -231,9 +231,9 @@ func main() {
 	select {
 	case ready := <-serverReady:
 		if ready {
-			infoLogger.Println("✅ reconYa backend is ready and accepting connections on port 3008")
+			infoLogger.Printf("✅ reconYa backend is ready and accepting connections on port %s", cfg.Port)
 			infoLogger.Println("🚀 Backend startup completed successfully")
-			infoLogger.Println("[INFO] Server started successfully on port 3008")
+			infoLogger.Printf("[INFO] Server started successfully on port %s", cfg.Port)
 			infoLogger.Println("[READY] reconYa backend is ready to serve requests")
 		} else {
 			infoLogger.Println("❌ Backend startup failed")

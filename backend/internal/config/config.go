@@ -17,6 +17,7 @@ const (
 type Config struct {
 	JwtKey       []byte
 	NetworkCIDR  string
+	Port         string
 	DatabaseType DatabaseType
 	// SQLite config
 	SQLitePath   string
@@ -52,12 +53,19 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET_KEY environment variable is not set")
 	}
 
+	// Get port (default to 3008)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3008"
+	}
+
 	// Set database type to SQLite
 	dbType := string(SQLite)
 
 	config := &Config{
 		JwtKey:       []byte(jwtSecret),
 		NetworkCIDR:  networkCIDR,
+		Port:         port,
 		DatabaseType: DatabaseType(dbType),
 		Username:     username,
 		Password:     password,
