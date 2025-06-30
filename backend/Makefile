@@ -20,6 +20,14 @@ INTEGRATION_TEST_PACKAGES=./tests/integration/...
 build:
 	$(GOBUILD) -o $(BINARY_NAME) -v ./cmd
 
+# Build for Windows (with CGO enabled for SQLite)
+build-windows:
+	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GOBUILD) -o $(BINARY_NAME).exe -v ./cmd
+
+# Build with CGO enabled (required for SQLite)
+build-cgo:
+	CGO_ENABLED=1 $(GOBUILD) -o $(BINARY_NAME) -v ./cmd
+
 # Run application
 run:
 	$(GOCMD) run ./cmd
@@ -95,6 +103,8 @@ quality: fmt vet lint security test-coverage
 help:
 	@echo "Available targets:"
 	@echo "  build         - Build the application"
+	@echo "  build-windows - Build for Windows with CGO enabled"
+	@echo "  build-cgo     - Build with CGO enabled (required for SQLite)"
 	@echo "  run           - Run the application"
 	@echo "  clean         - Clean build artifacts"
 	@echo "  deps          - Download and tidy dependencies"

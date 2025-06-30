@@ -111,6 +111,14 @@ If you prefer to install manually or the script doesn't work on your system:
    cd backend
    go run ./cmd
    ```
+   
+   **Windows users:** If you encounter SQLite CGO errors, use:
+   ```bash
+   cd backend
+   CGO_ENABLED=1 go run ./cmd
+   ```
+   
+   Or simply double-click `scripts/start-windows.bat` from the project root.
 
 4. **Access the application:**
    - Open your browser to: `http://localhost:3008`
@@ -208,6 +216,16 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 - Check if dependencies are properly installed with `npm run status`
 - Verify your `.env` configuration is correct
 - Try stopping and restarting: `npm run stop && npm run start`
+
+**Windows SQLite CGO Error**
+- If you see "Binary was compiled with 'CGO_ENABLED=0', go-sqlite3 requires cgo to work":
+  ```bash
+  cd backend
+  CGO_ENABLED=1 go run ./cmd
+  # or for building:
+  make build-cgo
+  ```
+- Ensure you have a C compiler installed (like TDM-GCC or Visual Studio Build Tools)
 
 ## Uninstalling reconYa
 
