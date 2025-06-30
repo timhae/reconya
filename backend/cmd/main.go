@@ -4,14 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"syscall"
 	"time"
 
 	"reconya-ai/db"
-	"reconya-ai/internal/auth"
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
@@ -21,51 +24,109 @@ import (
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/systemstatus"
+	"reconya-ai/internal/web"
 	"reconya-ai/middleware"
 )
 
-func runDeviceUpdater(service *device.DeviceService) {
+func runDeviceUpdater(service *device.DeviceService, done <-chan bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			errorLogger.Printf("Device updater panic recovered: %v", r)
+			errorLogger.Printf("Device updater stack trace: %s", debug.Stack())
+		}
+		infoLogger.Println("Device updater service stopped")
+	}()
+	
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
+	infoLogger.Println("Device updater started")
 	for {
 		select {
+		case <-done:
+			infoLogger.Println("Device updater received shutdown signal")
+			return
 		case <-ticker.C:
-			err := service.UpdateDeviceStatuses()
-			if err != nil {
-				log.Printf("Failed to update device statuses: %v", err)
-				// Add a delay after an error to allow other operations to complete
-				time.Sleep(1 * time.Second)
-			}
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						errorLogger.Printf("UpdateDeviceStatuses panic: %v", r)
+						errorLogger.Printf("UpdateDeviceStatuses stack: %s", debug.Stack())
+					}
+				}()
+				err := service.UpdateDeviceStatuses()
+				if err != nil {
+					errorLogger.Printf("Failed to update device statuses: %v", err)
+					// Add a delay after an error to allow other operations to complete
+					time.Sleep(1 * time.Second)
+				}
+			}()
 		}
 	}
 }
 
+// Global loggers for different output streams
+var (
+	infoLogger  = log.New(os.Stdout, "", log.LstdFlags)
+	errorLogger = log.New(os.Stderr, "", log.LstdFlags)
+)
+
 func main() {
+	// Ignore common termination signals to prevent external kills
+	signal.Ignore(syscall.SIGTERM, syscall.SIGQUIT)
+	
+	// Set up global panic recovery with restart
+	defer func() {
+		if r := recover(); r != nil {
+			errorLogger.Printf("FATAL PANIC in main(): %v", r)
+			errorLogger.Printf("Stack trace: %s", debug.Stack())
+			errorLogger.Printf("RESTARTING BACKEND IN 1 SECOND...")
+			time.Sleep(1 * time.Second)
+			// Restart the main function
+			main()
+		}
+	}()
+	
+	infoLogger.Printf("Starting RecoNya backend - Process ID: %d", os.Getpid())
+	infoLogger.Printf("Runtime: %s/%s, Go version: %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
+	infoLogger.Printf("🛡️ Backend is protected against external termination")
+	
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		errorLogger.Printf("Failed to load configuration: %v", err)
+		errorLogger.Printf("CRITICAL ERROR - RESTARTING IN 2 SECONDS...")
+		time.Sleep(2 * time.Second)
+		main() // Restart instead of fatal exit
+		return
 	}
 
 	// Create repositories factory
 	var repoFactory *db.RepositoryFactory
 	var sqliteDB *sql.DB
 
-	log.Println("Using SQLite database")
+	infoLogger.Println("Using SQLite database")
 	sqliteDB, err = db.ConnectToSQLite(cfg.SQLitePath)
 	if err != nil {
-		log.Fatalf("Failed to connect to SQLite: %v", err)
+		errorLogger.Printf("Failed to connect to SQLite: %v", err)
+		errorLogger.Printf("DATABASE ERROR - RESTARTING IN 3 SECONDS...")
+		time.Sleep(3 * time.Second)
+		main() // Restart instead of fatal exit
+		return
 	}
 	
 	// Initialize database schema
 	if err := db.InitializeSchema(sqliteDB); err != nil {
-		log.Fatalf("Failed to initialize database schema: %v", err)
+		errorLogger.Printf("Failed to initialize database schema: %v", err)
+		errorLogger.Printf("SCHEMA ERROR - RESTARTING IN 3 SECONDS...")
+		time.Sleep(3 * time.Second)
+		main() // Restart instead of fatal exit
+		return
 	}
 
 	// Reset port scan cooldowns for development
-	log.Println("Resetting port scan cooldowns for development...")
+	infoLogger.Println("Resetting port scan cooldowns for development...")
 	if err := db.ResetPortScanCooldowns(sqliteDB); err != nil {
-		log.Printf("Warning: Failed to reset port scan cooldowns: %v", err)
+		infoLogger.Printf("Warning: Failed to reset port scan cooldowns: %v", err)
 	}
 
 	repoFactory = db.NewRepositoryFactory(sqliteDB, cfg.DatabaseName)
@@ -82,14 +143,14 @@ func main() {
 	// Initialize OUI service for MAC address vendor lookup
 	ouiDataPath := filepath.Join(filepath.Dir(cfg.SQLitePath), "oui")
 	ouiService := oui.NewOUIService(ouiDataPath)
-	log.Println("Initializing OUI service...")
+	infoLogger.Println("Initializing OUI service...")
 	if err := ouiService.Initialize(); err != nil {
-		log.Printf("Warning: Failed to initialize OUI service: %v", err)
-		log.Println("Continuing without OUI service - vendor lookup will rely on Nmap only")
+		infoLogger.Printf("Warning: Failed to initialize OUI service: %v", err)
+		infoLogger.Println("Continuing without OUI service - vendor lookup will rely on Nmap only")
 		ouiService = nil
 	} else {
 		stats := ouiService.GetStatistics()
-		log.Printf("OUI service initialized successfully - %v entries loaded, last updated: %v", 
+		infoLogger.Printf("OUI service initialized successfully - %v entries loaded, last updated: %v", 
 			stats["total_entries"], stats["last_updated"])
 	}
 
@@ -100,107 +161,186 @@ func main() {
 	systemStatusService := systemstatus.NewSystemStatusService(systemStatusRepo)
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
+
 	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService)
 	
-	authHandlers := auth.NewAuthHandlers(cfg)
-	middlewareHandlers := middleware.NewMiddleware(cfg)
-
+	// Create a done channel to coordinate graceful shutdown
+	done := make(chan bool)
+	
 	nicService.Identify()
-	go runPingSweepService(pingSweepService)
-	go runDeviceUpdater(deviceService)
+	go runPingSweepService(pingSweepService, done)
+	go runDeviceUpdater(deviceService, done)
 
-	mux := setupRouter(deviceService, eventLogService, systemStatusService, networkService, authHandlers, middlewareHandlers, cfg)
-	loggedRouter := middleware.LoggingMiddleware(mux)
+	// Initialize web handlers for HTMX frontend
+	sessionSecret := "your-secret-key-here-replace-in-production"
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, sessionSecret)
+	router := webHandler.SetupRoutes()
+	loggedRouter := middleware.LoggingMiddleware(router)
 
 	server := &http.Server{
 		Addr:    ":3008",
 		Handler: loggedRouter,
 	}
 
+	infoLogger.Println("Backend initialization completed successfully")
+	
+	// Channel to signal server startup completion
+	serverReady := make(chan bool)
+	
 	go func() {
-		log.Println("Server is starting on port 3008...")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("ListenAndServe: %v", err)
+		defer close(serverReady)
+		infoLogger.Println("Server is starting on port 3008...")
+		
+		// Test if port is available before starting
+		ln, err := net.Listen("tcp", ":3008")
+		if err != nil {
+			errorLogger.Printf("Port 3008 is not available: %v", err)
+			serverReady <- false
+			return
 		}
+		ln.Close()
+		
+		// Start the actual server
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errorLogger.Printf("Server ListenAndServe error: %v", err)
+			// Signal background services to stop
+			close(done)
+			serverReady <- false
+			errorLogger.Printf("SERVER ERROR - RESTARTING IN 2 SECONDS...")
+			time.Sleep(2 * time.Second)
+			main() // Restart instead of fatal exit
+			return
+		}
+		infoLogger.Println("Server ListenAndServe has exited normally")
 	}()
 
-	waitForShutdown(server)
-}
-
-func setupRouter(
-	deviceService *device.DeviceService,
-	eventLogService *eventlog.EventLogService,
-	systemStatusService *systemstatus.SystemStatusService,
-	networkService *network.NetworkService,
-	authHandlers *auth.AuthHandlers,
-	middlewareHandlers *middleware.Middleware,
-	cfg *config.Config) http.Handler {
-	deviceHandlers := device.NewDeviceHandlers(deviceService, cfg)
-	eventLogHandlers := eventlog.NewEventLogHandlers(eventLogService)
-	systemStatusHandlers := systemstatus.NewSystemStatusHandlers(systemStatusService)
-	networkHandlers := network.NewNetworkHandlers(networkService)
-
-	mux := http.NewServeMux()
-	corsRouter := middleware.SetupCORS()(mux)
-
-	mux.HandleFunc("/login", authHandlers.LoginHandler)
-	mux.HandleFunc("/check-auth", authHandlers.CheckAuthHandler)
+	// Wait for server to be ready or timeout after 5 seconds
+	go func() {
+		time.Sleep(500 * time.Millisecond) // Give server time to start
+		// Test if server is actually responding
+		resp, err := http.Get("http://localhost:3008/")
+		if err == nil {
+			resp.Body.Close()
+			serverReady <- true
+		} else {
+			infoLogger.Printf("Server health check failed: %v", err)
+		}
+	}()
 	
-	// In development Docker environment, make these endpoints accessible without auth
-	// In production, uncomment the middlewareHandlers.AuthMiddleware wrapper
-	mux.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			deviceHandlers.GetAllDevices(w, r)
-		case http.MethodPost:
-			deviceHandlers.CreateDevice(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Wait for startup completion
+	select {
+	case ready := <-serverReady:
+		if ready {
+			infoLogger.Println("✅ RecoNya backend is ready and accepting connections on port 3008")
+			infoLogger.Println("🚀 Backend startup completed successfully")
+			infoLogger.Println("[INFO] Server started successfully on port 3008")
+			infoLogger.Println("[READY] RecoNya backend is ready to serve requests")
+		} else {
+			errorLogger.Println("❌ Backend startup failed")
 		}
-	})
-	mux.HandleFunc("/devices/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPut:
-			deviceHandlers.UpdateDevice(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/system-status/latest", systemStatusHandlers.GetLatestSystemStatus)
-	mux.HandleFunc("/event-log", eventLogHandlers.FindLatest)
-	mux.HandleFunc("/event-log/", eventLogHandlers.FindAllByDeviceId)
-	mux.HandleFunc("/network", networkHandlers.GetNetwork)
+	case <-time.After(10 * time.Second):
+		infoLogger.Println("⚠️ Backend startup timeout - server may still be initializing")
+	}
 
-	return corsRouter
+	waitForShutdown(server, done)
 }
 
-func runPingSweepService(service *pingsweep.PingSweepService) {
-	log.Println("Starting initial ping sweep service run...")
-	service.Run()
+
+func runPingSweepService(service *pingsweep.PingSweepService, done <-chan bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			errorLogger.Printf("Ping sweep service panic recovered: %v", r)
+			errorLogger.Printf("Ping sweep stack trace: %s", debug.Stack())
+		}
+		infoLogger.Println("Ping sweep service stopped")
+	}()
+	
+	infoLogger.Println("Starting initial ping sweep service run...")
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errorLogger.Printf("Initial ping sweep service.Run() panic: %v", r)
+				errorLogger.Printf("Initial ping sweep stack: %s", debug.Stack())
+			}
+		}()
+		service.Run()
+	}()
 
 	// Use 30 seconds for development to see updates more quickly
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	log.Printf("Ping sweep service scheduled to run every 30 seconds")
-	for range ticker.C {
-		log.Println("Running scheduled ping sweep...")
-		service.Run()
+	infoLogger.Printf("Ping sweep service scheduled to run every 30 seconds")
+	for {
+		select {
+		case <-done:
+			infoLogger.Println("Ping sweep service received shutdown signal")
+			return
+		case <-ticker.C:
+			infoLogger.Println("Running scheduled ping sweep...")
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						errorLogger.Printf("Ping sweep service.Run() panic: %v", r)
+						errorLogger.Printf("Ping sweep Run() stack: %s", debug.Stack())
+					}
+				}()
+				service.Run()
+			}()
+		}
 	}
 }
 
-func waitForShutdown(server *http.Server) {
+func waitForShutdown(server *http.Server, done chan bool) {
 	stop := make(chan os.Signal, 1)
+	// Only listen for manual interrupt (Ctrl+C), ignore automated termination
 	signal.Notify(stop, os.Interrupt)
+	
+	// Log runtime and system information for debugging
+	infoLogger.Printf("Runtime info - OS: %s, Arch: %s, Go version: %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
+	infoLogger.Printf("Process ID: %d", os.Getpid())
 
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	infoLogger.Println("Waiting for interrupt signal (Ctrl+C) to shutdown...")
+	infoLogger.Println("Server is running and ready to accept connections...")
+	
+	// Add a ticker to show the server is alive
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	// Add a context with cancel to handle potential deadlocks
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	
+	for {
+		select {
+		case sig := <-stop:
+			infoLogger.Printf("Received shutdown signal: %v", sig)
+			
+			// Signal background services to stop
+			close(done)
+			
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer shutdownCancel()
 
-	log.Println("Shutting down the server...")
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server Shutdown Failed:%+v", err)
+			infoLogger.Println("Shutting down the server...")
+			if err := server.Shutdown(shutdownCtx); err != nil {
+				errorLogger.Printf("Server Shutdown error: %v", err)
+				// Force exit after timeout
+				errorLogger.Println("Forcing shutdown...")
+				os.Exit(1)
+			}
+			infoLogger.Println("[SUCCESS] Services stopped")
+			return
+		case <-ticker.C:
+			infoLogger.Println("Server heartbeat: Still running...")
+			// Check if context was cancelled (indicates shutdown in progress)
+			select {
+			case <-ctx.Done():
+				infoLogger.Println("Context cancelled, shutting down...")
+				return
+			default:
+				// Continue normal operation
+			}
+		}
 	}
-	log.Println("Server gracefully stopped")
 }

@@ -1,0 +1,16 @@
+{{define "components/network-map.html"}}
+<h6 class="text-success d-block w-100 mb-3">[ NETWORK MAP ]</h6>
+<div class="device-container d-flex align-items-start flex-wrap">
+    {{$baseIP := .BaseIP}}
+    {{$devices := .Devices}}
+    {{range $i, $ipPart := .IPRange}}
+        {{$fullIP := printf "%s.%d" $baseIP $ipPart}}
+        {{$device := index $devices $fullIP}}
+        <button type="button"
+                class="device-mini-box bg-very-dark d-block m-1 {{if $device}}{{if eq $device.Status "online"}}border border-success text-success{{else if eq $device.Status "idle"}}border border-success text-success opacity-50{{else}}border border-dark text-dark{{end}}{{else}}border border-dark opacity-75 text-muted{{end}}"
+                {{if $device}}hx-get="/api/devices/{{$device.ID}}/modal" hx-target="#device-modal-content" hx-trigger="click"{{else}}hx-get="/api/devices/new-scan" hx-target="#device-modal-content" hx-trigger="click"{{end}}
+                title="{{$fullIP}}{{if $device}} - {{$device.Status}}{{else}} - Available IP{{end}}">
+        </button>
+    {{end}}
+</div>
+{{end}}

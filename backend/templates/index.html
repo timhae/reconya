@@ -1,0 +1,424 @@
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecoNya - Network Reconnaissance</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Import matching React styles */
+        :root {
+            --bs-success: #198754;
+            --bs-success-rgb: 25, 135, 84;
+            --bg-very-dark: #111;
+            --bg-black: #000;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 500;
+            background-color: #000;
+            color: #e9ecef;
+            min-height: 100vh;
+        }
+        
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            font-size: 18px;
+        }
+        
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .bg-very-dark {
+            background: #111;
+        }
+        
+        .bg-black {
+            background: #000;
+        }
+        
+        .table-very-dark {
+            background: #111111 !important;
+        }
+        
+        .table-black {
+            background: #000000 !important;
+        }
+        
+        .table-text {
+            font-weight: 500;
+        }
+        
+        .w-20 {
+            width: 20% !important;
+        }
+        
+        .device-container {
+            flex-flow: row wrap;
+        }
+        
+        /* Old network map boxes - matching React exactly */
+        .device-mini-box {
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border-radius: 2px;
+        }
+        
+        /* Make online devices bold green border - all possible targeting */
+        .device-mini-box.border-success,
+        .device-mini-box.border.border-success,
+        button.device-mini-box.border-success {
+            border: 2px solid #198754 !important;
+        }
+        
+        /* Force online device visibility */
+        .device-mini-box[title*="online"] {
+            border: 2px solid #198754 !important;
+        }
+        
+        
+        /* Make network map container wider */
+        
+        .device-box-btn {
+            min-width: 140px;
+            width: calc(10% - 8px);
+            min-height: 100px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .device-box-btn:active {
+            background: #198754 !important;
+            color: #212529 !important;
+        }
+        
+        .device-box-btn:hover {
+            background: #198754 !important;
+            color: #212529 !important;
+        }
+        
+        /* Device container flexbox layout to match React */
+        .device-container {
+            flex-flow: row wrap;
+        }
+        
+        .device-mini-box {
+            width: 18px;
+            min-height: 18px;
+            padding-top: 3px;
+        }
+        
+        .deviceFadeInAndOut {
+            opacity: 1;
+            animation: fade 1.5s linear infinite;
+        }
+        
+        @keyframes fade {
+            0%,100% { opacity: 0 }
+            50% { opacity: 1 }
+        }
+        
+        /* React-style blinking animations for status indicators */
+        .blink-danger {
+            animation: blink-danger 1s ease-in-out infinite;
+        }
+        
+        .blink-warning {
+            animation: blink-warning 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes blink-danger {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        @keyframes blink-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .deviceBlink {
+            opacity: 1;
+            animation: blinker 1.8s step-start infinite;
+        }
+        
+        @keyframes blinker {
+            50% {
+                opacity: 0;
+            }
+        }
+        
+        .device-modal {
+            min-height: 500px;
+        }
+        
+        /* Card styles to match React */
+        .card {
+            background: var(--bg-very-dark);
+            border: 1px solid rgba(25, 135, 84, 0.3);
+            color: #e9ecef;
+        }
+        
+        .card-header {
+            background: rgba(25, 135, 84, 0.1);
+            border-bottom: 1px solid rgba(25, 135, 84, 0.3);
+        }
+        
+        .card-title {
+            font-weight: 600;
+            color: var(--bs-success);
+        }
+        
+        .section-header {
+            color: var(--bs-success);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .section-header::before { content: "[ "; }
+        .section-header::after { content: " ]"; }
+        
+        /* Device Card Styles */
+        .device-card {
+            background: var(--bg-very-dark);
+            border: 1px solid rgba(108, 117, 125, 0.3);
+            min-width: 205px;
+            min-height: 120px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .device-card:hover {
+            background: rgba(25, 135, 84, 0.1);
+            border-color: var(--bs-success);
+        }
+        
+        .device-ip {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .device-hostname {
+            font-size: 0.9rem;
+            color: #adb5bd;
+        }
+        
+        .device-name {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        
+        .status-online { color: #20c997; }
+        .status-offline { color: #dc3545; }
+        .status-idle { color: #ffc107; }
+        
+        /* Network Map styles - matching React exactly */
+        .network-map-container {
+            background: var(--bg-black);
+        }
+        
+        /* HTMX indicators */
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 500ms ease-in;
+        }
+        
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator {
+            opacity: 1;
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(25, 135, 84, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #198754;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* System status styles */
+        .system-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .system-icon {
+            color: var(--bs-success);
+        }
+        
+        .blink-online {
+            animation: blink-online 2s infinite;
+        }
+        
+        @keyframes blink-online {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        /* Additional animations from React frontend */
+        .blink-danger {
+            animation: blink-danger 1s ease-in-out infinite;
+        }
+        
+        @keyframes blink-danger {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .blink-warning {
+            animation: blink-warning 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes blink-warning {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+        
+        .blink-active {
+            animation: blink-active 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes blink-active {
+            0%, 60% { opacity: 1; }
+            61%, 100% { opacity: 0.7; }
+        }
+        
+        /* Traffic core breathing animation */
+        .traffic-core-breathing {
+            animation: traffic-core-breathe 3s ease-in-out infinite;
+        }
+        
+        @keyframes traffic-core-breathe {
+            0%, 100% { 
+                opacity: 0.7; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 1; 
+                transform: scale(1.1);
+            }
+        }
+        
+        /* Table styling */
+        .table-dark {
+            --bs-table-bg: var(--bg-very-dark);
+            --bs-table-border-color: rgba(25, 135, 84, 0.3);
+        }
+        
+        .table thead th {
+            background: var(--bs-success);
+            color: white;
+            border-color: var(--bs-success);
+        }
+        
+        .badge.bg-success {
+            background: var(--bs-success) !important;
+        }
+        
+        .btn-outline-success {
+            border-color: var(--bs-success);
+            color: var(--bs-success);
+        }
+        
+        .btn-outline-success:hover {
+            background: var(--bs-success);
+            border-color: var(--bs-success);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-very-dark">
+        <div class="container-fluid px-5">
+            <div class="d-flex align-items-center">
+                <a href="/" class="navbar-brand">
+                    <div class="logo text-dark bg-success border border-dark d-inline-block px-3 py-2">
+                        <i class="bi bi-circle-nodes"></i> reconYa
+                    </div>
+                </a>
+            </div>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="d-flex align-items-center">
+                <a href="#" class="text-success ms-3">
+                    <i class="bi bi-bell"></i>
+                </a>
+                <a href="#" class="text-success ms-3 me-4">
+                    <i class="bi bi-gear"></i>
+                </a>
+                <div class="dropdown bg-dark">
+                    <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        Welcome, human
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                        <li>
+                            <form action="/logout" method="POST" class="d-inline">
+                                <button type="submit" class="dropdown-item">
+                                    Logout
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="content" class="container-fluid py-4">
+        <!-- Initial content will be loaded here by HTMX -->
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <script>
+        // Load dashboard content after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            htmx.ajax('GET', '/home', {
+                target: '#content',
+                swap: 'innerHTML'
+            }).then(function() {
+                console.log('Dashboard loaded successfully');
+            }).catch(function(error) {
+                console.error('Failed to load dashboard:', error);
+                // If home fails, it might be due to auth - try redirect
+                window.location.href = '/login';
+            });
+        });
+        
+        // Handle HTMX errors globally
+        document.addEventListener('htmx:responseError', function(event) {
+            console.error('HTMX Error:', event.detail);
+            if (event.detail.xhr.status === 401 || event.detail.xhr.status === 403) {
+                window.location.href = '/login';
+            }
+        });
+    </script>
+</body>
+</html>

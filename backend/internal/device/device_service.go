@@ -474,3 +474,43 @@ func (s *DeviceService) PerformDeviceFingerprinting(device *models.Device) {
 	log.Printf("Starting device fingerprinting for %s", device.IPv4)
 	s.fingerprintService.AnalyzeDevice(device)
 }
+
+// CleanupAllDeviceNames clears the names of all devices in the database
+func (s *DeviceService) CleanupAllDeviceNames() error {
+	ctx := context.Background()
+	
+	// Get all devices
+	devices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch devices: %v", err)
+	}
+	
+	log.Printf("Starting device name cleanup for %d devices", len(devices))
+	
+	// Update each device to clear the name
+	var errors []string
+	for _, device := range devices {
+		// Clear the device name
+		device.Name = ""
+		
+		// Update the device
+		_, err := s.repository.CreateOrUpdate(ctx, device)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Failed to update device %s: %v", device.IPv4, err))
+			continue
+		}
+		
+		log.Printf("Cleared name for device %s", device.IPv4)
+	}
+	
+	if len(errors) > 0 {
+		log.Printf("Device name cleanup completed with %d errors", len(errors))
+		for _, errMsg := range errors {
+			log.Printf("Error: %s", errMsg)
+		}
+		return fmt.Errorf("cleanup completed with %d errors", len(errors))
+	}
+	
+	log.Printf("Device name cleanup completed successfully for %d devices", len(devices))
+	return nil
+}

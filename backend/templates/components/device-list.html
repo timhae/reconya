@@ -1,0 +1,42 @@
+{{define "components/device-list.html"}}
+<div class="table-responsive">
+    <table class="table table-dark table-striped table-hover table-sm">
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Name</th>
+                <th>MAC Address</th>
+                <th>Vendor</th>
+                <th>OS</th>
+                <th>Status</th>
+                <th>Ports</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Devices}}
+            <tr hx-get="/api/devices/{{.ID}}/modal" hx-target="#device-modal-content" hx-trigger="click" style="cursor: pointer;">
+                <td>{{.IPv4}}</td>
+                <td>{{or .Name .Hostname "Unknown"}}</td>
+                <td>{{or .MAC "N/A"}}</td>
+                <td>{{or .Vendor "N/A"}}</td>
+                <td>
+                    {{if .OS}}{{if contains .OS.Name "Windows"}}<i class="bi bi-windows"></i>{{else if contains .OS.Name "Linux"}}<i class="bi bi-ubuntu"></i>{{else if contains .OS.Name "macOS"}}<i class="bi bi-apple"></i>{{else if contains .OS.Name "Android"}}<i class="bi bi-android2"></i>{{else if contains .OS.Name "iOS"}}<i class="bi bi-phone"></i>{{else}}<i class="bi bi-device-hdd"></i>{{end}}{{else}}N/A{{end}}
+                </td>
+                <td>
+                    <span class="badge bg-{{if eq (string .Status) "online"}}success{{else if eq (string .Status) "idle"}}warning{{else}}danger{{end}}">
+                        {{.Status}}
+                    </span>
+                </td>
+                <td>{{len .Ports}}</td>
+                <td>{{formatTimeAgo .LastSeenOnlineAt}}</td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="8" class="text-center text-muted">No devices found.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

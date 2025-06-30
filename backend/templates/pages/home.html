@@ -1,0 +1,141 @@
+<div class="row g-4 p-4">
+    <!-- Left Column - Main Content -->
+    <div class="col-lg-9">
+        <!-- Network Map and Devices Section -->
+        <div class="mb-4">
+            <!-- Network Map -->
+            <div class="network-map-container mb-4 p0">
+                <div id="network-map" hx-get="/api/network-map" hx-trigger="load, every 8s" hx-swap="innerHTML">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Devices Section -->
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="text-success mb-0">[ NETWORK DEVICES ]</h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="view-mode" id="grid-view" checked>
+                        <label class="btn btn-outline-success" for="grid-view">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </label>
+                        <input type="radio" class="btn-check" name="view-mode" id="list-view">
+                        <label class="btn btn-outline-success" for="list-view">
+                            <i class="bi bi-list"></i>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <div id="devices-container" hx-get="/api/devices" hx-trigger="load, every 5s" hx-swap="innerHTML">
+                        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device List Section -->
+        <div class="">
+            <div>
+                <div id="device-list-container" hx-get="/api/device-list" hx-trigger="every 5s" hx-swap="innerHTML" style="display: none;">
+                    <!-- Content loaded via HTMX when list view is selected -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - Status & Logs -->
+    <div class="col-lg-3">
+        <!-- System Status Section -->
+        <div class="mb-4">
+            <div>
+                <div id="system-status" hx-get="/api/system-status" hx-trigger="load, every 3s" hx-swap="innerHTML">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traffic Core Section -->
+        <div class="mb-4">
+            <div>
+                <div hx-get="/api/traffic-core" hx-trigger="load" hx-swap="innerHTML">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 300px;">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Logs Section -->
+        <div class="">
+            <div class="p-0" style="max-height: 400px; overflow-y: auto;">
+                <div id="event-logs" hx-get="/api/event-logs" hx-trigger="load, every 4s" hx-swap="innerHTML">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-success">
+            <div id="device-modal-content">
+                <!-- Content loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // View mode toggle
+    document.addEventListener('change', function(event) {
+        if (event.target.name === 'view-mode') {
+            const viewMode = event.target.id.includes('grid') ? 'grid' : 'list';
+            const devicesContainer = document.getElementById('devices-container');
+            const listContainer = document.getElementById('device-list-container');
+            
+            console.log('View mode changed to:', viewMode);
+            console.log('Devices container:', devicesContainer);
+            console.log('List container:', listContainer);
+            
+            if (viewMode === 'grid') {
+                // Show grid view, hide list view
+                if (devicesContainer) devicesContainer.style.display = 'block';
+                if (listContainer) listContainer.style.display = 'none';
+                htmx.ajax('GET', '/api/devices', { target: '#devices-container' });
+            } else {
+                // Show list view, hide grid view
+                if (devicesContainer) devicesContainer.style.display = 'none';
+                if (listContainer) listContainer.style.display = 'block';
+                htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
+            }
+        }
+    });
+
+    // Device modal handling
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.target.id === 'device-modal-content') {
+            const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+            modal.show();
+        }
+    });
+</script>

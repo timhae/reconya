@@ -35,7 +35,7 @@ const Navigation: React.FC = () => {
         <div className="d-flex align-items-center">
           <NavLink to="/" className="navbar-brand">
             <div className="logo text-dark bg-success border border-dark d-inline-block px-3 py-2">
-              <FontAwesomeIcon icon={faCircleNodes} /> reconYa A.I.
+              <FontAwesomeIcon icon={faCircleNodes} /> reconYa
             </div>
           </NavLink>
         </div>

@@ -56,16 +56,28 @@ class StatusChecker {
   }
 
   async checkServices() {
-    Utils.log.info('Checking services...');
+    Utils.log.info('Checking backend service...');
 
     // Check backend (port 3008)
     const backendProcess = await Utils.findProcessByPort(3008);
     if (backendProcess) {
       Utils.log.success(`Backend: running (PID ${backendProcess.pid})`);
       
+      // Test backend web interface
+      try {
+        const webWorking = await this.testHTTP('http://localhost:3008');
+        if (webWorking) {
+          Utils.log.success('Backend web interface: accessible');
+        } else {
+          Utils.log.warning('Backend web interface: not accessible');
+        }
+      } catch {
+        Utils.log.warning('Backend web interface: connection failed');
+      }
+
       // Test backend API
       try {
-        const apiWorking = await this.testAPI('http://localhost:3008/system-status/latest');
+        const apiWorking = await this.testAPI('http://localhost:3008/api/system-status');
         if (apiWorking) {
           Utils.log.success('Backend API: responding');
         } else {
@@ -76,26 +88,6 @@ class StatusChecker {
       }
     } else {
       Utils.log.error('Backend: not running');
-    }
-
-    // Check frontend (port 3000)
-    const frontendProcess = await Utils.findProcessByPort(3000);
-    if (frontendProcess) {
-      Utils.log.success(`Frontend: running (PID ${frontendProcess.pid})`);
-      
-      // Test frontend
-      try {
-        const frontendWorking = await this.testHTTP('http://localhost:3000');
-        if (frontendWorking) {
-          Utils.log.success('Frontend: accessible');
-        } else {
-          Utils.log.warning('Frontend: not accessible');
-        }
-      } catch {
-        Utils.log.warning('Frontend: connection failed');
-      }
-    } else {
-      Utils.log.error('Frontend: not running');
     }
 
     console.log();
@@ -135,9 +127,8 @@ class StatusChecker {
       Utils.log.error('Backend .env: missing');
     }
 
-    // Check dependencies installed
+    // Check backend dependencies
     const backendModules = path.join(projectRoot, 'backend', 'go.mod');
-    const frontendModules = path.join(projectRoot, 'frontend', 'node_modules');
     
     if (fs.existsSync(backendModules)) {
       Utils.log.success('Backend dependencies: go.mod exists');
@@ -145,10 +136,12 @@ class StatusChecker {
       Utils.log.error('Backend dependencies: go.mod missing');
     }
 
-    if (fs.existsSync(frontendModules)) {
-      Utils.log.success('Frontend dependencies: node_modules exists');
+    // Check if templates exist
+    const templatesDir = path.join(projectRoot, 'backend', 'templates');
+    if (fs.existsSync(templatesDir)) {
+      Utils.log.success('HTMX templates: directory exists');
     } else {
-      Utils.log.error('Frontend dependencies: node_modules missing');
+      Utils.log.error('HTMX templates: directory missing');
     }
 
     console.log();

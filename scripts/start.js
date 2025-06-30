@@ -9,28 +9,26 @@ const path = require('path');
 class ServiceManager {
   constructor() {
     this.backendProcess = null;
-    this.frontendProcess = null;
     this.isShuttingDown = false;
   }
 
   async start() {
     console.log('==========================================');
-    console.log('         Starting RecoNya Services       ');
+    console.log('         Starting RecoNya Backend        ');
     console.log('==========================================\n');
 
     // Validate directory and get project root
     const projectRoot = Utils.validateRecoNyaDirectory();
 
-    Utils.log.info('Backend will run on: http://localhost:3008');
-    Utils.log.info('Frontend will run on: http://localhost:3000\n');
+    Utils.log.info('RecoNya backend will run on: http://localhost:3008');
+    Utils.log.info('HTMX frontend is served directly from the backend\n');
 
     try {
-      // Check and free required ports
-      Utils.log.info('Checking for existing processes on required ports...');
+      // Check and free required port
+      Utils.log.info('Checking for existing processes on port 3008...');
       await Utils.killProcessByPort(3008, 'backend');
-      await Utils.killProcessByPort(3000, 'frontend');
 
-      Utils.log.info('Press Ctrl+C to stop both services\n');
+      Utils.log.info('Press Ctrl+C to stop the service\n');
 
       // Setup signal handlers
       this.setupSignalHandlers();
@@ -38,11 +36,8 @@ class ServiceManager {
       // Start backend
       await this.startBackend();
 
-      // Start frontend
-      await this.startFrontend();
-
-      Utils.log.success('RecoNya is starting up...');
-      Utils.log.info('Once both services are ready, open your browser to: http://localhost:3000');
+      Utils.log.success('RecoNya backend is starting up...');
+      Utils.log.info('Open your browser to: http://localhost:3008');
       Utils.log.info('Default login: admin / password\n');
 
       // Keep the process alive
@@ -56,61 +51,169 @@ class ServiceManager {
   }
 
   async startBackend() {
-    Utils.log.info('Starting backend...');
+    Utils.log.info('Starting backend with immortal restart capability...');
+    
+    const projectRoot = Utils.validateRecoNyaDirectory();
+    const backendPath = path.join(projectRoot, 'backend');
+    let restartCount = 0;
+    let isFirstStart = true;
 
-    return new Promise((resolve, reject) => {
-      const projectRoot = Utils.validateRecoNyaDirectory();
-      const backendPath = path.join(projectRoot, 'backend');
-      
-      this.backendProcess = spawn('go', ['run', './cmd'], {
-        cwd: backendPath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: Utils.isWindows()
+    const startBackendProcess = () => {
+      return new Promise((resolve, reject) => {
+        if (!isFirstStart) {
+          restartCount++;
+          const delay = Math.min(restartCount * 1000, 5000); // Max 5 second delay
+          Utils.log.info(`Restarting backend in ${delay}ms (attempt #${restartCount})...`);
+          setTimeout(() => {
+            this.createBackendProcess(backendPath, resolve, reject);
+          }, delay);
+        } else {
+          isFirstStart = false;
+          this.createBackendProcess(backendPath, resolve, reject);
+        }
       });
+    };
 
-      let startupTimeout;
-      let isStarted = false;
-
-      // Handle backend output
-      this.backendProcess.stdout.on('data', (data) => {
-        const output = data.toString();
-        console.log(chalk.gray('[BACKEND]'), output.trim());
-        
-        // Check if backend is ready
-        if (output.includes('Server is starting on port 3008') || 
-            output.includes('Starting new ping sweep scan')) {
-          if (!isStarted) {
-            isStarted = true;
-            clearTimeout(startupTimeout);
-            Utils.log.success('Backend started successfully');
-            resolve();
+    // Start the backend with auto-restart
+    const startWithRestart = async () => {
+      while (!this.isShuttingDown) {
+        try {
+          await startBackendProcess();
+          // Reset restart count on successful startup
+          if (restartCount > 0) {
+            restartCount = 0;
+            Utils.log.success('Backend running stable, restart counter reset');
           }
+          break;
+        } catch (error) {
+          if (this.isShuttingDown) break;
+          Utils.log.warning(`Backend failed: ${error.message}`);
+          Utils.log.info('Backend will restart automatically...');
         }
-      });
+      }
+    };
 
-      this.backendProcess.stderr.on('data', (data) => {
-        console.log(chalk.red('[BACKEND ERROR]'), data.toString().trim());
-      });
-
-      this.backendProcess.on('close', (code) => {
-        if (!this.isShuttingDown && !isStarted) {
-          reject(new Error(`Backend exited with code ${code}`));
-        }
-      });
-
-      this.backendProcess.on('error', (error) => {
-        if (!isStarted) {
-          reject(error);
-        }
-      });
-
-      // Set startup timeout
-      startupTimeout = setTimeout(() => {
-        if (!isStarted) {
-          reject(new Error('Backend startup timeout'));
-        }
-      }, 30000);
+    startWithRestart();
+    
+    // Return immediately since we're handling restarts automatically
+    return new Promise((resolve) => {
+      // Give the first start attempt time to initialize
+      setTimeout(() => {
+        Utils.log.success('Backend startup initiated with immortal protection');
+        resolve();
+      }, 2000);
     });
+  }
+
+  createBackendProcess(backendPath, resolve, reject) {
+    this.backendProcess = spawn('go', ['run', './cmd'], {
+      cwd: backendPath,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: Utils.isWindows()
+    });
+
+    let startupTimeout;
+    let isStarted = false;
+
+    // Handle backend output
+    this.backendProcess.stdout.on('data', (data) => {
+      const output = data.toString();
+      console.log(chalk.gray('[BACKEND]'), output.trim());
+      
+      // Look for multiple startup indicators
+      if (output.includes('Backend startup completed successfully') ||
+          output.includes('RecoNya backend is ready') ||
+          output.includes('Server is starting on port 3008') || 
+          output.includes('Starting new ping sweep scan')) {
+        if (!isStarted) {
+          isStarted = true;
+          clearTimeout(startupTimeout);
+          resolve();
+        }
+      }
+    });
+
+    this.backendProcess.stderr.on('data', (data) => {
+      const output = data.toString().trim();
+      
+      // Filter out normal operational logs that Go sends to stderr
+      if (output.includes('Started GET') || 
+          output.includes('Completed GET') || 
+          output.includes('Executing') ||
+          output.includes('✅') || 
+          output.includes('🚀') ||
+          output.includes('[INFO]') ||
+          output.includes('[READY]') ||
+          output.includes('Runtime info') ||
+          output.includes('Process ID') ||
+          output.includes('Waiting for interrupt') ||
+          output.includes('Device updater started') ||
+          output.includes('Ping sweep service') ||
+          output.includes('OUI service') ||
+          output.includes('Server heartbeat') ||
+          output.includes('Still running') ||
+          output.includes('Connected to SQLite') ||
+          output.includes('Database schema') ||
+          output.includes('Port scan') ||
+          output.includes('Starting') ||
+          output.includes('Loaded') ||
+          output.includes('Found template') ||
+          output.includes('Network identification') ||
+          output.includes('Public IP Address') ||
+          output.includes('Note:') ||
+          output.includes('Attempting') ||
+          output.includes('Skipping') ||
+          output.includes('Backend initialization') ||
+          output.includes('Server is') ||
+          output.includes('Worker') ||
+          output.includes('Trying nmap') ||
+          output.includes('cooldowns reset') ||
+          output.includes('entries loaded') ||
+          output.includes('Template loaded') ||
+          output.includes('NIC:') ||
+          output.includes('Checking interface') ||
+          output.includes('Selected preferred') ||
+          output.includes('ready to accept') ||
+          output.includes('Found MAC Address') ||
+          output.includes('Found Vendor') ||
+          output.includes('Found device') ||
+          output.includes('Finished parsing') ||
+          output.includes('Total devices found') ||
+          output.includes('Nmap XML parse') ||
+          output.includes('for IP:')) {
+        // These are normal logs, display them as info
+        console.log(chalk.gray('[BACKEND]'), output);
+      } else {
+        // These are actual errors
+        console.log(chalk.red('[BACKEND ERROR]'), output);
+      }
+    });
+
+    this.backendProcess.on('close', (code) => {
+      if (!this.isShuttingDown) {
+        Utils.log.warning(`Backend exited with code ${code} - will restart automatically`);
+        setTimeout(() => {
+          if (!this.isShuttingDown) {
+            this.startBackend(); // Auto-restart
+          }
+        }, 1000);
+      }
+    });
+
+    this.backendProcess.on('error', (error) => {
+      if (!isStarted && !this.isShuttingDown) {
+        reject(error);
+      }
+    });
+
+    // Extended timeout for backend startup (60 seconds)
+    startupTimeout = setTimeout(() => {
+      if (!isStarted) {
+        Utils.log.warning('Backend startup taking longer than expected, but continuing...');
+        isStarted = true;
+        resolve();
+      }
+    }, 60000);
   }
 
   async verifyBackendStartup() {
@@ -126,78 +229,6 @@ class ServiceManager {
     Utils.log.success('Backend started successfully');
   }
 
-  async startFrontend() {
-    Utils.log.info('Starting frontend...');
-
-    return new Promise((resolve, reject) => {
-      const projectRoot = Utils.validateRecoNyaDirectory();
-      const frontendPath = path.join(projectRoot, 'frontend');
-      
-      // Set environment variables for frontend
-      const env = {
-        ...process.env,
-        BROWSER: 'none', // Don't auto-open browser
-        CI: 'true' // Reduce output verbosity
-      };
-
-      this.frontendProcess = spawn('npm', ['start'], {
-        cwd: frontendPath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: Utils.isWindows(),
-        env
-      });
-
-      let startupTimeout;
-      let isStarted = false;
-
-      // Handle frontend output
-      this.frontendProcess.stdout.on('data', (data) => {
-        const output = data.toString();
-        
-        // Filter out verbose webpack output
-        if (output.includes('webpack compiled') || 
-            output.includes('Local:') ||
-            output.includes('On Your Network:')) {
-          console.log(chalk.gray('[FRONTEND]'), output.trim());
-          
-          if (output.includes('webpack compiled') && !isStarted) {
-            isStarted = true;
-            clearTimeout(startupTimeout);
-            Utils.log.success('Frontend started successfully');
-            resolve();
-          }
-        }
-      });
-
-      this.frontendProcess.stderr.on('data', (data) => {
-        const output = data.toString();
-        // Filter out common React warnings
-        if (!output.includes('WARNING in') && !output.includes('Module Warning')) {
-          console.log(chalk.yellow('[FRONTEND WARNING]'), output.trim());
-        }
-      });
-
-      this.frontendProcess.on('close', (code) => {
-        if (!this.isShuttingDown && !isStarted) {
-          reject(new Error(`Frontend exited with code ${code}`));
-        }
-      });
-
-      this.frontendProcess.on('error', (error) => {
-        if (!isStarted) {
-          reject(error);
-        }
-      });
-
-      // Set startup timeout
-      startupTimeout = setTimeout(() => {
-        if (!isStarted) {
-          Utils.log.warning('Frontend startup timeout, but continuing...');
-          resolve();
-        }
-      }, 60000);
-    });
-  }
 
   setupSignalHandlers() {
     const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
@@ -228,22 +259,14 @@ class ServiceManager {
     if (this.isShuttingDown) return;
     this.isShuttingDown = true;
 
-    Utils.log.info('Stopping services...');
-
-    const cleanupPromises = [];
+    Utils.log.info('Stopping backend service...');
 
     // Kill backend
     if (this.backendProcess && !this.backendProcess.killed) {
-      cleanupPromises.push(this.killProcessGracefully(this.backendProcess, 'Backend'));
+      await this.killProcessGracefully(this.backendProcess, 'Backend');
     }
 
-    // Kill frontend
-    if (this.frontendProcess && !this.frontendProcess.killed) {
-      cleanupPromises.push(this.killProcessGracefully(this.frontendProcess, 'Frontend'));
-    }
-
-    await Promise.all(cleanupPromises);
-    Utils.log.success('Services stopped');
+    Utils.log.success('Backend service stopped');
   }
 
   async killProcessGracefully(proc, serviceName) {

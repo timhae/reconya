@@ -6,7 +6,7 @@ const Utils = require('./utils');
 class ServiceStopper {
   async stop() {
     console.log('==========================================');
-    console.log('         Stopping RecoNya Services       ');
+    console.log('         Stopping RecoNya Backend        ');
     console.log('==========================================\n');
 
     try {
@@ -16,21 +16,17 @@ class ServiceStopper {
       const backendStopped = await Utils.killProcessByPort(3008, 'backend');
       if (backendStopped) stoppedAny = true;
 
-      // Stop frontend (port 3000)
-      const frontendStopped = await Utils.killProcessByPort(3000, 'frontend');
-      if (frontendStopped) stoppedAny = true;
-
       // Also try to kill any Go processes that might be RecoNya
       await this.killRecoNyaProcesses();
 
       if (stoppedAny) {
-        Utils.log.success('RecoNya services stopped');
+        Utils.log.success('RecoNya backend stopped');
       } else {
-        Utils.log.info('No RecoNya services were running');
+        Utils.log.info('No RecoNya backend was running');
       }
 
     } catch (error) {
-      Utils.log.error('Failed to stop services: ' + error.message);
+      Utils.log.error('Failed to stop backend: ' + error.message);
       process.exit(1);
     }
   }
@@ -61,11 +57,6 @@ class ServiceStopper {
           // Ignore errors - process might not exist
         }
 
-        try {
-          await Utils.runCommand('pkill', ['-f', 'react-scripts start'], { silent: true });
-        } catch {
-          // Ignore errors - process might not exist
-        }
       }
     } catch (error) {
       // Ignore errors in this cleanup phase

@@ -5,22 +5,30 @@ import (
 	"encoding/xml"
 	"log"
 	"os/exec"
-	"reconya-ai/internal/device"
+	"strings"
+	"time"
+
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/util"
 	"reconya-ai/internal/webservice"
 	"reconya-ai/models"
-	"strings"
-	"time"
 )
 
+// DeviceServicePortScanner defines the interface for device-related operations needed by PortScanService.
+type DeviceServicePortScanner interface {
+	FindByIPv4(ipv4 string) (*models.Device, error)
+	CreateOrUpdate(device *models.Device) (*models.Device, error)
+	EligibleForPortScan(device *models.Device) bool
+	PerformDeviceFingerprinting(device *models.Device)
+}
+
 type PortScanService struct {
-	DeviceService   *device.DeviceService
+	DeviceService   DeviceServicePortScanner
 	EventLogService *eventlog.EventLogService
 	WebService      *webservice.WebService
 }
 
-func NewPortScanService(deviceService *device.DeviceService, eventLogService *eventlog.EventLogService) *PortScanService {
+func NewPortScanService(deviceService DeviceServicePortScanner, eventLogService *eventlog.EventLogService) *PortScanService {
 	return &PortScanService{
 		DeviceService:   deviceService,
 		EventLogService: eventLogService,

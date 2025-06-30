@@ -2,6 +2,7 @@ package device
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"reconya-ai/internal/config"
@@ -80,4 +81,26 @@ func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Returning %d active devices (online/idle)", len(devices))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(devices)
+}
+
+// CleanupDeviceNames clears all device names
+func (h *DeviceHandlers) CleanupDeviceNames(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := h.Service.CleanupAllDeviceNames()
+	if err != nil {
+		log.Printf("Device name cleanup failed: %v", err)
+		http.Error(w, fmt.Sprintf("Cleanup failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]string{
+		"status":  "success",
+		"message": "All device names have been cleared successfully",
+	}
+	json.NewEncoder(w).Encode(response)
 }
