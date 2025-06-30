@@ -622,6 +622,15 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 			NetworkID: "N/A",
 			PublicIP:  nil,
 		}
+	} else if status == nil {
+		log.Printf("No system status found in database, using fallback")
+		// If no system status exists yet, create mock data
+		status = &models.SystemStatus{
+			NetworkID: "N/A",
+			PublicIP:  nil,
+		}
+	} else {
+		log.Printf("SystemStatus found: NetworkID=%s", status.NetworkID)
 	}
 
 	devicesSlice, err := h.deviceService.FindAll()
@@ -637,12 +646,23 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 
 	networkMapData := h.buildNetworkMap(devices)
 
+	// Get the network CIDR if we have a NetworkID
+	var networkCIDR string = "N/A"
+	if status != nil && status.NetworkID != "" {
+		network, err := h.networkService.FindByID(status.NetworkID)
+		if err == nil && network != nil {
+			networkCIDR = network.CIDR
+		}
+	}
+
 	data := struct {
 		SystemStatus *models.SystemStatus
+		NetworkCIDR  string
 		NetworkInfo  *NetworkInfo
 		DevicesCount int
 	}{
 		SystemStatus: status,
+		NetworkCIDR:  networkCIDR,
 		NetworkInfo:  networkMapData.NetworkInfo,
 		DevicesCount: len(devices),
 	}

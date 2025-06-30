@@ -37,6 +37,17 @@ func (s *NetworkService) FindOrCreate(cidr string) (*models.Network, error) {
 	return network, nil
 }
 
+func (s *NetworkService) FindByID(id string) (*models.Network, error) {
+	network, err := s.Repository.FindByID(context.Background(), id)
+	if err == db.ErrNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return network, nil
+}
+
 func (s *NetworkService) FindByCIDR(cidr string) (*models.Network, error) {
 	network, err := s.Repository.FindByCIDR(context.Background(), cidr)
 	if err == db.ErrNotFound {
