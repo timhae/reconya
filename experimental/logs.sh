@@ -27,13 +27,13 @@ while [[ $# -gt 0 ]]; do
       FOLLOW=true
       shift
       ;;
-    backend|frontend)
+    backend)
       SERVICE=$1
       shift
       ;;
     *)
       echo "Unknown argument: $1"
-      echo "Usage: ./logs.sh [-f|--follow] [backend|frontend]"
+      echo "Usage: ./logs.sh [-f|--follow] [backend]"
       exit 1
       ;;
   esac

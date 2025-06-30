@@ -292,13 +292,9 @@ class Installer {
     
     // Verify directory structure
     const backendPath = path.join(projectRoot, 'backend');
-    const frontendPath = path.join(projectRoot, 'frontend');
     
     if (!fs.existsSync(backendPath)) {
       throw new Error(`Backend directory not found: ${backendPath}`);
-    }
-    if (!fs.existsSync(frontendPath)) {
-      throw new Error(`Frontend directory not found: ${frontendPath}`);
     }
     
     Utils.log.info('Directory structure verified');
@@ -341,18 +337,6 @@ SQLITE_PATH="data/reconya-dev.db"
       Utils.log.success('Go dependencies installed');
     } catch (error) {
       throw new Error(`Failed to install Go dependencies: ${error.message}`);
-    }
-
-    // Install Node.js dependencies for frontend
-    Utils.log.info('Installing frontend dependencies...');
-    const frontendPath = path.join(projectRoot, 'frontend');
-    
-    try {
-      Utils.log.info(`Running: npm install in ${frontendPath}`);
-      await Utils.runCommand('npm', ['install'], { cwd: frontendPath });
-      Utils.log.success('Frontend dependencies installed');
-    } catch (error) {
-      throw new Error(`Failed to install frontend dependencies: ${error.message}`);
     }
 
     Utils.log.success('reconYa setup complete!');

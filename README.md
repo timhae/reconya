@@ -1,6 +1,6 @@
 # Reconya
 
-Network reconnaissance and asset discovery tool built with Go and React.
+Network reconnaissance and asset discovery tool built with Go and HTMX.
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
@@ -106,28 +106,14 @@ If you prefer to install manually or the script doesn't work on your system:
    go mod download
    ```
 
-3. **Setup frontend:**
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-
-4. **Start the application:**
-
-   **Terminal 1 - Backend:**
+3. **Start the application:**
    ```bash
    cd backend
    go run ./cmd
    ```
 
-   **Terminal 2 - Frontend:**
-   ```bash
-   cd frontend
-   npm start
-   ```
-
-5. **Access the application:**
-   - Open your browser to: `http://localhost:3000`
+4. **Access the application:**
+   - Open your browser to: `http://localhost:3008`
    - Default login: `admin` / `password` (check your `.env` file for custom credentials)
 
 ## How to Use
@@ -157,8 +143,8 @@ SQLITE_PATH="data/reconya-dev.db"
 
 ## Architecture
 
-- **Backend**: Go API with SQLite database (Port 3008)
-- **Frontend**: React/TypeScript with Bootstrap (Port 3000)
+- **Backend**: Go API with HTMX templates and SQLite database (Port 3008)
+- **Web Interface**: HTMX templates with Bootstrap styling served directly from backend
 - **Scanning**: Multi-strategy network discovery with nmap integration
 - **Database**: SQLite for device storage and event logging
 
@@ -191,65 +177,6 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 - Service metadata extraction (titles, server headers)
 
 ## Troubleshooting
-
-### Proxmox Container Issues
-
-If you're experiencing installation failures in Proxmox LXC containers:
-
-**1. Container Configuration Requirements:**
-```bash
-# Enable nesting in container config (on Proxmox host):
-nano /etc/pve/lxc/CONTAINER_ID.conf
-# Add: features: nesting=1
-
-# For full nmap functionality, use privileged containers
-# In Proxmox UI: Container → Options → Features → Uncheck "Unprivileged"
-```
-
-**2. Manual Installation (Recommended for Containers):**
-```bash
-# Clone repository
-git clone https://github.com/Dyneteq/reconya.git
-cd reconya
-
-# Install system dependencies first
-sudo apt update
-sudo apt install -y curl wget software-properties-common
-
-# Install Go manually
-wget https://golang.org/dl/go1.21.5.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go
-sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
-
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Install nmap
-sudo apt-get install -y nmap
-
-# Setup reconYa manually
-cd backend
-cp .env.example .env
-go mod download
-cd ../frontend
-npm install
-cd ../scripts
-npm install
-
-# Configure nmap permissions
-sudo chown root:root $(which nmap)
-sudo chmod u+s $(which nmap)
-```
-
-**3. Alternative: Try Docker instead of LXC**
-```bash
-# If containers continue to have issues, try Docker
-cd reconya/experimental
-docker-compose up -d
-```
 
 ### Common Issues
 

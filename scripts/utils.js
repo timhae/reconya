@@ -180,9 +180,8 @@ class Utils {
     const projectRoot = currentDir.endsWith('scripts') ? path.join(currentDir, '..') : currentDir;
     
     const backendExists = fs.existsSync(path.join(projectRoot, 'backend', 'go.mod'));
-    const frontendExists = fs.existsSync(path.join(projectRoot, 'frontend', 'package.json'));
     
-    if (!backendExists || !frontendExists) {
+    if (!backendExists) {
       this.log.error('Please run this script from the reconYa root directory');
       process.exit(1);
     }

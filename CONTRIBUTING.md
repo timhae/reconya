@@ -38,7 +38,7 @@ Follow the installation instructions in the README.md file.
 ## Coding Standards
 
 - Follow Go's official style guide for backend code
-- Follow React component patterns for frontend code
+- Follow Go template patterns for HTMX frontend code
 - Write meaningful comments
 - Use descriptive variable and function names
 

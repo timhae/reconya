@@ -81,8 +81,7 @@ echo -e "\n${YELLOW}Building and starting containers...${NC}"
 $COMPOSE_CMD up -d --build
 
 echo -e "\n${GREEN}Setup complete!${NC}"
-echo -e "reconYa is now running at: ${YELLOW}http://localhost:3001${NC}"
-echo -e "API is available at: ${YELLOW}http://localhost:3008${NC}"
+echo -e "reconYa is now running at: ${YELLOW}http://localhost:3008${NC}"
 echo -e "Login with username: ${YELLOW}$USERNAME${NC} and the password you provided."
 echo
 echo -e "To stop the application, run: ${YELLOW}${COMPOSE_CMD} down${NC}"

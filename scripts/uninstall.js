@@ -67,7 +67,6 @@ class Uninstaller {
 
     // Stop services on standard ports
     await Utils.killProcessByPort(3008, 'backend');
-    await Utils.killProcessByPort(3000, 'frontend');
 
     // Kill any remaining reconYa processes
     try {
@@ -122,23 +121,6 @@ class Uninstaller {
       }
     }
 
-    // Ask about frontend dependencies
-    if (fs.existsSync(path.join(process.cwd(), 'frontend', 'node_modules'))) {
-      const { removeNodeModules } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'removeNodeModules',
-          message: 'Remove frontend dependencies (node_modules)?',
-          default: true
-        }
-      ]);
-
-      if (removeNodeModules) {
-        const nodeModulesPath = path.join(process.cwd(), 'frontend', 'node_modules');
-        fs.rmSync(nodeModulesPath, { recursive: true, force: true });
-        Utils.log.info('Removed frontend/node_modules');
-      }
-    }
 
     // Remove script dependencies
     if (fs.existsSync(path.join(process.cwd(), 'scripts', 'node_modules'))) {
@@ -149,7 +131,6 @@ class Uninstaller {
 
     // Remove lock files
     const lockFiles = [
-      'frontend/package-lock.json',
       'scripts/package-lock.json'
     ];
 
