@@ -16,6 +16,13 @@ Reconya discovers and monitors devices on your network with real-time updates. S
 - Web-based dashboard
 - Device fingerprinting
 
+## Community
+
+Join our community for support, discussions, and updates:
+
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-7289da?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/rWnz3GJ3)  
+[![Reddit](https://img.shields.io/badge/Reddit-r/reconya-ff4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/reconya/)
+
 ## Important Notice: Docker Implementation Status
 
 ⚠️ **Docker networking has been moved to experimental status due to fundamental limitations.**
