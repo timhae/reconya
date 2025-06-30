@@ -51,9 +51,13 @@ func (s *EventLogService) generateDescription(eventLog models.EventLog) string {
 		}
 	}
 
-	switch eventLog.Type {
-	case models.PingSweep:
-		return "Ping sweep performed"
+			switch eventLog.Type {
+		case models.PingSweep:
+			if eventLog.DurationSeconds != nil {
+				return fmt.Sprintf("Ping sweep completed in %d seconds", int(*eventLog.DurationSeconds))
+			} else {
+				return "Ping sweep performed"
+			}
 	case models.PortScanStarted:
 		return fmt.Sprintf("Port scan started for [%s]", deviceInfo)
 	case models.PortScanCompleted:

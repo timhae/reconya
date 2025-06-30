@@ -1,6 +1,7 @@
 package pingsweep
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"reconya-ai/models"
 	"strings"
 	"sync"
+	"time"
 )
 
 type PingSweepService struct {
@@ -49,17 +51,9 @@ func NewPingSweepService(
 }
 func (s *PingSweepService) Run() {
 	log.Println("Starting new ping sweep scan...")
+	startTime := time.Now()
 
-	// Use retry logic for creating initial ping sweep event log
-	err := util.RetryOnLock(func() error {
-		return s.EventLogService.CreateOne(&models.EventLog{
-			Type: models.PingSweep,
-		})
-	})
 	
-	if err != nil {
-		log.Printf("Error creating ping sweep event log: %v", err)
-	}
 	devices, err := s.ExecuteSweepScanCommand(s.Config.NetworkCIDR)
 	if err != nil {
 		log.Printf("Error executing sweep scan: %v\n", err)
@@ -106,8 +100,21 @@ func (s *PingSweepService) Run() {
 		}
 	}
 
-	log.Printf("Ping sweep scan completed. Found %d devices.", len(devices))
-	log.Printf("Ping sweep scan completed. Found %d devices.", len(devices))
+	duration := time.Since(startTime)
+	log.Printf("Ping sweep scan completed. Found %d devices in %s.", len(devices), duration.Round(time.Second))
+
+	// Create event log for ping sweep completion
+	durationInSeconds := float64(duration.Seconds())
+	err = util.RetryOnLock(func() error {
+		return s.EventLogService.CreateOne(&models.EventLog{
+			Type: models.PingSweep,
+			DurationSeconds: &durationInSeconds,
+		})
+	})
+
+	if err != nil {
+		log.Printf("Error creating ping sweep completion event log: %v", err)
+	}
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {
@@ -196,13 +203,67 @@ func (s *PingSweepService) tryNativeScanner(network string) ([]models.Device, er
 	return devices, nil
 }
 
-// tryNmapCommand executes a specific nmap command and returns parsed devices
+// tryNmapCommand executes a specific nmap command with automatic retry on timeout
 func (s *PingSweepService) tryNmapCommand(args []string) ([]models.Device, error) {
 	log.Printf("Trying nmap command: %s", strings.Join(args, " "))
 	
-	cmd := exec.Command(args[0], args[1:]...)
+	// First attempt with 20-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	output, err := cmd.CombinedOutput()
-	if err != nil {
+	
+	// If timeout occurred and command doesn't already have -n flag, retry with -n
+	if err != nil && ctx.Err() == context.DeadlineExceeded {
+		log.Printf("nmap command timed out, checking if we can retry with -n flag")
+		
+		// Check if -n flag is already present
+		hasNoResolve := false
+		for _, arg := range args {
+			if arg == "-n" {
+				hasNoResolve = true
+				break
+			}
+		}
+		
+		// If no -n flag present, retry with -n to skip DNS resolution
+		if !hasNoResolve {
+			log.Printf("Retrying nmap command with -n flag to skip DNS resolution")
+			
+			// Build new args with -n flag after the command name
+			retryArgs := []string{args[0]} // command (nmap or sudo)
+			if args[0] == "sudo" && len(args) > 1 {
+				retryArgs = append(retryArgs, args[1]) // nmap
+				retryArgs = append(retryArgs, "-n")    // add -n flag
+				retryArgs = append(retryArgs, args[2:]...) // rest of args
+			} else {
+				retryArgs = append(retryArgs, "-n")    // add -n flag
+				retryArgs = append(retryArgs, args[1:]...) // rest of args
+			}
+			
+			log.Printf("Retry command: %s", strings.Join(retryArgs, " "))
+			
+			// Retry with 90-second timeout for Raspberry Pi compatibility
+			retryCtx, retryCancel := context.WithTimeout(context.Background(), 90*time.Second)
+			defer retryCancel()
+			
+			retryCmd := exec.CommandContext(retryCtx, retryArgs[0], retryArgs[1:]...)
+			output, err = retryCmd.CombinedOutput()
+			
+			if err != nil {
+				if retryCtx.Err() == context.DeadlineExceeded {
+					log.Printf("nmap retry also timed out after 90 seconds")
+					return nil, fmt.Errorf("nmap command timed out even with -n flag")
+				}
+				log.Printf("nmap retry command failed: %v, output: %s", err, string(output))
+				return nil, err
+			}
+		} else {
+			log.Printf("nmap command already has -n flag and still timed out")
+			return nil, fmt.Errorf("nmap command timed out after 20 seconds")
+		}
+	} else if err != nil {
 		log.Printf("nmap command failed: %v, output: %s", err, string(output))
 		return nil, err
 	}
