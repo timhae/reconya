@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
@@ -18,18 +19,21 @@ type NicIdentifierService struct {
 	SystemStatusService *systemstatus.SystemStatusService
 	EventLogService     *eventlog.EventLogService
 	DeviceService       *device.DeviceService
+	Config              *config.Config
 }
 
 func NewNicIdentifierService(
 	networkService *network.NetworkService,
 	systemStatusService *systemstatus.SystemStatusService,
 	eventLogService *eventlog.EventLogService,
-	deviceService *device.DeviceService) *NicIdentifierService {
+	deviceService *device.DeviceService,
+	config *config.Config) *NicIdentifierService {
 	return &NicIdentifierService{
 		NetworkService:      networkService,
 		SystemStatusService: systemStatusService,
 		EventLogService:     eventLogService,
 		DeviceService:       deviceService,
+		Config:              config,
 	}
 }
 
@@ -37,7 +41,11 @@ func (s *NicIdentifierService) Identify() {
 	log.Printf("Attempting network identification")
 	nic := s.getLocalNic()
 	fmt.Printf("NIC: %v\n", nic)
-	cidr := extractCIDR(nic.IPv4)
+	
+	// Use configured network CIDR instead of detected interface CIDR
+	cidr := s.Config.NetworkCIDR
+	log.Printf("Using configured network CIDR: %s", cidr)
+	
 	publicIP, err := s.getPublicIp()
 	if err != nil {
 		log.Printf("Failed to get public IP: %v", err)

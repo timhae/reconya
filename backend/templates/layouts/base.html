@@ -80,16 +80,11 @@
             border-color: var(--bs-success);
         }
         
-        button.device-box-btn:hover .text-success,
-        button.device-box-btn:hover i.text-success,
-        button.device-box-btn:hover .bi-windows,
-        button.device-box-btn:hover .bi-ubuntu,
-        button.device-box-btn:hover .bi-apple,
-        button.device-box-btn:hover .bi-android2,
-        button.device-box-btn:hover .bi-phone,
-        button.device-box-btn:hover .bi-device-hdd,
-        button.device-box-btn:hover .bi-globe,
-        button.device-box-btn:hover .bi-camera {
+        button.device-box-btn:hover i[class*="bi-"] {
+            color: #000 !important;
+        }
+        
+        button.device-box-btn:hover .text-success {
             color: #000 !important;
         }
         

@@ -126,7 +126,7 @@ func (s *PortScanService) ExecutePortScan(ipv4 string) ([]models.Port, string, s
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	
-	cmd := exec.CommandContext(ctx, "nmap", "-sT", "-T4", "--top-ports", "100", "-oX", "-", ipv4)
+	cmd := exec.CommandContext(ctx, "nmap", "-sT", "-T4", "--top-ports", "100", "-p", "161,162", "-oX", "-", ipv4)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {

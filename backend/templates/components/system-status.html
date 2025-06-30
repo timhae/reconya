@@ -1,7 +1,7 @@
 {{define "components/system-status.html"}}
 <h6 class="text-success d-block w-100 mb-3">[ SYSTEM STATUS ]</h6>
 <div class="system-info">
-    <i class="bi bi-hdd-network system-icon blink-online"></i>
+    <i class="bi bi-hdd-network system-icon"></i>
     <div>
         <div class="fw-bold">{{or .NetworkCIDR "N/A"}}</div>
         <small class="text-muted">Network Range</small>
@@ -9,7 +9,7 @@
 </div>
 
 <div class="system-info">
-    <i class="bi bi-globe system-icon blink-online"></i>
+    <i class="bi bi-globe system-icon"></i>
     <div>
         <div class="fw-bold">{{or .SystemStatus.PublicIP "N/A"}}</div>
         <small class="text-muted">Public IP</small>
@@ -39,7 +39,7 @@
     </div>
     <div class="d-flex justify-content-between mb-2">
         <span class="text-muted">Scanning:</span>
-        <span class="text-warning fw-bold">Active</span>
+        <span class="text-success fw-bold">Active</span>
     </div>
 </div>
 {{end}}

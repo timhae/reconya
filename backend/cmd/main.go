@@ -162,7 +162,7 @@ func main() {
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
 
-	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService)
+	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
 
 	// Create a done channel to coordinate graceful shutdown
 	done := make(chan bool)
@@ -173,7 +173,7 @@ func main() {
 
 	// Initialize web handlers for HTMX frontend
 	sessionSecret := "your-secret-key-here-replace-in-production"
-	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, sessionSecret)
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, cfg, sessionSecret)
 	router := webHandler.SetupRoutes()
 	loggedRouter := middleware.LoggingMiddleware(router)
 

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
@@ -29,6 +31,7 @@ type WebHandler struct {
 	systemStatusService *systemstatus.SystemStatusService
 	templates           *template.Template
 	sessionStore        *sessions.CookieStore
+	config              *config.Config
 }
 
 type PageData struct {
@@ -60,6 +63,7 @@ func NewWebHandler(
 	eventLogService *eventlog.EventLogService,
 	networkService *network.NetworkService,
 	systemStatusService *systemstatus.SystemStatusService,
+	config *config.Config,
 	sessionSecret string,
 ) *WebHandler {
 	// Initialize template functions
@@ -381,6 +385,7 @@ func NewWebHandler(
 		systemStatusService: systemStatusService,
 		templates:           tmpl,
 		sessionStore:        store,
+		config:              config,
 	}
 }
 
@@ -534,10 +539,12 @@ func (h *WebHandler) APIDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Show all devices (online, idle, and offline) with visual indicators
-	devices := make([]*models.Device, len(devicesSlice))
+	// Filter to show only idle and online devices
+	var devices []*models.Device
 	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
+		if devicesSlice[i].Status == models.DeviceStatusOnline || devicesSlice[i].Status == models.DeviceStatusIdle {
+			devices = append(devices, &devicesSlice[i])
+		}
 	}
 
 	viewMode := r.URL.Query().Get("view")
@@ -761,14 +768,11 @@ func (h *WebHandler) buildNetworkMap(devices []*models.Device) *NetworkMapData {
 		}
 	}
 
-	// Generate IP range (assuming 192.168.1.x network)
-	ipRange := make([]int, 254)
-	for i := 1; i <= 254; i++ {
-		ipRange[i-1] = i
-	}
+	// Parse network CIDR from config
+	baseIP, ipRange := h.parseNetworkCIDR(h.config.NetworkCIDR)
 
 	return &NetworkMapData{
-		BaseIP:  "192.168.1",
+		BaseIP:  baseIP,
 		IPRange: ipRange,
 		Devices: deviceMap,
 		NetworkInfo: &NetworkInfo{
@@ -777,6 +781,95 @@ func (h *WebHandler) buildNetworkMap(devices []*models.Device) *NetworkMapData {
 			OfflineDevices: offline,
 		},
 	}
+}
+
+// parseNetworkCIDR parses a CIDR string and returns base IP and host range
+func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
+	// Default fallback
+	defaultBaseIP := "192.168.1"
+	defaultRange := make([]int, 254)
+	for i := 1; i <= 254; i++ {
+		defaultRange[i-1] = i
+	}
+
+	if cidr == "" {
+		return defaultBaseIP, defaultRange
+	}
+
+	// Parse CIDR
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		log.Printf("Error parsing CIDR %s: %v", cidr, err)
+		return defaultBaseIP, defaultRange
+	}
+
+	// Get network address
+	networkIP := ipNet.IP
+	
+	// Calculate subnet mask bits
+	ones, bits := ipNet.Mask.Size()
+	if bits != 32 {
+		log.Printf("Invalid network mask in CIDR %s", cidr)
+		return defaultBaseIP, defaultRange
+	}
+
+	// Calculate number of host addresses
+	hostBits := bits - ones
+	totalHosts := 1 << hostBits // 2^hostBits
+	
+	// Subtract network and broadcast addresses
+	usableHosts := totalHosts - 2
+	if usableHosts <= 0 {
+		usableHosts = 1
+	}
+
+	// Generate base IP (network portion)
+	parts := strings.Split(networkIP.String(), ".")
+	if len(parts) < 3 {
+		return defaultBaseIP, defaultRange
+	}
+
+	// For /23 networks (like 192.168.10.0/23), we need to handle the range properly
+	// For /24 networks, it's simpler
+	var baseIP string
+	var ipRange []int
+
+	if ones >= 24 {
+		// /24 or smaller subnet - use the first 3 octets as base
+		baseIP = strings.Join(parts[:3], ".")
+		// Generate host range for the last octet
+		maxHosts := usableHosts
+		if maxHosts > 254 {
+			maxHosts = 254
+		}
+		ipRange = make([]int, maxHosts)
+		for i := 1; i <= maxHosts; i++ {
+			ipRange[i-1] = i
+		}
+	} else {
+		// Larger subnet (like /23) - more complex range calculation
+		baseIP = strings.Join(parts[:3], ".")
+		
+		// For /23, we have 512 addresses total, 510 usable
+		// This spans two /24 networks (e.g., 192.168.10.0-192.168.11.255)
+		maxHosts := usableHosts
+		if maxHosts > 510 {
+			maxHosts = 510
+		}
+		
+		// Generate a reasonable range for visualization (limit to avoid UI issues)
+		visualHosts := maxHosts
+		if visualHosts > 254 {
+			visualHosts = 254
+		}
+		
+		ipRange = make([]int, visualHosts)
+		for i := 1; i <= visualHosts; i++ {
+			ipRange[i-1] = i
+		}
+	}
+
+	return baseIP, ipRange
 }
 
 func (h *WebHandler) APITargets(w http.ResponseWriter, r *http.Request) {

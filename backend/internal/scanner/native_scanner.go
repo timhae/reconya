@@ -234,7 +234,7 @@ func (s *NativeScanner) tryPing(ip string) (bool, time.Duration) {
 
 // tryTCPConnect attempts to connect to common ports to detect if host is alive
 func (s *NativeScanner) tryTCPConnect(ip string) (bool, time.Duration) {
-	commonPorts := []int{80, 443, 22, 21, 23, 25, 53, 135, 139, 445}
+	commonPorts := []int{80, 443, 22, 21, 23, 25, 53, 135, 139, 445, 161, 162}
 
 	start := time.Now()
 
