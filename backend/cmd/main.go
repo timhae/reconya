@@ -93,8 +93,8 @@ func main() {
 	
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		errorLogger.Printf("Failed to load configuration: %v", err)
-		errorLogger.Printf("CRITICAL ERROR - RESTARTING IN 2 SECONDS...")
+		infoLogger.Printf("Failed to load configuration: %v", err)
+		infoLogger.Printf("CRITICAL ERROR - RESTARTING IN 2 SECONDS...")
 		time.Sleep(2 * time.Second)
 		main() // Restart instead of fatal exit
 		return
@@ -107,8 +107,8 @@ func main() {
 	infoLogger.Println("Using SQLite database")
 	sqliteDB, err = db.ConnectToSQLite(cfg.SQLitePath)
 	if err != nil {
-		errorLogger.Printf("Failed to connect to SQLite: %v", err)
-		errorLogger.Printf("DATABASE ERROR - RESTARTING IN 3 SECONDS...")
+		infoLogger.Printf("Failed to connect to SQLite: %v", err)
+		infoLogger.Printf("DATABASE ERROR - RESTARTING IN 3 SECONDS...")
 		time.Sleep(3 * time.Second)
 		main() // Restart instead of fatal exit
 		return
@@ -116,8 +116,8 @@ func main() {
 	
 	// Initialize database schema
 	if err := db.InitializeSchema(sqliteDB); err != nil {
-		errorLogger.Printf("Failed to initialize database schema: %v", err)
-		errorLogger.Printf("SCHEMA ERROR - RESTARTING IN 3 SECONDS...")
+		infoLogger.Printf("Failed to initialize database schema: %v", err)
+		infoLogger.Printf("SCHEMA ERROR - RESTARTING IN 3 SECONDS...")
 		time.Sleep(3 * time.Second)
 		main() // Restart instead of fatal exit
 		return
@@ -194,7 +194,7 @@ func main() {
 		// Test if port is available before starting
 		ln, err := net.Listen("tcp", ":3008")
 		if err != nil {
-			errorLogger.Printf("Port 3008 is not available: %v", err)
+			infoLogger.Printf("Port 3008 is not available: %v", err)
 			serverReady <- false
 			return
 		}
@@ -202,11 +202,11 @@ func main() {
 		
 		// Start the actual server
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errorLogger.Printf("Server ListenAndServe error: %v", err)
+			infoLogger.Printf("Server ListenAndServe error: %v", err)
 			// Signal background services to stop
 			close(done)
 			serverReady <- false
-			errorLogger.Printf("SERVER ERROR - RESTARTING IN 2 SECONDS...")
+			infoLogger.Printf("SERVER ERROR - RESTARTING IN 2 SECONDS...")
 			time.Sleep(2 * time.Second)
 			main() // Restart instead of fatal exit
 			return
@@ -236,7 +236,7 @@ func main() {
 			infoLogger.Println("[INFO] Server started successfully on port 3008")
 			infoLogger.Println("[READY] RecoNya backend is ready to serve requests")
 		} else {
-			errorLogger.Println("❌ Backend startup failed")
+			infoLogger.Println("❌ Backend startup failed")
 		}
 	case <-time.After(10 * time.Second):
 		infoLogger.Println("⚠️ Backend startup timeout - server may still be initializing")

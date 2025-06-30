@@ -136,56 +136,21 @@ class ServiceManager {
     this.backendProcess.stderr.on('data', (data) => {
       const output = data.toString().trim();
       
-      // Filter out normal operational logs that Go sends to stderr
-      if (output.includes('Started GET') || 
-          output.includes('Completed GET') || 
-          output.includes('Executing') ||
-          output.includes('✅') || 
-          output.includes('🚀') ||
-          output.includes('[INFO]') ||
-          output.includes('[READY]') ||
-          output.includes('Runtime info') ||
-          output.includes('Process ID') ||
-          output.includes('Waiting for interrupt') ||
-          output.includes('Device updater started') ||
-          output.includes('Ping sweep service') ||
-          output.includes('OUI service') ||
-          output.includes('Server heartbeat') ||
-          output.includes('Still running') ||
-          output.includes('Connected to SQLite') ||
-          output.includes('Database schema') ||
-          output.includes('Port scan') ||
-          output.includes('Starting') ||
-          output.includes('Loaded') ||
-          output.includes('Found template') ||
-          output.includes('Network identification') ||
-          output.includes('Public IP Address') ||
-          output.includes('Note:') ||
-          output.includes('Attempting') ||
-          output.includes('Skipping') ||
-          output.includes('Backend initialization') ||
-          output.includes('Server is') ||
-          output.includes('Worker') ||
-          output.includes('Trying nmap') ||
-          output.includes('cooldowns reset') ||
-          output.includes('entries loaded') ||
-          output.includes('Template loaded') ||
-          output.includes('NIC:') ||
-          output.includes('Checking interface') ||
-          output.includes('Selected preferred') ||
-          output.includes('ready to accept') ||
-          output.includes('Found MAC Address') ||
-          output.includes('Found Vendor') ||
-          output.includes('Found device') ||
-          output.includes('Finished parsing') ||
-          output.includes('Total devices found') ||
-          output.includes('Nmap XML parse') ||
-          output.includes('for IP:')) {
-        // These are normal logs, display them as info
-        console.log(chalk.gray('[BACKEND]'), output);
-      } else {
+      // Only flag actual errors/panics as errors, treat everything else as info
+      if (output.includes('panic:') || 
+          output.includes('FATAL') ||
+          output.includes('Error:') ||
+          output.includes('failed:') ||
+          output.includes('PANIC') ||
+          output.includes('Stack trace:') ||
+          output.includes('runtime error') ||
+          output.includes('invalid memory address') ||
+          output.includes('nil pointer dereference')) {
         // These are actual errors
         console.log(chalk.red('[BACKEND ERROR]'), output);
+      } else {
+        // Everything else is normal operational logs
+        console.log(chalk.gray('[BACKEND]'), output);
       }
     });
 

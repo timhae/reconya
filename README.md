@@ -26,11 +26,19 @@ The fundamental limitation is Docker's network architecture. Even with comprehen
 
 Docker files have been moved to the `experimental/` directory for those who want to experiment with containerized deployment, but local installation is the recommended approach.
 
+## Prerequisites
+
+Before installing reconYa, ensure you have the following installed on your system:
+
+- **Go 1.21 or later** - [Download Go](https://golang.org/dl/)
+- **Node.js 18 or later** - [Download Node.js](https://nodejs.org/)
+- **nmap** - Network scanning tool (instructions below)
+
 ## Local Installation (Recommended)
 
 ### One-Command Installation
 
-The easiest way to install RecoNya with all dependencies:
+The easiest way to install reconYa with all dependencies:
 
 ```bash
 git clone https://github.com/Dyneteq/reconya.git
@@ -42,15 +50,15 @@ This will:
 - Detect your operating system (macOS, Windows, Debian, or Red Hat-based)
 - Install all required dependencies (Go, Node.js, nmap)
 - Configure nmap permissions for MAC address detection
-- Set up the RecoNya application
+- Set up the reconYa application
 - Install all Node.js dependencies
 
 **After installation, use these commands:**
 ```bash
-npm run start    # Start RecoNya
-npm run stop     # Stop RecoNya  
+npm run start    # Start reconYa
+npm run stop     # Stop reconYa  
 npm run status   # Check service status
-npm run uninstall # Uninstall RecoNya
+npm run uninstall # Uninstall reconYa
 ```
 
 Then open your browser to: `http://localhost:3000`  
@@ -215,16 +223,16 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 - Verify your `.env` configuration is correct
 - Try stopping and restarting: `npm run stop && npm run start`
 
-## Uninstalling RecoNya
+## Uninstalling reconYa
 
-To completely remove RecoNya and optionally its dependencies:
+To completely remove reconYa and optionally its dependencies:
 
 ```bash
 npm run uninstall
 ```
 
 The uninstall process will:
-- Stop any running RecoNya processes
+- Stop any running reconYa processes
 - Remove application files and data
 - Remove nmap setuid permissions  
 - Optionally remove system dependencies (Go, Node.js, nmap)
