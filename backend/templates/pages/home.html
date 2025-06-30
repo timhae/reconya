@@ -199,17 +199,17 @@
                     }
                 });
                 
-                // Calculate network saturation
+                // Calculate network saturation (online devices / total possible addresses)
                 if (networkRange.includes('/24')) {
                     // /24 network has 254 usable addresses (256 - 2 for network and broadcast)
                     const totalAddresses = 254;
-                    const saturation = Math.round((devicesFound / totalAddresses) * 100);
+                    const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
                     document.getElementById('network-saturation').textContent = saturation + '%';
                 } else if (networkRange.includes('/')) {
                     // Extract CIDR and calculate total addresses
                     const cidr = parseInt(networkRange.split('/')[1]);
                     const totalAddresses = Math.pow(2, 32 - cidr) - 2; // Subtract network and broadcast
-                    const saturation = Math.round((devicesFound / totalAddresses) * 100);
+                    const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
                     document.getElementById('network-saturation').textContent = saturation + '%';
                 } else {
                     document.getElementById('network-saturation').textContent = '0%';

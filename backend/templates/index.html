@@ -319,55 +319,96 @@
             }
         }
         
-        /* Table styling - easier on the eyes */
+        /* Table styling - very soft and easy on the eyes */
         .table-dark {
             --bs-table-bg: var(--bg-very-dark);
-            --bs-table-border-color: rgba(25, 135, 84, 0.2);
-            color: #d1d5db !important;
-            font-size: 0.9rem;
+            --bs-table-border-color: rgba(25, 135, 84, 0.1);
+            color: #c9d1d9 !important;
+            font-size: 0.875rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
         }
         
         .table thead th {
-            background: rgba(25, 135, 84, 0.8);
-            color: #f8f9fa;
-            border-color: rgba(25, 135, 84, 0.5);
-            font-weight: 500;
-            font-size: 0.85rem;
+            background: rgba(25, 135, 84, 0.15);
+            color: #e6fffa;
+            border-color: rgba(25, 135, 84, 0.2);
+            font-weight: 400;
+            font-size: 0.8rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 1rem 0.75rem;
+            letter-spacing: 0.8px;
+            padding: 1.25rem 1rem;
+            border-bottom: 2px solid rgba(25, 135, 84, 0.2);
         }
         
         .table-dark td {
-            color: #d1d5db !important;
-            padding: 0.875rem 0.75rem;
-            border-color: rgba(25, 135, 84, 0.15) !important;
+            color: #c9d1d9 !important;
+            padding: 1rem;
+            border-color: rgba(25, 135, 84, 0.08) !important;
             vertical-align: middle;
+            background-color: rgba(0, 0, 0, 0.2);
         }
         
         .table-dark th {
-            color: #f8f9fa !important;
+            color: #e6fffa !important;
         }
         
-        /* Hover effect for table rows */
+        /* Subtle green hover effect */
         .table-hover tbody tr:hover {
             background-color: rgba(25, 135, 84, 0.08) !important;
-            color: #e9ecef !important;
+            color: #e6fffa !important;
+            transition: all 0.2s ease;
         }
         
+        /* Row zebra striping for better readability */
+        .table-dark tbody tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.01) !important;
+        }
         
         /* IP address styling */
         .table-dark td:first-child {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
-            color: #e9ecef !important;
+            color: #c9d1d9 !important;
+            font-size: 0.85rem;
         }
         
         /* MAC address styling */
         .table-dark td:nth-child(3) {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            color: #adb5bd !important;
+            font-size: 0.75rem;
+            color: #94a3b8 !important;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Status text styling */
+        .status-online {
+            color: #22c55e !important;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        .status-idle {
+            color: #eab308 !important;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        .status-offline {
+            color: #ef4444 !important;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        /* Search input styling */
+        .form-control:focus {
+            border-color: rgba(25, 135, 84, 0.5) !important;
+            box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15) !important;
+        }
+        
+        .input-group-text {
+            background-color: var(--bg-very-dark) !important;
+            border-color: rgba(25, 135, 84, 0.3) !important;
         }
         
         /* Override any white text with softer alternatives */
@@ -669,14 +710,14 @@
                         // Load device list (table view only)
                         htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
                     } else if (page === 'logs') {
-                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container" style="max-height: 600px; overflow-y: auto;"></div></div>';
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container"></div></div>';
                         
                         // Update URL and title
                         history.pushState({page: 'logs'}, 'Logs - reconYa', '/logs');
                         document.title = 'Logs - reconYa';
                         
-                        // Load event logs into the container
-                        htmx.ajax('GET', '/api/event-logs', { target: '#event-logs-container' });
+                        // Load event logs table into the container
+                        htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
                     } else if (page === 'alerts') {
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
                         
@@ -693,20 +734,57 @@
                 });
             });
 
-            // Load dashboard content
-            htmx.ajax('GET', '/home', {
-                target: '#content',
-                swap: 'innerHTML'
-            }).then(function() {
-                console.log('Dashboard loaded successfully');
-                // Set initial page state
-                history.replaceState({page: 'dashboard'}, 'Dashboard - reconYa', '/');
-                document.title = 'Dashboard - reconYa';
-            }).catch(function(error) {
-                console.error('Failed to load dashboard:', error);
-                // If home fails, it might be due to auth - try redirect
-                window.location.href = '/login';
-            });
+            // Handle initial page load based on current URL
+            const currentPath = window.location.pathname;
+            let initialPage = 'dashboard';
+            
+            if (currentPath === '/devices') {
+                initialPage = 'devices';
+            } else if (currentPath === '/logs') {
+                initialPage = 'logs';
+            } else if (currentPath === '/alerts') {
+                initialPage = 'alerts';
+            } else if (currentPath === '/settings') {
+                initialPage = 'settings';
+            }
+            
+            // Set active sidebar link based on current page
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            const activeLink = document.querySelector(`[data-page="${initialPage}"]`);
+            if (activeLink) activeLink.classList.add('active');
+            
+            // Load the appropriate page content
+            if (initialPage === 'dashboard') {
+                htmx.ajax('GET', '/home', {
+                    target: '#content',
+                    swap: 'innerHTML'
+                }).then(function() {
+                    console.log('Dashboard loaded successfully');
+                    document.title = 'Dashboard - reconYa';
+                }).catch(function(error) {
+                    console.error('Failed to load dashboard:', error);
+                    window.location.href = '/login';
+                });
+            } else if (initialPage === 'devices') {
+                document.getElementById('content').innerHTML = `
+                    <div class="container-fluid py-4">
+                        <h3 class="text-success mb-4">[ NETWORK DEVICES ]</h3>
+                        <div id="device-list-container"></div>
+                    </div>
+                `;
+                document.title = 'Devices - reconYa';
+                htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
+            } else if (initialPage === 'logs') {
+                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container"></div></div>';
+                document.title = 'Logs - reconYa';
+                htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
+            } else if (initialPage === 'alerts') {
+                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
+                document.title = 'Alerts - reconYa';
+            } else if (initialPage === 'settings') {
+                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                document.title = 'Settings - reconYa';
+            }
 
             // Handle device modal opening
             document.addEventListener('htmx:afterRequest', function(event) {
@@ -741,8 +819,8 @@
                         htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
                     } else if (page === 'logs') {
                         document.title = 'Logs - reconYa';
-                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container" style="max-height: 600px; overflow-y: auto;"></div></div>';
-                        htmx.ajax('GET', '/api/event-logs', { target: '#event-logs-container' });
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container"></div></div>';
+                        htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
                     } else if (page === 'alerts') {
                         document.title = 'Alerts - reconYa';
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';

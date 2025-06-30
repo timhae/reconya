@@ -16,6 +16,12 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	r.HandleFunc("/login", h.Login).Methods("GET", "POST")
 	r.HandleFunc("/logout", h.Logout).Methods("POST")
 	r.HandleFunc("/targets", h.Targets).Methods("GET")
+	
+	// SPA routes - all serve the main index template
+	r.HandleFunc("/devices", h.Index).Methods("GET")
+	r.HandleFunc("/logs", h.Index).Methods("GET")
+	r.HandleFunc("/alerts", h.Index).Methods("GET")
+	r.HandleFunc("/settings", h.Index).Methods("GET")
 
 	// HTMX API endpoints
 	api := r.PathPrefix("/api").Subrouter()
@@ -27,6 +33,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/targets", h.APITargets).Methods("GET")
 	api.HandleFunc("/system-status", h.APISystemStatus).Methods("GET")
 	api.HandleFunc("/event-logs", h.APIEventLogs).Methods("GET")
+	api.HandleFunc("/event-logs-table", h.APIEventLogsTable).Methods("GET")
 	api.HandleFunc("/network-map", h.APINetworkMap).Methods("GET")
 	api.HandleFunc("/traffic-core", h.APITrafficCore).Methods("GET")
 	api.HandleFunc("/device-list", h.APIDeviceList).Methods("GET")

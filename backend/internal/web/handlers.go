@@ -711,6 +711,38 @@ func (h *WebHandler) APIEventLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *WebHandler) APIEventLogsTable(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get more event logs for the table view (100 instead of 20)
+	eventLogSlice, err := h.eventLogService.GetAll(100)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to pointer slice
+	eventLogs := make([]*models.EventLog, len(eventLogSlice))
+	for i := range eventLogSlice {
+		eventLogs[i] = &eventLogSlice[i]
+	}
+
+	data := struct {
+		EventLogs []*models.EventLog
+	}{
+		EventLogs: eventLogs,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/event-logs-table.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (h *WebHandler) APINetworkMap(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, "reconya-session")
 	user := h.getUserFromSession(session)
