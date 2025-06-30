@@ -18,7 +18,7 @@
         
         <!-- Top row: IP and MAC -->
         <div style="position: absolute; top: 8px; left: 8px; right: 8px;">
-            <div class="fw-medium" style="font-size: 1.5rem;">{{.IPv4}}</div>
+            <div class="fw-medium" style="font-size: 1.5rem; color: #e9ecef;">{{.IPv4}}</div>
             {{if .MAC}}
             <div class="fw-light text-muted" style="font-size: 0.85rem; opacity: 0.5;">{{deref .MAC}}</div>
             {{end}}

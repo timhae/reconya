@@ -207,7 +207,7 @@
         .device-ip {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #fff;
+            color: #e9ecef;
         }
         
         .device-hostname {
@@ -319,16 +319,65 @@
             }
         }
         
-        /* Table styling */
+        /* Table styling - easier on the eyes */
         .table-dark {
             --bs-table-bg: var(--bg-very-dark);
-            --bs-table-border-color: rgba(25, 135, 84, 0.3);
+            --bs-table-border-color: rgba(25, 135, 84, 0.2);
+            color: #d1d5db !important;
+            font-size: 0.9rem;
         }
         
         .table thead th {
-            background: var(--bs-success);
-            color: white;
-            border-color: var(--bs-success);
+            background: rgba(25, 135, 84, 0.8);
+            color: #f8f9fa;
+            border-color: rgba(25, 135, 84, 0.5);
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1rem 0.75rem;
+        }
+        
+        .table-dark td {
+            color: #d1d5db !important;
+            padding: 0.875rem 0.75rem;
+            border-color: rgba(25, 135, 84, 0.15) !important;
+            vertical-align: middle;
+        }
+        
+        .table-dark th {
+            color: #f8f9fa !important;
+        }
+        
+        /* Hover effect for table rows */
+        .table-hover tbody tr:hover {
+            background-color: rgba(25, 135, 84, 0.08) !important;
+            color: #e9ecef !important;
+        }
+        
+        
+        /* IP address styling */
+        .table-dark td:first-child {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: #e9ecef !important;
+        }
+        
+        /* MAC address styling */
+        .table-dark td:nth-child(3) {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #adb5bd !important;
+        }
+        
+        /* Override any white text with softer alternatives */
+        .text-white {
+            color: #e9ecef !important;
+        }
+        
+        /* Ensure card text is soft */
+        .card {
+            color: #e9ecef !important;
         }
         
         .badge.bg-success {
@@ -344,31 +393,138 @@
             background: var(--bs-success);
             border-color: var(--bs-success);
         }
+
+        /* Proper Push Sidebar */
+        .layout-wrapper {
+            display: flex;
+            min-height: calc(100vh - 70px); /* Account for navbar height */
+        }
+
+        .sidebar {
+            width: 0;
+            background: var(--bg-black);
+            border-right: 1px solid var(--bs-success);
+            transition: width 0.3s ease;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .sidebar.expanded {
+            width: 280px;
+        }
+
+        .sidebar-content {
+            width: 280px;
+            padding: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            transition: margin-left 0.3s ease;
+            background: var(--bg-black);
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav .nav-item {
+            border-bottom: 1px solid rgba(25, 135, 84, 0.3);
+        }
+
+        .sidebar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: #e9ecef;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .sidebar-nav .nav-link:hover {
+            background: rgba(25, 135, 84, 0.1);
+            color: var(--bs-success);
+            border-left-color: rgba(25, 135, 84, 0.5);
+        }
+
+        .sidebar-nav .nav-link.active {
+            background: rgba(25, 135, 84, 0.2);
+            color: var(--bs-success);
+            border-left-color: var(--bs-success);
+        }
+
+        .sidebar-nav .nav-link i {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+            width: 20px;
+        }
+
+        .sidebar-toggle-btn {
+            position: absolute !important;
+            left: 260px !important; /* Right of the logo (140px + logo width) */
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            opacity: 0.7;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: rgba(25, 135, 84, 0.1);
+            color: var(--bs-success);
+            opacity: 1;
+        }
+
+        /* Logo positioning - always centered in sidebar width */
+        #navbarLogo {
+            position: absolute !important;
+            left: 140px !important; /* Center of 280px sidebar width (280px / 2) */
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            z-index: 10 !important;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-very-dark">
-        <div class="container-fluid px-5">
-            <div class="d-flex align-items-center">
-                <a href="/" class="navbar-brand">
-                    <div class="logo text-success bg-transparent d-inline-block px-3 py-2">
-                        <i class="bi bi-circle-nodes"></i> reconYa
-                    </div>
-                </a>
-            </div>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+        <div class="w-100 d-flex align-items-center px-5" style="position: relative;">
+            <!-- Sidebar Toggle Button -->
+            <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle Sidebar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleIcon">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
             </button>
             
-            <div class="d-flex align-items-center">
-                <a href="#" class="text-success ms-3">
-                    <i class="bi bi-bell"></i>
-                </a>
-                <a href="#" class="text-success ms-3 me-4">
-                    <i class="bi bi-gear"></i>
-                </a>
+            <!-- Logo (positioned absolutely) -->
+            <a href="/" class="navbar-brand" id="navbarLogo">
+                <div class="logo text-success bg-transparent d-inline-block px-3 py-2">
+                    reconYa
+                </div>
+            </a>
+            
+            <!-- Right side content -->
+            <div class="ms-auto d-flex align-items-center">
+                <button class="navbar-toggler me-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
                 <div class="dropdown bg-dark">
                     <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
                         Welcome, human
@@ -387,10 +543,64 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main id="content" class="container-fluid py-4">
-        <!-- Initial content will be loaded here by HTMX -->
-    </main>
+    <!-- Layout Wrapper (starts under navbar) -->
+    <div class="layout-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <nav style="margin-top: 20px;">
+                    <ul class="sidebar-nav">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" data-page="dashboard">
+                                <i class="bi bi-house-door"></i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="devices">
+                                <i class="bi bi-router"></i>
+                                Devices
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="logs">
+                                <i class="bi bi-file-earmark-text"></i>
+                                Logs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="alerts">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Alerts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="settings">
+                                <i class="bi bi-gear"></i>
+                                Settings
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="content" class="main-content container-fluid py-4">
+            <!-- Initial content will be loaded here by HTMX -->
+        </main>
+    </div>
+
+    <!-- Device Modal (available globally) -->
+    <div class="modal fade" id="deviceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark border-success">
+                <div id="device-modal-content">
+                    <!-- Content loaded via HTMX -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -400,15 +610,147 @@
     <script>
         // Load dashboard content after page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize sidebar functionality
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            // Toggle sidebar expansion
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('expanded');
+                
+                // Change icon based on state
+                if (sidebar.classList.contains('expanded')) {
+                    toggleIcon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+                } else {
+                    toggleIcon.innerHTML = '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
+                }
+            });
+            
+            // Close sidebar on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar.classList.contains('expanded')) {
+                    sidebar.classList.remove('expanded');
+                    toggleIcon.innerHTML = '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
+                }
+            });
+
+            // Handle sidebar navigation
+            const sidebarLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Prevent default navigation for ALL sidebar links
+                    e.preventDefault();
+                    
+                    // Remove active class from all links
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    // Add active class to clicked link
+                    this.classList.add('active');
+                    
+                    // Handle special cases for non-HTMX links
+                    const page = this.getAttribute('data-page');
+                    if (page === 'dashboard') {
+                        // Load dashboard content and update URL and title
+                        htmx.ajax('GET', '/home', { target: '#content' });
+                        history.pushState({page: 'dashboard'}, 'Dashboard - reconYa', '/');
+                        document.title = 'Dashboard - reconYa';
+                    } else if (page === 'devices') {
+                        document.getElementById('content').innerHTML = `
+                            <div class="container-fluid py-4">
+                                <h3 class="text-success mb-4">[ NETWORK DEVICES ]</h3>
+                                <div id="device-list-container"></div>
+                            </div>
+                        `;
+                        
+                        // Update URL and title
+                        history.pushState({page: 'devices'}, 'Devices - reconYa', '/devices');
+                        document.title = 'Devices - reconYa';
+                        
+                        // Load device list (table view only)
+                        htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
+                    } else if (page === 'logs') {
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container" style="max-height: 600px; overflow-y: auto;"></div></div>';
+                        
+                        // Update URL and title
+                        history.pushState({page: 'logs'}, 'Logs - reconYa', '/logs');
+                        document.title = 'Logs - reconYa';
+                        
+                        // Load event logs into the container
+                        htmx.ajax('GET', '/api/event-logs', { target: '#event-logs-container' });
+                    } else if (page === 'alerts') {
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
+                        
+                        // Update URL and title
+                        history.pushState({page: 'alerts'}, 'Alerts - reconYa', '/alerts');
+                        document.title = 'Alerts - reconYa';
+                    } else if (page === 'settings') {
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                        
+                        // Update URL and title
+                        history.pushState({page: 'settings'}, 'Settings - reconYa', '/settings');
+                        document.title = 'Settings - reconYa';
+                    }
+                });
+            });
+
+            // Load dashboard content
             htmx.ajax('GET', '/home', {
                 target: '#content',
                 swap: 'innerHTML'
             }).then(function() {
                 console.log('Dashboard loaded successfully');
+                // Set initial page state
+                history.replaceState({page: 'dashboard'}, 'Dashboard - reconYa', '/');
+                document.title = 'Dashboard - reconYa';
             }).catch(function(error) {
                 console.error('Failed to load dashboard:', error);
                 // If home fails, it might be due to auth - try redirect
                 window.location.href = '/login';
+            });
+
+            // Handle device modal opening
+            document.addEventListener('htmx:afterRequest', function(event) {
+                if (event.detail.target.id === 'device-modal-content') {
+                    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+                    modal.show();
+                }
+            });
+
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(event) {
+                if (event.state && event.state.page) {
+                    const page = event.state.page;
+                    
+                    // Update active sidebar link
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    const activeLink = document.querySelector(`[data-page="${page}"]`);
+                    if (activeLink) activeLink.classList.add('active');
+                    
+                    // Load the appropriate page content
+                    if (page === 'dashboard') {
+                        document.title = 'Dashboard - reconYa';
+                        htmx.ajax('GET', '/home', { target: '#content' });
+                    } else if (page === 'devices') {
+                        document.title = 'Devices - reconYa';
+                        document.getElementById('content').innerHTML = `
+                            <div class="container-fluid py-4">
+                                <h3 class="text-success mb-4">[ NETWORK DEVICES ]</h3>
+                                <div id="device-list-container"></div>
+                            </div>
+                        `;
+                        htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
+                    } else if (page === 'logs') {
+                        document.title = 'Logs - reconYa';
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container" style="max-height: 600px; overflow-y: auto;"></div></div>';
+                        htmx.ajax('GET', '/api/event-logs', { target: '#event-logs-container' });
+                    } else if (page === 'alerts') {
+                        document.title = 'Alerts - reconYa';
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
+                    } else if (page === 'settings') {
+                        document.title = 'Settings - reconYa';
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                    }
+                }
             });
         });
         

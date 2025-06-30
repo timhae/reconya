@@ -461,7 +461,7 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
-		Page:         "home",
+		Page:         "dashboard",
 		User:         user,
 		SystemStatus: systemStatus,
 		Devices:      devices,
