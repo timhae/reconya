@@ -324,8 +324,7 @@ SQLITE_PATH="data/reconya-dev.db"
 
     // Install Go dependencies
     Utils.log.info('Installing Go dependencies...');
-    const backendPath = path.join(projectRoot, 'backend');
-    
+
     // Verify Go is available
     if (!Utils.commandExists('go')) {
       throw new Error('Go not found in PATH. Please install Go and ensure it is in your PATH.');
