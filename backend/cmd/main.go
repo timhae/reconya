@@ -56,7 +56,7 @@ func runDeviceUpdater(service *device.DeviceService, done <-chan bool) {
 				}()
 				err := service.UpdateDeviceStatuses()
 				if err != nil {
-					errorLogger.Printf("Failed to update device statuses: %v", err)
+					infoLogger.Printf("Failed to update device statuses: %v", err)
 					// Add a delay after an error to allow other operations to complete
 					time.Sleep(1 * time.Second)
 				}
@@ -283,9 +283,13 @@ func runPingSweepService(service *pingsweep.PingSweepService, done <-chan bool) 
 					if r := recover(); r != nil {
 						errorLogger.Printf("Ping sweep service.Run() panic: %v", r)
 						errorLogger.Printf("Ping sweep Run() stack: %s", debug.Stack())
+						infoLogger.Println("Ping sweep service will continue running despite panic")
 					}
 				}()
+				startTime := time.Now()
 				service.Run()
+				duration := time.Since(startTime)
+				infoLogger.Printf("Ping sweep completed in %v", duration)
 			}()
 		}
 	}

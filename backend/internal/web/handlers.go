@@ -534,14 +534,11 @@ func (h *WebHandler) APIDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter to only online devices
-	var onlineDevices []*models.Device
+	// Show all devices (online, idle, and offline) with visual indicators
+	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
-		if devicesSlice[i].Status == models.DeviceStatusOnline {
-			onlineDevices = append(onlineDevices, &devicesSlice[i])
-		}
+		devices[i] = &devicesSlice[i]
 	}
-	devices := onlineDevices
 
 	viewMode := r.URL.Query().Get("view")
 	data := struct {
@@ -796,14 +793,11 @@ func (h *WebHandler) APITrafficCore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter to only online devices
-	var onlineDevices []*models.Device
+	// Show all devices (online, idle, and offline) with visual indicators
+	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
-		if devicesSlice[i].Status == models.DeviceStatusOnline {
-			onlineDevices = append(onlineDevices, &devicesSlice[i])
-		}
+		devices[i] = &devicesSlice[i]
 	}
-	devices := onlineDevices
 
 	data := struct {
 		Devices []*models.Device
@@ -823,14 +817,11 @@ func (h *WebHandler) APIDeviceList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filter to only online devices
-	var onlineDevices []*models.Device
+	// Show all devices (online, idle, and offline) with visual indicators
+	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
-		if devicesSlice[i].Status == models.DeviceStatusOnline {
-			onlineDevices = append(onlineDevices, &devicesSlice[i])
-		}
+		devices[i] = &devicesSlice[i]
 	}
-	devices := onlineDevices
 
 	data := struct {
 		Devices []*models.Device
