@@ -342,7 +342,7 @@
         }
         
         .table-dark td {
-            color: #c9d1d9 !important;
+            color: var(--bs-success) !important;
             padding: 1rem;
             border-color: rgba(25, 135, 84, 0.08) !important;
             vertical-align: middle;
@@ -365,21 +365,7 @@
             background-color: rgba(255, 255, 255, 0.01) !important;
         }
         
-        /* IP address styling */
-        .table-dark td:first-child {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 500;
-            color: #c9d1d9 !important;
-            font-size: 0.85rem;
-        }
-        
-        /* MAC address styling */
-        .table-dark td:nth-child(3) {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: #94a3b8 !important;
-            letter-spacing: 0.5px;
-        }
+        /* Remove specific column font styling to use consistent font across all columns */
         
         /* Status text styling */
         .status-online {

@@ -27,18 +27,18 @@
         <tbody>
             {{range .EventLogs}}
             <tr>
-                <td class="timestamp-cell">{{formatTime .CreatedAt}}</td>
-                <td class="event-type-{{string .Type}}">{{formatEventType (string .Type)}}</td>
-                <td>{{.Description}}</td>
+                <td class="timestamp-cell text-success">{{formatTime .CreatedAt}}</td>
+                <td class="event-type-{{string .Type}} text-success">{{formatEventType (string .Type)}}</td>
+                <td class="text-success">{{.Description}}</td>
                 <td>
                     {{if .DeviceID}}
                         <!-- We'll need to get device info, for now show the device ID -->
-                        <span class="text-muted">{{.DeviceID}}</span>
+                        <span class="text-success">{{.DeviceID}}</span>
                     {{else}}
-                        <span class="text-muted">System</span>
+                        <span class="text-success">System</span>
                     {{end}}
                 </td>
-                <td class="text-muted">{{formatTimeAgo .CreatedAt}}</td>
+                <td class="text-success">{{formatTimeAgo .CreatedAt}}</td>
             </tr>
             {{else}}
             <tr>
