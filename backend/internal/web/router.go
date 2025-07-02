@@ -20,6 +20,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	// SPA routes - all serve the main index template
 	r.HandleFunc("/devices", h.Index).Methods("GET")
 	r.HandleFunc("/logs", h.Index).Methods("GET")
+	r.HandleFunc("/networks", h.Index).Methods("GET")
 	r.HandleFunc("/alerts", h.Index).Methods("GET")
 	r.HandleFunc("/settings", h.Index).Methods("GET")
 
@@ -38,6 +39,13 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/traffic-core", h.APITrafficCore).Methods("GET")
 	api.HandleFunc("/device-list", h.APIDeviceList).Methods("GET")
 	api.HandleFunc("/devices/cleanup-names", h.APICleanupDeviceNames).Methods("POST")
+	api.HandleFunc("/networks", h.APINetworks).Methods("GET")
+	api.HandleFunc("/networks", h.APICreateNetwork).Methods("POST")
+	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIUpdateNetwork).Methods("PUT")
+	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIDeleteNetwork).Methods("DELETE")
+	api.HandleFunc("/network-modal", h.APINetworkModal).Methods("GET")
+	api.HandleFunc("/network-modal/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APINetworkModal).Methods("GET")
+	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/scan", h.APIScanNetwork).Methods("GET")
 
 	// 404 handler
 	r.NotFoundHandler = http.HandlerFunc(h.NotFound)

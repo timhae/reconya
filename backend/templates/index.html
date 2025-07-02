@@ -596,6 +596,12 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="networks">
+                                <i class="bi bi-diagram-3"></i>
+                                Networks
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="#" class="nav-link" data-page="alerts">
                                 <i class="bi bi-exclamation-triangle"></i>
                                 Alerts
@@ -704,6 +710,15 @@
                         
                         // Load event logs table into the container
                         htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
+                    } else if (page === 'networks') {
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ NETWORKS ]</h3><div id="networks-container"></div></div>';
+                        
+                        // Update URL and title
+                        history.pushState({page: 'networks'}, 'Networks - reconYa', '/networks');
+                        document.title = 'Networks - reconYa';
+                        
+                        // Load networks list into the container
+                        htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
                     } else if (page === 'alerts') {
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
                         
@@ -728,6 +743,8 @@
                 initialPage = 'devices';
             } else if (currentPath === '/logs') {
                 initialPage = 'logs';
+            } else if (currentPath === '/networks') {
+                initialPage = 'networks';
             } else if (currentPath === '/alerts') {
                 initialPage = 'alerts';
             } else if (currentPath === '/settings') {
@@ -764,6 +781,10 @@
                 document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container"></div></div>';
                 document.title = 'Logs - reconYa';
                 htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
+            } else if (initialPage === 'networks') {
+                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ NETWORKS ]</h3><div id="networks-container"></div></div>';
+                document.title = 'Networks - reconYa';
+                htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
             } else if (initialPage === 'alerts') {
                 document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
                 document.title = 'Alerts - reconYa';
@@ -807,6 +828,10 @@
                         document.title = 'Logs - reconYa';
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ EVENT LOGS ]</h3><div id="event-logs-container"></div></div>';
                         htmx.ajax('GET', '/api/event-logs-table', { target: '#event-logs-container' });
+                    } else if (page === 'networks') {
+                        document.title = 'Networks - reconYa';
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success mb-4">[ NETWORKS ]</h3><div id="networks-container"></div></div>';
+                        htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
                     } else if (page === 'alerts') {
                         document.title = 'Alerts - reconYa';
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';

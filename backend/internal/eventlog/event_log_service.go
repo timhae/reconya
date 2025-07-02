@@ -110,3 +110,16 @@ func (s *EventLogService) CreateOne(eventLog *models.EventLog) error {
 	// Use DB manager to serialize database access
 	return s.dbManager.CreateEventLog(s.repository, context.Background(), eventLog)
 }
+
+func (s *EventLogService) Log(eventType models.EEventLogType, description string, deviceID string) error {
+	eventLog := &models.EventLog{
+		Type:        eventType,
+		Description: description,
+	}
+	
+	if deviceID != "" {
+		eventLog.DeviceID = &deviceID
+	}
+	
+	return s.CreateOne(eventLog)
+}

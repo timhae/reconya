@@ -5,6 +5,7 @@ import (
 	"reconya-ai/db"
 	"reconya-ai/internal/config"
 	"reconya-ai/models"
+	"time"
 )
 
 type NetworkService struct {
@@ -21,15 +22,23 @@ func NewNetworkService(networkRepo db.NetworkRepository, cfg *config.Config, dbM
 	}
 }
 
-func (s *NetworkService) Create(cidr string) (*models.Network, error) {
-	network := &models.Network{CIDR: cidr}
+func (s *NetworkService) Create(name, cidr, description string) (*models.Network, error) {
+	now := time.Now()
+	network := &models.Network{
+		Name:        name,
+		CIDR:        cidr,
+		Description: description,
+		Status:      "active",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
 	return s.dbManager.CreateOrUpdateNetwork(s.Repository, context.Background(), network)
 }
 
 func (s *NetworkService) FindOrCreate(cidr string) (*models.Network, error) {
 	network, err := s.Repository.FindByCIDR(context.Background(), cidr)
 	if err == db.ErrNotFound {
-		return s.Create(cidr)
+		return s.Create("", cidr, "")
 	}
 	if err != nil {
 		return nil, err
@@ -65,4 +74,44 @@ func (s *NetworkService) FindCurrent() (*models.Network, error) {
 		return nil, err
 	}
 	return network, nil
+}
+
+func (s *NetworkService) FindAll() ([]models.Network, error) {
+	networks, err := s.Repository.FindAll(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	
+	result := make([]models.Network, len(networks))
+	for i, network := range networks {
+		result[i] = *network
+	}
+	return result, nil
+}
+
+func (s *NetworkService) Update(id, name, cidr, description string) (*models.Network, error) {
+	network, err := s.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if network == nil {
+		return nil, db.ErrNotFound
+	}
+	
+	network.Name = name
+	network.CIDR = cidr
+	network.Description = description
+	network.UpdatedAt = time.Now()
+	
+	return s.dbManager.CreateOrUpdateNetwork(s.Repository, context.Background(), network)
+}
+
+func (s *NetworkService) Delete(id string) error {
+	return s.Repository.Delete(context.Background(), id)
+}
+
+func (s *NetworkService) GetDeviceCount(networkID string) (int, error) {
+	// TODO: Implement device count logic
+	// For now, return 0 as placeholder
+	return 0, nil
 }

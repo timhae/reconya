@@ -11,14 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/models"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 )
 
 // Templates will be loaded from filesystem for now
@@ -46,10 +47,10 @@ type PageData struct {
 }
 
 type NetworkMapData struct {
-	BaseIP         string
-	IPRange        []int
-	Devices        map[string]*models.Device
-	NetworkInfo    *NetworkInfo
+	BaseIP      string
+	IPRange     []int
+	Devices     map[string]*models.Device
+	NetworkInfo *NetworkInfo
 }
 
 type NetworkInfo struct {
@@ -102,11 +103,11 @@ func NewWebHandler(
 			default:
 				return "N/A"
 			}
-			
+
 			if size == 0 {
 				return "N/A"
 			}
-			
+
 			kb := size / 1024
 			if kb < 1024 {
 				return fmt.Sprintf("%.1f KB", kb)
@@ -324,43 +325,43 @@ func NewWebHandler(
 
 	// Parse templates from filesystem
 	tmpl := template.New("").Funcs(funcMap)
-	
+
 	// Parse templates with unique names to avoid conflicts
 	baseFiles, err := filepath.Glob("templates/layouts/*.html")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob base templates: %v", err))
 	}
-	
+
 	pageFiles, err := filepath.Glob("templates/pages/*.html")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob page templates: %v", err))
 	}
-	
+
 	componentFiles, err := filepath.Glob("templates/components/*.html")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob component templates: %v", err))
 	}
 
 	indexFile := "templates/index.html"
-	
+
 	files := append(baseFiles, append(pageFiles, componentFiles...)...)
 	files = append(files, indexFile)
 	log.Printf("Found template files: %v", files)
-	
+
 	if len(files) == 0 {
 		panic("No template files found")
 	}
-	
+
 	tmpl, err = tmpl.ParseFiles(files...)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to parse templates: %v", err))
 	}
-	
+
 	// Log template names for debugging
 	for _, t := range tmpl.Templates() {
 		log.Printf("Loaded template: %s", t.Name())
 	}
-	
+
 	// Debug: Try to find login.html specifically
 	loginTmpl := tmpl.Lookup("login.html")
 	if loginTmpl != nil {
@@ -441,7 +442,7 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting devices for home page: %v", err)
 		devicesSlice = []models.Device{} // Ensure it's an empty slice, not nil
 	}
-	
+
 	// Convert to pointer slice for template
 	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
@@ -482,7 +483,7 @@ func (h *WebHandler) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		data := PageData{Page: "login"}
 		log.Printf("Executing standalone login template with data: %+v", data)
 		if err := loginTmpl.Execute(w, data); err != nil {
@@ -837,7 +838,7 @@ func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
 
 	// Get network address
 	networkIP := ipNet.IP
-	
+
 	// Calculate subnet mask bits
 	ones, bits := ipNet.Mask.Size()
 	if bits != 32 {
@@ -848,7 +849,7 @@ func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
 	// Calculate number of host addresses
 	hostBits := bits - ones
 	totalHosts := 1 << hostBits // 2^hostBits
-	
+
 	// Subtract network and broadcast addresses
 	usableHosts := totalHosts - 2
 	if usableHosts <= 0 {
@@ -881,20 +882,20 @@ func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
 	} else {
 		// Larger subnet (like /23) - more complex range calculation
 		baseIP = strings.Join(parts[:3], ".")
-		
+
 		// For /23, we have 512 addresses total, 510 usable
 		// This spans two /24 networks (e.g., 192.168.10.0-192.168.11.255)
 		maxHosts := usableHosts
 		if maxHosts > 510 {
 			maxHosts = 510
 		}
-		
+
 		// Generate a reasonable range for visualization (limit to avoid UI issues)
 		visualHosts := maxHosts
 		if visualHosts > 254 {
 			visualHosts = 254
 		}
-		
+
 		ipRange = make([]int, visualHosts)
 		for i := 1; i <= visualHosts; i++ {
 			ipRange[i-1] = i
@@ -1002,4 +1003,252 @@ func (h *WebHandler) APICleanupDeviceNames(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status": "success", "message": "All device names have been cleared successfully"}`))
+}
+
+// Network API handlers
+func (h *WebHandler) APINetworks(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get all networks from service
+	networksSlice, err := h.networkService.FindAll()
+	if err != nil {
+		log.Printf("Error getting networks: %v", err)
+		networksSlice = []models.Network{} // Ensure it's an empty slice, not nil
+	}
+
+	// Convert to pointer slice for template
+	networks := make([]*models.Network, len(networksSlice))
+	for i := range networksSlice {
+		// Get device count for each network
+		deviceCount, _ := h.networkService.GetDeviceCount(networksSlice[i].ID)
+		networksSlice[i].DeviceCount = deviceCount
+		networks[i] = &networksSlice[i]
+	}
+
+	data := struct {
+		Networks []*models.Network
+	}{
+		Networks: networks,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/network-list.html", data); err != nil {
+		log.Printf("Error executing template for networks: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (h *WebHandler) APINetworkModal(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	data := struct {
+		Network *models.Network
+		Error   string
+	}{
+		Network: &models.Network{},
+	}
+
+	// If editing existing network, load it
+	if networkID != "" {
+		network, err := h.networkService.FindByID(networkID)
+		if err != nil {
+			data.Error = "Network not found"
+		} else if network != nil {
+			data.Network = network
+		}
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/network-modal.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (h *WebHandler) APICreateNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	cidr := strings.TrimSpace(r.FormValue("cidr"))
+	description := strings.TrimSpace(r.FormValue("description"))
+
+	data := struct {
+		Network *models.Network
+		Error   string
+	}{
+		Network: &models.Network{
+			Name:        name,
+			CIDR:        cidr,
+			Description: description,
+		},
+	}
+
+	// Validate CIDR
+	if cidr == "" {
+		data.Error = "CIDR address is required"
+		if err := h.templates.ExecuteTemplate(w, "components/network-modal.html", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Validate CIDR format
+	_, _, err := net.ParseCIDR(cidr)
+	if err != nil {
+		data.Error = "Invalid CIDR format. Please use format like 192.168.1.0/24"
+		if err := h.templates.ExecuteTemplate(w, "components/network-modal.html", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Create network
+	network, err := h.networkService.Create(name, cidr, description)
+	if err != nil {
+		data.Error = fmt.Sprintf("Failed to create network: %v", err)
+		if err := h.templates.ExecuteTemplate(w, "components/network-modal.html", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Log the event
+	h.eventLogService.Log(models.NetworkCreated, fmt.Sprintf("Network %s (%s) created", network.CIDR, network.Name), "")
+
+	// Return success - the frontend will handle closing modal and refreshing list
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Network created successfully"))
+}
+
+func (h *WebHandler) APIUpdateNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	cidr := strings.TrimSpace(r.FormValue("cidr"))
+	description := strings.TrimSpace(r.FormValue("description"))
+
+	// Validate CIDR
+	if cidr == "" {
+		http.Error(w, "CIDR address is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate CIDR format
+	_, _, err := net.ParseCIDR(cidr)
+	if err != nil {
+		http.Error(w, "Invalid CIDR format. Please use format like 192.168.1.0/24", http.StatusBadRequest)
+		return
+	}
+
+	// Update network
+	network, err := h.networkService.Update(networkID, name, cidr, description)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update network: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the event
+	h.eventLogService.Log(models.NetworkUpdated, fmt.Sprintf("Network %s (%s) updated", network.CIDR, network.Name), "")
+
+	// Return success
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Network updated successfully"))
+}
+
+func (h *WebHandler) APIDeleteNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get network info before deletion for logging
+	network, err := h.networkService.FindByID(networkID)
+	if err != nil {
+		http.Error(w, "Network not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete network
+	err = h.networkService.Delete(networkID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to delete network: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the event
+	if network != nil {
+		h.eventLogService.Log(models.NetworkDeleted, fmt.Sprintf("Network %s (%s) deleted", network.CIDR, network.Name), "")
+	}
+
+	// Return empty response to remove the table row
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *WebHandler) APIScanNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	// Get network info
+	network, err := h.networkService.FindByID(networkID)
+	if err != nil {
+		http.Error(w, "Network not found", http.StatusNotFound)
+		return
+	}
+
+	// TODO: Implement actual network scanning logic
+	// For now, just log the scan request
+	h.eventLogService.Log(models.ScanStarted, fmt.Sprintf("Network scan started for %s (%s)", network.CIDR, network.Name), "")
+
+	// Return success message
+	w.Write([]byte(fmt.Sprintf(`<div class="alert alert-success">Network scan started for %s</div>`, network.CIDR)))
 }

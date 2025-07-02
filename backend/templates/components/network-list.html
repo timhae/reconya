@@ -1,0 +1,129 @@
+{{define "components/network-list.html"}}
+<!-- Add Network Button -->
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <p class="text-muted mb-0">Manage network ranges for reconnaissance scanning</p>
+    </div>
+    <button class="btn btn-success" 
+            hx-get="/api/network-modal" 
+            hx-target="#network-modal-content"
+            data-bs-toggle="modal" 
+            data-bs-target="#networkModal">
+        <i class="bi bi-plus-circle me-2"></i>Add New Network
+    </button>
+</div>
+
+<!-- Networks Table -->
+<div class="table-responsive">
+    <table class="table table-dark table-hover table-sm" id="networksTable">
+        <thead>
+            <tr>
+                <th>Network Name</th>
+                <th>CIDR</th>
+                <th>Status</th>
+                <th>Last Scanned</th>
+                <th>Devices Found</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Networks}}
+            <tr>
+                <td class="text-success">{{or .Name "Unnamed Network"}}</td>
+                <td class="text-success">{{.CIDR}}</td>
+                <td>
+                    {{if eq .Status "active"}}
+                        <span class="status-online">Active</span>
+                    {{else if eq .Status "scanning"}}
+                        <span class="status-idle">Scanning</span>
+                    {{else}}
+                        <span class="status-offline">Inactive</span>
+                    {{end}}
+                </td>
+                <td class="text-success">
+                    {{if .LastScannedAt}}
+                        {{formatTimeAgo .LastScannedAt}}
+                    {{else}}
+                        <span class="text-muted">Never</span>
+                    {{end}}
+                </td>
+                <td class="text-success">{{.DeviceCount}}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success btn-sm" 
+                                hx-get="/api/networks/{{.ID}}/scan" 
+                                hx-trigger="click"
+                                title="Scan Network">
+                            <i class="bi bi-search"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" 
+                                hx-get="/api/network-modal/{{.ID}}" 
+                                hx-target="#network-modal-content"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#networkModal"
+                                title="Edit Network">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" 
+                                hx-delete="/api/networks/{{.ID}}" 
+                                hx-confirm="Are you sure you want to delete this network?"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML"
+                                title="Delete Network">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="bi bi-diagram-3 me-2" style="font-size: 1.5rem;"></i>
+                    <br>
+                    No networks configured yet. Add your first network to start scanning.
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<!-- Network Modal -->
+<div class="modal fade" id="networkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-success">
+            <div id="network-modal-content">
+                <!-- Content loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle modal events
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.target.id === 'network-modal-content') {
+        // Modal content loaded, show the modal if it's not already visible
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('networkModal'));
+        if (!modal._isShown) {
+            modal.show();
+        }
+    }
+});
+
+// Handle successful form submissions
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.xhr.status === 200 && event.detail.target.closest('#networkModal')) {
+        // If the response was successful and from the modal, refresh the networks list
+        setTimeout(function() {
+            htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
+            if (modal) {
+                modal.hide();
+            }
+        }, 100);
+    }
+});
+</script>
+{{end}}
