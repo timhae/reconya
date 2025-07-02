@@ -19,10 +19,10 @@ import (
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
-	"reconya-ai/internal/nicidentifier"
 	"reconya-ai/internal/oui"
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/portscan"
+	"reconya-ai/internal/scan"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/internal/web"
 	"reconya-ai/middleware"
@@ -161,19 +161,23 @@ func main() {
 	systemStatusService := systemstatus.NewSystemStatusService(systemStatusRepo)
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
+	
+	// Initialize scan manager to control scanning
+	scanManager := scan.NewScanManager(pingSweepService, networkService)
 
-	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
+	// NIC identification commented out - networks are now user-configured
+	// nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
 
 	// Create a done channel to coordinate graceful shutdown
 	done := make(chan bool)
 
-	nicService.Identify()
-	go runPingSweepService(pingSweepService, done)
+	// nicService.Identify()
+	// Remove automatic ping sweep - now controlled by scan manager
 	go runDeviceUpdater(deviceService, done)
 
 	// Initialize web handlers for HTMX frontend
 	sessionSecret := "your-secret-key-here-replace-in-production"
-	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, cfg, sessionSecret)
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, cfg, sessionSecret)
 	router := webHandler.SetupRoutes()
 	loggedRouter := middleware.LoggingMiddleware(router)
 
@@ -245,54 +249,6 @@ func main() {
 	waitForShutdown(server, done)
 }
 
-func runPingSweepService(service *pingsweep.PingSweepService, done <-chan bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			errorLogger.Printf("Ping sweep service panic recovered: %v", r)
-			errorLogger.Printf("Ping sweep stack trace: %s", debug.Stack())
-		}
-		infoLogger.Println("Ping sweep service stopped")
-	}()
-
-	infoLogger.Println("Starting initial ping sweep service run...")
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				errorLogger.Printf("Initial ping sweep service.Run() panic: %v", r)
-				errorLogger.Printf("Initial ping sweep stack: %s", debug.Stack())
-			}
-		}()
-		service.Run()
-	}()
-
-	// Use 30 seconds for development to see updates more quickly
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	infoLogger.Printf("Ping sweep service scheduled to run every 30 seconds")
-	for {
-		select {
-		case <-done:
-			infoLogger.Println("Ping sweep service received shutdown signal")
-			return
-		case <-ticker.C:
-			infoLogger.Println("Running scheduled ping sweep...")
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						errorLogger.Printf("Ping sweep service.Run() panic: %v", r)
-						errorLogger.Printf("Ping sweep Run() stack: %s", debug.Stack())
-						infoLogger.Println("Ping sweep service will continue running despite panic")
-					}
-				}()
-				startTime := time.Now()
-				service.Run()
-				duration := time.Since(startTime)
-				infoLogger.Printf("Ping sweep completed in %v", duration)
-			}()
-		}
-	}
-}
 
 func waitForShutdown(server *http.Server, done chan bool) {
 	stop := make(chan os.Signal, 1)

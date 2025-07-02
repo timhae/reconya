@@ -43,9 +43,19 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	currentTime := time.Now()
 	device.LastSeenOnlineAt = &currentTime
 
-	network, err := s.networkService.FindOrCreate(s.Config.NetworkCIDR)
+	// If device doesn't have a network ID, we can't proceed
+	// The scan manager should set the network ID before calling this method
+	if device.NetworkID == "" {
+		return nil, fmt.Errorf("device must have a network ID set")
+	}
+
+	// Verify the network exists
+	network, err := s.networkService.FindByID(device.NetworkID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid network ID: %v", err)
+	}
+	if network == nil {
+		return nil, fmt.Errorf("network not found")
 	}
 
 	existingDevice, err := s.FindByIPv4(device.IPv4)
@@ -54,9 +64,6 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 	}
 
 	s.setTimestamps(device, existingDevice, currentTime)
-
-	// Set network ID
-	device.NetworkID = network.ID
 
 	// Set status if not already set
 	if device.Status == "" {

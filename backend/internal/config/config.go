@@ -16,7 +16,6 @@ const (
 
 type Config struct {
 	JwtKey       []byte
-	NetworkCIDR  string
 	Port         string
 	DatabaseType DatabaseType
 	// SQLite config
@@ -31,11 +30,6 @@ func LoadConfig() (*Config, error) {
 	// Try to load .env file but don't fail if it doesn't exist
 	// This allows using environment variables directly in Docker
 	_ = godotenv.Load()
-
-	networkCIDR := os.Getenv("NETWORK_RANGE")
-	if networkCIDR == "" {
-		return nil, fmt.Errorf("NETWORK_RANGE environment variable is not set")
-	}
 
 	databaseName := os.Getenv("DATABASE_NAME")
 	if databaseName == "" {
@@ -64,7 +58,6 @@ func LoadConfig() (*Config, error) {
 
 	config := &Config{
 		JwtKey:       []byte(jwtSecret),
-		NetworkCIDR:  networkCIDR,
 		Port:         port,
 		DatabaseType: DatabaseType(dbType),
 		Username:     username,

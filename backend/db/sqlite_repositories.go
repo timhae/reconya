@@ -31,10 +31,10 @@ func (r *SQLiteNetworkRepository) FindByID(ctx context.Context, id string) (*mod
 
 	var network models.Network
 	var name, description, status sql.NullString
-	var lastScannedAt sql.NullTime
+	var lastScannedAt, createdAt, updatedAt sql.NullTime
 	var deviceCount sql.NullInt64
 	
-	err := row.Scan(&network.ID, &name, &network.CIDR, &description, &status, &lastScannedAt, &deviceCount, &network.CreatedAt, &network.UpdatedAt)
+	err := row.Scan(&network.ID, &name, &network.CIDR, &description, &status, &lastScannedAt, &deviceCount, &createdAt, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -56,6 +56,12 @@ func (r *SQLiteNetworkRepository) FindByID(ctx context.Context, id string) (*mod
 	}
 	if deviceCount.Valid {
 		network.DeviceCount = int(deviceCount.Int64)
+	}
+	if createdAt.Valid {
+		network.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		network.UpdatedAt = updatedAt.Time
 	}
 
 	return &network, nil
@@ -68,10 +74,10 @@ func (r *SQLiteNetworkRepository) FindByCIDR(ctx context.Context, cidr string) (
 
 	var network models.Network
 	var name, description, status sql.NullString
-	var lastScannedAt sql.NullTime
+	var lastScannedAt, createdAt, updatedAt sql.NullTime
 	var deviceCount sql.NullInt64
 	
-	err := row.Scan(&network.ID, &name, &network.CIDR, &description, &status, &lastScannedAt, &deviceCount, &network.CreatedAt, &network.UpdatedAt)
+	err := row.Scan(&network.ID, &name, &network.CIDR, &description, &status, &lastScannedAt, &deviceCount, &createdAt, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -94,13 +100,28 @@ func (r *SQLiteNetworkRepository) FindByCIDR(ctx context.Context, cidr string) (
 	if deviceCount.Valid {
 		network.DeviceCount = int(deviceCount.Int64)
 	}
+	if createdAt.Valid {
+		network.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		network.UpdatedAt = updatedAt.Time
+	}
 
 	return &network, nil
 }
 
 // FindAll finds all networks
 func (r *SQLiteNetworkRepository) FindAll(ctx context.Context) ([]*models.Network, error) {
-	query := `SELECT id, name, cidr, description, status, last_scanned_at, device_count, created_at, updated_at FROM networks ORDER BY created_at DESC`
+	query := `SELECT id, 
+		COALESCE(name, '') as name, 
+		cidr, 
+		COALESCE(description, '') as description, 
+		COALESCE(status, 'active') as status, 
+		last_scanned_at, 
+		COALESCE(device_count, 0) as device_count, 
+		COALESCE(created_at, datetime('now')) as created_at, 
+		COALESCE(updated_at, datetime('now')) as updated_at 
+	FROM networks ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying networks: %w", err)
@@ -110,29 +131,39 @@ func (r *SQLiteNetworkRepository) FindAll(ctx context.Context) ([]*models.Networ
 	var networks []*models.Network
 	for rows.Next() {
 		var network models.Network
-		var name, description, status sql.NullString
 		var lastScannedAt sql.NullTime
-		var deviceCount sql.NullInt64
+		var createdAtStr, updatedAtStr string
 		
-		err := rows.Scan(&network.ID, &name, &network.CIDR, &description, &status, &lastScannedAt, &deviceCount, &network.CreatedAt, &network.UpdatedAt)
+		err := rows.Scan(&network.ID, &network.Name, &network.CIDR, &network.Description, &network.Status, &lastScannedAt, &network.DeviceCount, &createdAtStr, &updatedAtStr)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning network: %w", err)
 		}
 
-		if name.Valid {
-			network.Name = name.String
-		}
-		if description.Valid {
-			network.Description = description.String
-		}
-		if status.Valid {
-			network.Status = status.String
-		}
 		if lastScannedAt.Valid {
 			network.LastScannedAt = &lastScannedAt.Time
 		}
-		if deviceCount.Valid {
-			network.DeviceCount = int(deviceCount.Int64)
+
+		// Parse datetime strings
+		if createdAtStr != "" {
+			if t, err := time.Parse("2006-01-02 15:04:05", createdAtStr); err == nil {
+				network.CreatedAt = t
+			} else {
+				// If parsing fails, use current time
+				network.CreatedAt = time.Now()
+			}
+		} else {
+			network.CreatedAt = time.Now()
+		}
+
+		if updatedAtStr != "" {
+			if t, err := time.Parse("2006-01-02 15:04:05", updatedAtStr); err == nil {
+				network.UpdatedAt = t
+			} else {
+				// If parsing fails, use current time
+				network.UpdatedAt = time.Now()
+			}
+		} else {
+			network.UpdatedAt = time.Now()
 		}
 
 		networks = append(networks, &network)
@@ -177,6 +208,20 @@ func (r *SQLiteNetworkRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("error deleting network: %w", err)
 	}
 	return nil
+}
+
+// GetDeviceCount counts devices that reference this network
+func (r *SQLiteNetworkRepository) GetDeviceCount(ctx context.Context, networkID string) (int, error) {
+	query := `SELECT COUNT(*) FROM devices WHERE network_id = ?`
+	row := r.db.QueryRowContext(ctx, query, networkID)
+	
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("error counting devices for network: %w", err)
+	}
+	
+	return count, nil
 }
 
 // SQLiteDeviceRepository implements the DeviceRepository interface for SQLite

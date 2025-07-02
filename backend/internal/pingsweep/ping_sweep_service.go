@@ -11,7 +11,6 @@ import (
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/scanner"
-	"reconya-ai/internal/util"
 	"reconya-ai/models"
 	"strings"
 	"sync"
@@ -49,72 +48,10 @@ func NewPingSweepService(
 	
 	return service
 }
+// Run method is deprecated - use the scan manager to control scanning
+// This method is kept for compatibility but should not be called directly
 func (s *PingSweepService) Run() {
-	log.Println("Starting new ping sweep scan...")
-	startTime := time.Now()
-
-	
-	devices, err := s.ExecuteSweepScanCommand(s.Config.NetworkCIDR)
-	if err != nil {
-		log.Printf("Error executing sweep scan: %v\n", err)
-		return
-	}
-	
-	log.Printf("Ping sweep found %d devices from scan", len(devices))
-
-	// Update all devices and add eligible ones to port scan queue
-	for i, device := range devices {
-		log.Printf("Processing device %d/%d: %s", i+1, len(devices), device.IPv4)
-		// Use retry logic for updating device
-		updatedDevice, err := util.RetryOnLockWithResult(func() (*models.Device, error) {
-			return s.DeviceService.CreateOrUpdate(&device)
-		})
-		
-		if err != nil {
-			log.Printf("Error updating device %s after retries: %v", device.IPv4, err)
-			continue
-		}
-		log.Printf("Successfully saved device: %s", device.IPv4)
-
-		deviceIDStr := device.ID
-		// Use retry logic for creating event log
-		eventLogErr := util.RetryOnLock(func() error {
-			return s.EventLogService.CreateOne(&models.EventLog{
-				Type:     models.DeviceOnline,
-				DeviceID: &deviceIDStr,
-			})
-		})
-		
-		if eventLogErr != nil {
-			log.Printf("Error creating device online event log: %v", eventLogErr)
-		}
-
-		// Add to port scan queue if eligible
-		if s.DeviceService.EligibleForPortScan(updatedDevice) {
-			select {
-			case s.portScanQueue <- *updatedDevice:
-				log.Printf("Added device %s to port scan queue", updatedDevice.IPv4)
-			default:
-				log.Printf("Port scan queue full, skipping device %s", updatedDevice.IPv4)
-			}
-		}
-	}
-
-	duration := time.Since(startTime)
-	log.Printf("Ping sweep scan completed. Found %d devices in %s.", len(devices), duration.Round(time.Second))
-
-	// Create event log for ping sweep completion
-	durationInSeconds := float64(duration.Seconds())
-	err = util.RetryOnLock(func() error {
-		return s.EventLogService.CreateOne(&models.EventLog{
-			Type: models.PingSweep,
-			DurationSeconds: &durationInSeconds,
-		})
-	})
-
-	if err != nil {
-		log.Printf("Error creating ping sweep completion event log: %v", err)
-	}
+	log.Println("PingSweepService.Run() is deprecated - scanning is now controlled by scan manager")
 }
 
 func (s *PingSweepService) ExecuteSweepScanCommand(network string) ([]models.Device, error) {

@@ -45,7 +45,12 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIDeleteNetwork).Methods("DELETE")
 	api.HandleFunc("/network-modal", h.APINetworkModal).Methods("GET")
 	api.HandleFunc("/network-modal/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APINetworkModal).Methods("GET")
-	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/scan", h.APIScanNetwork).Methods("GET")
+	
+	// Scan management endpoints
+	api.HandleFunc("/scan/status", h.APIScanStatus).Methods("GET")
+	api.HandleFunc("/scan/start", h.APIScanStart).Methods("POST")
+	api.HandleFunc("/scan/stop", h.APIScanStop).Methods("POST")
+	api.HandleFunc("/scan/control", h.APIScanControl).Methods("GET")
 
 	// 404 handler
 	r.NotFoundHandler = http.HandlerFunc(h.NotFound)

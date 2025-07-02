@@ -1,0 +1,171 @@
+{{define "components/scan-control.html"}}
+<div id="scan-control-container" 
+     hx-get="/api/scan/control" 
+     hx-trigger="every 5s" 
+     hx-swap="innerHTML">{{template "components/scan-control-inner.html" .}}</div>
+{{end}}
+
+{{define "components/scan-control-inner.html"}}
+<!-- Scan Control Panel -->
+<div id="scan-control-content" class="bg-very-dark p-4">
+    <!-- CPU Status Widget -->
+    <div class="d-flex align-items-center justify-content-center mb-3">
+        <div style="width: 70px; height: 70px; background: radial-gradient(circle, rgba(25,135,84,0.3) 0%, rgba(25,135,84,0.1) 50%, transparent 100%); border: 2px solid var(--bs-success); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-cpu-fill text-success {{if .ScanState.IsRunning}}traffic-core-breathing{{end}}" style="font-size: 1.8rem;"></i>
+        </div>
+    </div>
+
+    <!-- Network Selection -->
+    <div class="mb-3">
+        <small class="text-muted d-block mb-2">Target Network</small>
+        <select class="form-select form-select-sm bg-dark text-success border-success w-100 {{if .Error}}border-danger{{end}}" 
+                id="network-selector" 
+                name="network-selector"
+                {{if .ScanState.IsRunning}}disabled{{end}}>
+            <option value="">Select Network</option>
+            {{range .Networks}}
+            <option value="{{.ID}}" 
+                    {{if and $.ScanState.CurrentNetwork (eq .ID $.ScanState.CurrentNetwork.ID)}}selected{{end}}>
+                {{if .Name}}{{.Name}}{{else}}{{.CIDR}}{{end}}
+            </option>
+            {{end}}
+        </select>
+        {{if .Error}}
+        <div class="text-danger small mt-1">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{.Error}}
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="d-flex gap-2 justify-content-center">
+        {{if .ScanState.IsRunning}}
+            {{if .ScanState.IsStopping}}
+                <button class="btn btn-outline-warning btn-sm" 
+                        disabled
+                        hx-get="/api/scan/control"
+                        hx-trigger="load delay:2s"
+                        hx-target="#scan-control-content"
+                        hx-swap="outerHTML">
+                    <div class="spinner-border spinner-border-sm me-1" role="status">
+                        <span class="visually-hidden">Stopping...</span>
+                    </div>Stopping...
+                </button>
+            {{else}}
+                <button class="btn btn-outline-danger btn-sm" 
+                        id="stop-scan-btn"
+                        hx-post="/api/scan/stop" 
+                        hx-trigger="click"
+                        hx-target="#scan-control-content"
+                        hx-swap="outerHTML">
+                    <i class="bi bi-stop-fill me-1"></i>Stop
+                </button>
+            {{end}}
+        {{else}}
+            <button class="btn btn-outline-success btn-sm" 
+                    id="start-scan-btn"
+                    hx-post="/api/scan/start" 
+                    hx-trigger="click"
+                    hx-include="#network-selector"
+                    hx-target="#scan-control-content"
+                    hx-swap="outerHTML"
+                    {{if not .Networks}}disabled{{end}}>
+                <i class="bi bi-play-fill me-1"></i>Start
+            </button>
+            <a href="#" class="btn btn-outline-secondary btn-sm" 
+               data-page="networks">
+                <i class="bi bi-plus-circle me-1"></i>Add Network
+            </a>
+        {{end}}
+    </div>
+
+    <!-- Scan Statistics (if running) -->
+    {{if .ScanState.IsRunning}}
+    <div class="mt-2 pt-2 border-top border-secondary">
+        <div class="row text-center">
+            <div class="col">
+                <small class="text-muted d-block">Scans</small>
+                <span class="text-success fw-bold">{{.ScanState.ScanCount}}</span>
+            </div>
+            <div class="col">
+                <small class="text-muted d-block">Runtime</small>
+                <span class="text-success fw-bold" id="scan-runtime">
+                    {{if .ScanState.StartTime}}
+                        <script>
+                            const startTime = new Date('{{.ScanState.StartTime.Format "2006-01-02T15:04:05Z07:00"}}');
+                            const now = new Date();
+                            const diff = Math.floor((now - startTime) / 1000);
+                            const hours = Math.floor(diff / 3600);
+                            const minutes = Math.floor((diff % 3600) / 60);
+                            const seconds = diff % 60;
+                            document.currentScript.parentElement.innerHTML = 
+                                `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+                        </script>
+                    {{else}}
+                        00:00:00
+                    {{end}}
+                </span>
+            </div>
+            <div class="col">
+                <small class="text-muted d-block">Last Scan</small>
+                <span class="text-success fw-bold">
+                    {{if .ScanState.LastScanTime}}
+                        {{formatTimeAgo .ScanState.LastScanTime}}
+                    {{else}}
+                        Never
+                    {{end}}
+                </span>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<style>
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+</style>
+
+<script>
+// Handle scan control responses
+document.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.target.id === 'scan-control-container') {
+        // Refresh other components after scan state changes
+        setTimeout(() => {
+            htmx.ajax('GET', '/api/system-status', { target: '#system-status-container' });
+            htmx.ajax('GET', '/api/event-logs', { target: '#event-logs' });
+        }, 500);
+    }
+});
+
+// Handle network selector changes
+document.addEventListener('change', function(event) {
+    if (event.target.id === 'network-selector') {
+        const startBtn = document.getElementById('start-scan-btn');
+        if (startBtn) {
+            startBtn.disabled = event.target.value === '';
+        }
+    }
+});
+
+// Update scan runtime every second if scanning
+{{if .ScanState.IsRunning}}
+setInterval(() => {
+    const runtimeEl = document.getElementById('scan-runtime');
+    if (runtimeEl) {
+        const startTime = new Date('{{.ScanState.StartTime.Format "2006-01-02T15:04:05Z07:00"}}');
+        const now = new Date();
+        const diff = Math.floor((now - startTime) / 1000);
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = diff % 60;
+        runtimeEl.textContent = 
+            `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+    }
+}, 1000);
+{{end}}
+</script>
+{{end}}

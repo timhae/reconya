@@ -27,6 +27,7 @@ type NetworkRepository interface {
 	FindAll(ctx context.Context) ([]*models.Network, error)
 	CreateOrUpdate(ctx context.Context, network *models.Network) (*models.Network, error)
 	Delete(ctx context.Context, id string) error
+	GetDeviceCount(ctx context.Context, networkID string) (int, error)
 }
 
 // DeviceRepository defines the interface for device operations

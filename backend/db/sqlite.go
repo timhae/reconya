@@ -206,6 +206,42 @@ func InitializeSchema(db *sql.DB) error {
 		log.Printf("Note: comment column might already exist: %v", err)
 	}
 
+	// Add network table columns for extended network management
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN name TEXT`)
+	if err != nil {
+		log.Printf("Note: networks.name column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN description TEXT`)
+	if err != nil {
+		log.Printf("Note: networks.description column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN status TEXT DEFAULT 'active'`)
+	if err != nil {
+		log.Printf("Note: networks.status column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN last_scanned_at TIMESTAMP`)
+	if err != nil {
+		log.Printf("Note: networks.last_scanned_at column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN device_count INTEGER DEFAULT 0`)
+	if err != nil {
+		log.Printf("Note: networks.device_count column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN created_at TIMESTAMP`)
+	if err != nil {
+		log.Printf("Note: networks.created_at column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN updated_at TIMESTAMP`)
+	if err != nil {
+		log.Printf("Note: networks.updated_at column might already exist: %v", err)
+	}
+
 	// Create web_services table
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS web_services (

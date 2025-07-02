@@ -1,96 +1,84 @@
 <div class="row g-4 p-4">
-    <!-- Top Row - System Overview -->
-    <div class="col-12">
-        <div class="row g-4">
-            <!-- Left - System Status Data -->
-            <div class="col-lg-9">
-                <div class="row g-3">
-                    <div class="col">
-                        <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                            <i class="bi bi-hdd-network text-success mb-2" style="font-size: 1.8rem;"></i>
-                            <small class="text-muted d-block">Network Range</small>
-                            <div class="fw-bold text-success" id="network-range" style="font-size: 1.3rem;">Loading...</div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                            <i class="bi bi-globe text-success mb-2" style="font-size: 1.8rem;"></i>
-                            <small class="text-muted d-block">Public IP</small>
-                            <div class="fw-bold text-success" id="public-ip" style="font-size: 1.3rem;">Loading...</div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                            <i class="bi bi-router text-success mb-2" style="font-size: 1.8rem;"></i>
-                            <small class="text-muted d-block">Devices Found</small>
-                            <div class="fw-bold text-success" id="devices-found" style="font-size: 1.3rem;">0</div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                            <i class="bi bi-wifi text-success mb-2" style="font-size: 1.8rem;"></i>
-                            <small class="text-muted d-block">Online</small>
-                            <div class="fw-bold text-success" id="devices-online" style="font-size: 1.3rem;">0</div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                            <i class="bi bi-pie-chart text-success mb-2" style="font-size: 1.8rem;"></i>
-                            <small class="text-muted d-block">Saturation</small>
-                            <div class="fw-bold text-success" id="network-saturation" style="font-size: 1.3rem;">0%</div>
-                        </div>
-                    </div>
+    <!-- Left Column - Main Content -->
+    <div class="col-lg-9">
+        <!-- System Overview Widgets -->
+        <div class="row g-3 mb-4">
+            <div class="col">
+                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
+                    <i class="bi bi-hdd-network text-success mb-2" style="font-size: 1.8rem;"></i>
+                    <small class="text-muted d-block">Network Range</small>
+                    <div class="fw-bold text-success" id="network-range" style="font-size: 1.3rem;">Loading...</div>
                 </div>
             </div>
-            
-            <!-- Right - CPU Status Widget -->
-            <div class="col-lg-3">
-                <div class="bg-very-dark p-4 d-flex align-items-center justify-content-start" style="height: 120px;">
-                    <div class="d-flex align-items-center">
-                        <div style="width: 70px; height: 70px; background: radial-gradient(circle, rgba(25,135,84,0.3) 0%, rgba(25,135,84,0.1) 50%, transparent 100%); border: 2px solid var(--bs-success); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-cpu-fill text-success traffic-core-breathing" style="font-size: 1.8rem;"></i>
-                        </div>
-                        <div class="ms-3">
-                            <small class="text-muted d-block">Scanning</small>
-                            <div class="fw-bold text-success" style="font-size: 1.3rem;">Active</div>
-                        </div>
+            <div class="col">
+                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
+                    <i class="bi bi-globe text-success mb-2" style="font-size: 1.8rem;"></i>
+                    <small class="text-muted d-block">Public IP</small>
+                    <div class="fw-bold text-success" id="public-ip" style="font-size: 1.3rem;">Loading...</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
+                    <i class="bi bi-router text-success mb-2" style="font-size: 1.8rem;"></i>
+                    <small class="text-muted d-block">Devices Found</small>
+                    <div class="fw-bold text-success" id="devices-found" style="font-size: 1.3rem;">0</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
+                    <i class="bi bi-wifi text-success mb-2" style="font-size: 1.8rem;"></i>
+                    <small class="text-muted d-block">Online</small>
+                    <div class="fw-bold text-success" id="devices-online" style="font-size: 1.3rem;">0</div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
+                    <i class="bi bi-pie-chart text-success mb-2" style="font-size: 1.8rem;"></i>
+                    <small class="text-muted d-block">Saturation</small>
+                    <div class="fw-bold text-success" id="network-saturation" style="font-size: 1.3rem;">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Network Map -->
+        <div class="network-map-container mb-4 p0 sticky-top">
+            <div id="network-map" hx-get="/api/network-map" hx-trigger="load, every 8s" hx-swap="innerHTML">
+                <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Left Column - Main Content -->
-    <div class="col-lg-9">
-        <!-- Network Map and Devices Section -->
+        
+        <!-- Network Devices Cards -->
         <div class="mb-4">
-            <!-- Network Map -->
-            <div class="network-map-container mb-4 p0">
-                <div id="network-map" hx-get="/api/network-map" hx-trigger="load, every 8s" hx-swap="innerHTML">
-                    <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
-                        <div class="spinner-border text-success" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Network Devices Cards -->
-            <div class="mb-4">
-                <h5 class="section-header">NETWORK DEVICES</h5>
-                <div id="devices-container" hx-get="/api/devices" hx-trigger="load, every 10s" hx-swap="innerHTML">
-                    <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
-                        <div class="spinner-border text-success" role="status">
-                            <span class="visually-hidden">Loading devices...</span>
-                        </div>
+            <h5 class="section-header">NETWORK DEVICES</h5>
+            <div id="devices-container" hx-get="/api/devices" hx-trigger="load, every 10s" hx-swap="innerHTML">
+                <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading devices...</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Right Column - Event Logs Only -->
+    <!-- Right Column - Scan Control & Event Logs -->
     <div class="col-lg-3">
+        <!-- Scan Control Panel -->
+        <div class="mb-4">
+            <div hx-get="/api/scan/control" 
+                 hx-trigger="load" 
+                 hx-swap="innerHTML">
+                <div class="bg-very-dark p-4 d-flex align-items-center justify-content-center">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading scan control...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Event Logs Section -->
         <div class="">
             <div class="p-0" style="max-height: 600px; overflow-y: auto;">

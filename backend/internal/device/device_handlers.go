@@ -65,22 +65,17 @@ func (h *DeviceHandlers) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DeviceHandlers) GetAllDevices(w http.ResponseWriter, r *http.Request) {
-	devices := []models.Device{}
-	log.Printf("CIDR: %s", h.Config.NetworkCIDR)
-	// Only return devices that have been actually discovered online
-	foundDevices, err := h.Service.FindOnlineDevicesForNetwork(h.Config.NetworkCIDR)
+	// This handler is deprecated since networks are now user-configurable
+	// Return all devices instead of network-specific devices
+	foundDevices, err := h.Service.FindAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if foundDevices != nil {
-		devices = foundDevices
-	}
-
-	log.Printf("Returning %d active devices (online/idle)", len(devices))
+	log.Printf("Returning %d devices from all networks", len(foundDevices))
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(devices)
+	json.NewEncoder(w).Encode(foundDevices)
 }
 
 // CleanupDeviceNames clears all device names

@@ -1,7 +1,6 @@
 package network
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -19,16 +18,6 @@ func (h *NetworkHandlers) GetNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	network, err := h.Service.FindCurrent()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if network == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(network)
+	// This handler is deprecated - networks are now managed through the web interface
+	http.Error(w, "This endpoint is deprecated. Use the web interface to manage networks.", http.StatusGone)
 }

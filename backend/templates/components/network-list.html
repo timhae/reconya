@@ -51,12 +51,6 @@
                 <td>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-success btn-sm" 
-                                hx-get="/api/networks/{{.ID}}/scan" 
-                                hx-trigger="click"
-                                title="Scan Network">
-                            <i class="bi bi-search"></i>
-                        </button>
-                        <button class="btn btn-outline-success btn-sm" 
                                 hx-get="/api/network-modal/{{.ID}}" 
                                 hx-target="#network-modal-content"
                                 data-bs-toggle="modal" 
@@ -100,29 +94,12 @@
 </div>
 
 <script>
-// Handle modal events
+// Handle modal events - show modal when content loads for GET requests
 document.addEventListener('htmx:afterRequest', function(event) {
-    if (event.detail.target.id === 'network-modal-content') {
-        // Modal content loaded, show the modal if it's not already visible
+    if (event.detail.target.id === 'network-modal-content' && event.detail.requestConfig.verb === 'get') {
+        // Modal content loaded, show the modal
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('networkModal'));
-        if (!modal._isShown) {
-            modal.show();
-        }
-    }
-});
-
-// Handle successful form submissions
-document.addEventListener('htmx:afterRequest', function(event) {
-    if (event.detail.xhr.status === 200 && event.detail.target.closest('#networkModal')) {
-        // If the response was successful and from the modal, refresh the networks list
-        setTimeout(function() {
-            htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
-            // Close the modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
-            if (modal) {
-                modal.hide();
-            }
-        }, 100);
+        modal.show();
     }
 });
 </script>
