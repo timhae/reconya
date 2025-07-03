@@ -32,10 +32,16 @@
                 </div>
             </div>
             <div class="col">
-                <div class="bg-very-dark text-center p-4 d-flex flex-column justify-content-center" style="height: 120px;">
-                    <i class="bi bi-pie-chart text-success mb-2" style="font-size: 1.8rem;"></i>
-                    <small class="text-muted d-block">Saturation</small>
-                    <div class="fw-bold text-success" id="network-saturation" style="font-size: 1.3rem;">0%</div>
+                <div class="bg-very-dark text-center d-flex flex-column justify-content-center" style="height: 120px; position: relative;">
+                    <div class="p-4">
+                        <i class="bi bi-pie-chart text-success mb-2" style="font-size: 1.8rem;"></i>
+                        <small class="text-muted d-block">Saturation</small>
+                        <div class="fw-bold text-success" id="network-saturation" style="font-size: 1.3rem;">0%</div>
+                    </div>
+                    <!-- Progress bar at bottom -->
+                    <div class="position-absolute bottom-0 w-100" style="height: 4px; background: rgba(0,0,0,0.3);">
+                        <div id="saturation-progress" class="h-100" style="width: 0%; background: linear-gradient(90deg, #198754, #28a745, #20c997); transition: width 0.5s ease;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -212,24 +218,21 @@
         }
     });
 
-    // Update system status data from scan state and selected network
+    // Update system status data from API
     function updateSystemStatus() {
-        // Get current network info from scan control
-        const networkSelector = document.getElementById('network-selector');
-        const selectedOption = networkSelector ? networkSelector.options[networkSelector.selectedIndex] : null;
-        
-        if (selectedOption && selectedOption.value) {
-            // Extract network range from selected option text (format: "Name - CIDR" or just "CIDR")
-            const optionText = selectedOption.textContent;
-            const cidrMatch = optionText.match(/(\d+\.\d+\.\d+\.\d+\/\d+)/);
-            if (cidrMatch) {
-                document.getElementById('network-range').textContent = cidrMatch[1];
+        fetch('/api/dashboard-metrics')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('network-range').textContent = data.networkRange || 'N/A';
+                document.getElementById('public-ip').textContent = data.publicIP || 'N/A';
+                document.getElementById('devices-found').textContent = data.devicesFound || 0;
+                document.getElementById('devices-online').textContent = data.devicesOnline || 0;
                 
-                // Update saturation based on current network
-                const networkRange = cidrMatch[1];
-                const devicesOnline = parseInt(document.getElementById('devices-online').textContent) || 0;
+                // Calculate saturation
+                const networkRange = data.networkRange;
+                const devicesOnline = data.devicesOnline || 0;
                 
-                if (networkRange.includes('/')) {
+                if (networkRange && networkRange.includes('/')) {
                     const cidrParts = networkRange.split('/');
                     if (cidrParts.length === 2) {
                         const cidr = parseInt(cidrParts[1]);
@@ -237,34 +240,33 @@
                             const totalAddresses = Math.pow(2, 32 - cidr) - 2;
                             if (totalAddresses > 0) {
                                 const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
+                                const saturationNum = parseFloat(saturation);
                                 document.getElementById('network-saturation').textContent = saturation + '%';
+                                document.getElementById('saturation-progress').style.width = saturationNum + '%';
                             } else {
                                 document.getElementById('network-saturation').textContent = '0%';
+                                document.getElementById('saturation-progress').style.width = '0%';
                             }
                         } else {
                             document.getElementById('network-saturation').textContent = '0%';
+                            document.getElementById('saturation-progress').style.width = '0%';
                         }
                     } else {
                         document.getElementById('network-saturation').textContent = '0%';
+                        document.getElementById('saturation-progress').style.width = '0%';
                     }
                 } else {
                     document.getElementById('network-saturation').textContent = '0%';
+                    document.getElementById('saturation-progress').style.width = '0%';
                 }
-            } else {
-                document.getElementById('network-range').textContent = 'N/A';
-                document.getElementById('network-saturation').textContent = '0%';
-            }
-        } else {
-            document.getElementById('network-range').textContent = 'N/A';
-            document.getElementById('network-saturation').textContent = '0%';
-        }
-        
-        // For now, set public IP to a default value to avoid API issues
-        // TODO: Create a simple /api/public-ip endpoint that returns just the IP string
-        document.getElementById('public-ip').textContent = '2.86.152.15';
+            })
+            .catch(error => {
+                console.error('Failed to fetch dashboard metrics:', error);
+            });
     }
 
     // Update system status periodically and when scan control updates
+    updateSystemStatus(); // Initial call
     setInterval(updateSystemStatus, 5000);
     
     // Update when scan control refreshes

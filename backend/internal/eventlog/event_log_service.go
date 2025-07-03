@@ -72,12 +72,22 @@ func (s *EventLogService) generateDescription(eventLog models.EventLog) string {
 		return fmt.Sprintf("Local IPv4 address found [%s]", deviceInfo)
 	case models.LocalNetworkFound:
 		return "Local network found"
+	case models.NetworkCreated:
+		return eventLog.Description // Use the custom description for network events
+	case models.NetworkUpdated:
+		return eventLog.Description // Use the custom description for network events
+	case models.NetworkDeleted:
+		return eventLog.Description // Use the custom description for network events
+	case models.ScanStarted:
+		return eventLog.Description // Use the custom description for scan events
+	case models.ScanStopped:
+		return eventLog.Description // Use the custom description for scan events
 	case models.Warning:
 		return "Warning event occurred"
 	case models.Alert:
 		return "Alert event occurred"
 	default:
-		return "Event occurred"
+		return fmt.Sprintf("System event: %s", string(eventLog.Type))
 	}
 }
 

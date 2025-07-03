@@ -99,21 +99,9 @@
             </div>
             <div class="col">
                 <small class="text-muted d-block">Runtime</small>
-                <span class="text-success fw-bold" id="scan-runtime">
-                    {{if .ScanState.StartTime}}
-                        <script>
-                            const startTime = new Date('{{.ScanState.StartTime.Format "2006-01-02T15:04:05Z07:00"}}');
-                            const now = new Date();
-                            const diff = Math.floor((now - startTime) / 1000);
-                            const hours = Math.floor(diff / 3600);
-                            const minutes = Math.floor((diff % 3600) / 60);
-                            const seconds = diff % 60;
-                            document.currentScript.parentElement.innerHTML = 
-                                `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-                        </script>
-                    {{else}}
-                        00:00:00
-                    {{end}}
+                <span class="text-success fw-bold" id="scan-runtime" 
+                      data-start-time="{{if .ScanState.StartTime}}{{.ScanState.StartTime.Format "2006-01-02T15:04:05Z07:00"}}{{end}}">
+                    00:00:00
                 </span>
             </div>
             <div class="col">
@@ -183,6 +171,9 @@
 // Handle scan control responses
 document.addEventListener('htmx:afterRequest', function(event) {
     if (event.detail.target.id === 'scan-control-container') {
+        // Manage runtime clock after HTMX refresh
+        manageScanRuntime();
+        
         // Refresh other components after scan state changes
         setTimeout(() => {
             htmx.ajax('GET', '/api/event-logs', { target: '#event-logs' });
@@ -215,21 +206,49 @@ document.addEventListener('change', function(event) {
     }
 });
 
-// Update scan runtime every second if scanning
-{{if .ScanState.IsRunning}}
-setInterval(() => {
+// Runtime update function
+function updateScanRuntime() {
     const runtimeEl = document.getElementById('scan-runtime');
     if (runtimeEl) {
-        const startTime = new Date('{{.ScanState.StartTime.Format "2006-01-02T15:04:05Z07:00"}}');
-        const now = new Date();
-        const diff = Math.floor((now - startTime) / 1000);
-        const hours = Math.floor(diff / 3600);
-        const minutes = Math.floor((diff % 3600) / 60);
-        const seconds = diff % 60;
-        runtimeEl.textContent = 
-            `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+        const startTimeStr = runtimeEl.getAttribute('data-start-time');
+        if (startTimeStr) {
+            const startTime = new Date(startTimeStr);
+            const now = new Date();
+            const diff = Math.floor((now - startTime) / 1000);
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            runtimeEl.textContent = 
+                `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+        } else {
+            runtimeEl.textContent = '00:00:00';
+        }
     }
-}, 1000);
-{{end}}
+}
+
+// Global interval for runtime updates
+window.scanRuntimeInterval = window.scanRuntimeInterval || null;
+
+// Start/stop runtime updates based on scan state
+function manageScanRuntime() {
+    const runtimeEl = document.getElementById('scan-runtime');
+    const isScanning = runtimeEl && runtimeEl.getAttribute('data-start-time');
+    
+    if (isScanning && !window.scanRuntimeInterval) {
+        // Start updating runtime
+        updateScanRuntime(); // Initial update
+        window.scanRuntimeInterval = setInterval(updateScanRuntime, 1000);
+    } else if (!isScanning && window.scanRuntimeInterval) {
+        // Stop updating runtime
+        clearInterval(window.scanRuntimeInterval);
+        window.scanRuntimeInterval = null;
+    } else if (isScanning) {
+        // Just update the runtime if already running
+        updateScanRuntime();
+    }
+}
+
+// Initialize runtime management when page loads
+manageScanRuntime();
 </script>
 {{end}}

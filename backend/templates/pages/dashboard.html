@@ -74,7 +74,7 @@
                      hx-get="/api/system-status" 
                      hx-trigger="load, every 3s"
                      hx-indicator=".htmx-indicator">
-                    {{template "components/system-status.html" .SystemStatus}}
+                    {{template "components/system-status.html" .SystemStatusData}}
                 </div>
             </div>
         </div>
@@ -144,6 +144,14 @@
             const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
             modal.show();
         }
+    });
+
+    // Listen for network selection changes
+    htmx.on("network-selected", function(evt) {
+        // When a network is selected, we want to refresh the dashboard components
+        htmx.ajax('GET', '/api/system-status', { target: '#system-status' });
+        htmx.ajax('GET', '/api/network-map', { target: '#network-map' });
+        htmx.ajax('GET', '/api/devices', { target: '#devices-container' });
     });
 </script>
 {{end}}

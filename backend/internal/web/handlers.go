@@ -45,7 +45,7 @@ type PageData struct {
 	Username     string
 	Devices      []*models.Device
 	EventLogs    []*models.EventLog
-	SystemStatus *models.SystemStatus
+	SystemStatusData *SystemStatusTemplateData // Use the new struct for system status
 	NetworkMap   *NetworkMapData
 	Networks     []models.Network
 	ScanState    *scan.ScanState
@@ -62,6 +62,15 @@ type NetworkInfo struct {
 	OnlineDevices  int
 	IdleDevices    int
 	OfflineDevices int
+}
+
+// SystemStatusTemplateData holds all data required by the system-status.html template
+type SystemStatusTemplateData struct {
+	SystemStatus *models.SystemStatus
+	NetworkCIDR  string
+	NetworkInfo  *NetworkInfo
+	DevicesCount int
+	ScanState    *scan.ScanState
 }
 
 func NewWebHandler(
@@ -434,28 +443,64 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	systemStatus, err := h.systemStatusService.GetLatest()
+	// Get system status from service
+	status, err := h.systemStatusService.GetLatest()
 	if err != nil {
 		log.Printf("Error getting system status for home page: %v", err)
 		// Fallback to mock data or handle gracefully
-		systemStatus = &models.SystemStatus{
+		status = &models.SystemStatus{
+			NetworkID: "N/A",
+			PublicIP:  nil,
+		}
+	} else if status == nil {
+		log.Printf("No system status found in database for home page, using fallback")
+		status = &models.SystemStatus{
 			NetworkID: "N/A",
 			PublicIP:  nil,
 		}
 	}
 
-	devicesSlice, err := h.deviceService.FindAll()
-	if err != nil {
-		log.Printf("Error getting devices for home page: %v", err)
-		devicesSlice = []models.Device{} // Ensure it's an empty slice, not nil
+	// Get current or selected network to determine which network to show
+	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
+	scanState := h.scanManager.GetState()
+	var devicesSlice []models.Device
+	var networkCIDR string = "N/A"
+
+	if currentNetwork != nil {
+		log.Printf("Home: currentNetwork is not nil, ID: %s", currentNetwork.ID)
+		// Show devices from the currently selected/scanning network
+		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		if err != nil {
+			log.Printf("Error getting devices for home page system status %s: %v", currentNetwork.ID, err)
+			devicesSlice = []models.Device{}
+		}
+		networkCIDR = currentNetwork.CIDR
+	} else {
+		log.Println("Home: currentNetwork is nil, falling back to all devices")
+		// If no network is selected, show all devices
+		devicesSlice, err = h.deviceService.FindAll()
+		if err != nil {
+			log.Printf("Error getting all devices for home page system status: %v", err)
+			devicesSlice = []models.Device{}
+		}
 	}
 
-	// Convert to pointer slice for template
 	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
 		devices[i] = &devicesSlice[i]
 	}
 
+	networkMapData := h.buildNetworkMap(devices)
+
+	systemStatusData := &SystemStatusTemplateData{
+		SystemStatus: status,
+		NetworkCIDR:  networkCIDR,
+		NetworkInfo:  networkMapData.NetworkInfo,
+		DevicesCount: len(devices),
+		ScanState:    &scanState,
+	}
+
+	// Get recent event logs
 	eventLogSlice, err := h.eventLogService.GetAll(20)
 	if err != nil {
 		log.Printf("Error getting event logs for home page: %v", err)
@@ -475,13 +520,10 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 		networksSlice = []models.Network{} // Ensure it's an empty slice, not nil
 	}
 
-	// Get scan state
-	scanState := h.scanManager.GetState()
-
 	data := PageData{
 		Page:         "dashboard",
 		User:         user,
-		SystemStatus: systemStatus,
+		SystemStatusData: systemStatusData,
 		Devices:      devices,
 		EventLogs:    eventLogs,
 		Networks:     networksSlice,
@@ -642,6 +684,7 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
+	log.Println("APISystemStatus called")
 	session, _ := h.sessionStore.Get(r, "reconya-session")
 	user := h.getUserFromSession(session)
 	if user == nil {
@@ -676,6 +719,7 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 	var networkCIDR string = "N/A"
 
 	if currentNetwork != nil {
+		log.Printf("APISystemStatus: currentNetwork is not nil, ID: %s", currentNetwork.ID)
 		// Show devices from the currently selected/scanning network
 		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
 		if err != nil {
@@ -684,8 +728,13 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		networkCIDR = currentNetwork.CIDR
 	} else {
-		// If no network is selected, show empty data
-		devicesSlice = []models.Device{}
+		log.Println("APISystemStatus: currentNetwork is nil, falling back to all devices")
+		// If no network is selected, show all devices
+		devicesSlice, err = h.deviceService.FindAll()
+		if err != nil {
+			log.Printf("Error getting all devices for system status: %v", err)
+			devicesSlice = []models.Device{}
+		}
 	}
 
 	devices := make([]*models.Device, len(devicesSlice))
@@ -695,19 +744,15 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 
 	networkMapData := h.buildNetworkMap(devices)
 
-	data := struct {
-		SystemStatus *models.SystemStatus
-		NetworkCIDR  string
-		NetworkInfo  *NetworkInfo
-		DevicesCount int
-		ScanState    *scan.ScanState
-	}{
+	data := SystemStatusTemplateData{
 		SystemStatus: status,
 		NetworkCIDR:  networkCIDR,
 		NetworkInfo:  networkMapData.NetworkInfo,
 		DevicesCount: len(devices),
 		ScanState:    &scanState,
 	}
+
+	log.Printf("APISystemStatus: returning data: %+v", data)
 
 	if err := h.templates.ExecuteTemplate(w, "components/system-status.html", data); err != nil {
 		log.Printf("Error executing template for system status: %v", err)
@@ -837,9 +882,9 @@ func (h *WebHandler) buildNetworkMap(devices []*models.Device) *NetworkMapData {
 	for _, device := range devices {
 		deviceMap[device.IPv4] = device
 		switch device.Status {
-		case "online":
+		case models.DeviceStatusOnline:
 			online++
-		case "idle":
+		case models.DeviceStatusIdle:
 			idle++
 		default:
 			offline++
@@ -866,7 +911,7 @@ func (h *WebHandler) buildNetworkMap(devices []*models.Device) *NetworkMapData {
 		IPRange: ipRange,
 		Devices: deviceMap,
 		NetworkInfo: &NetworkInfo{
-			OnlineDevices:  online,
+			OnlineDevices:  online + idle, // Count both online and idle as "online" for dashboard
 			IdleDevices:    idle,
 			OfflineDevices: offline,
 		},
@@ -1375,11 +1420,7 @@ func (h *WebHandler) APIScanStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log the event
-	network := h.scanManager.GetCurrentNetwork()
-	if network != nil {
-		h.eventLogService.Log(models.ScanStarted, fmt.Sprintf("Network scan started for %s (%s)", network.CIDR, network.Name), "")
-	}
+	// Note: Scan started event is logged by scan_manager.go to avoid duplicates
 
 	// Return updated scan control component
 	h.APIScanControl(w, r)
@@ -1410,7 +1451,7 @@ func (h *WebHandler) APIScanStop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log the event
-	h.eventLogService.Log(models.ScanStopped, "Network scan stopped by user", "")
+	h.eventLogService.Log(models.ScanStopped, "Network scan stopped", "")
 
 	// Return updated scan control component
 	h.APIScanControl(w, r)
@@ -1475,7 +1516,66 @@ func (h *WebHandler) APIScanControlWithError(w http.ResponseWriter, r *http.Requ
 }
 
 // APIScanSelectNetwork sets the selected network (without starting scan)
+// APIDashboardMetrics returns JSON data for dashboard metrics
+func (h *WebHandler) APIDashboardMetrics(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get current or selected network to determine which network to show
+	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
+	var devicesSlice []models.Device
+	var networkCIDR string = "N/A"
+	var err error
+
+	if currentNetwork != nil {
+		// Show devices from the currently selected/scanning network
+		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		if err != nil {
+			log.Printf("Error getting devices for dashboard metrics %s: %v", currentNetwork.ID, err)
+			devicesSlice = []models.Device{}
+		}
+		networkCIDR = currentNetwork.CIDR
+	} else {
+		// If no network is selected, show all devices
+		devicesSlice, err = h.deviceService.FindAll()
+		if err != nil {
+			log.Printf("Error getting all devices for dashboard metrics: %v", err)
+			devicesSlice = []models.Device{}
+		}
+	}
+
+	devices := make([]*models.Device, len(devicesSlice))
+	for i := range devicesSlice {
+		devices[i] = &devicesSlice[i]
+	}
+
+	networkMapData := h.buildNetworkMap(devices)
+
+	// Get system status for public IP
+	status, err := h.systemStatusService.GetLatest()
+	var publicIP string = "N/A"
+	if err == nil && status != nil && status.PublicIP != nil {
+		publicIP = *status.PublicIP
+	}
+
+	metrics := map[string]interface{}{
+		"networkRange":    networkCIDR,
+		"publicIP":        publicIP,
+		"devicesFound":    len(devices),
+		"devicesOnline":   networkMapData.NetworkInfo.OnlineDevices,
+		"devicesOffline":  networkMapData.NetworkInfo.OfflineDevices,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(metrics)
+}
+
 func (h *WebHandler) APIScanSelectNetwork(w http.ResponseWriter, r *http.Request) {
+	log.Println("APIScanSelectNetwork called")
 	session, _ := h.sessionStore.Get(r, "reconya-session")
 	user := h.getUserFromSession(session)
 	if user == nil {
@@ -1489,6 +1589,7 @@ func (h *WebHandler) APIScanSelectNetwork(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	log.Printf("Setting selected network to: %s", networkID)
 	err := h.scanManager.SetSelectedNetwork(networkID)
 	if err != nil {
 		if scanErr, ok := err.(*scan.ScanError); ok {
@@ -1504,6 +1605,8 @@ func (h *WebHandler) APIScanSelectNetwork(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	log.Println("APIScanSelectNetwork completed successfully")
+	w.Header().Set("HX-Trigger", "network-selected")
 	w.WriteHeader(http.StatusOK)
 }
 

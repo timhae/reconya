@@ -1,12 +1,13 @@
 package scan
 
 import (
+	"fmt"
+	"log"
 	"sync"
 	"time"
 	"reconya-ai/models"
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/network"
-	"log"
 )
 
 // ScanState represents the current state of the scanning system
@@ -41,11 +42,54 @@ func NewScanManager(pingSweepService *pingsweep.PingSweepService, networkService
 	}
 }
 
-// GetState returns the current scan state
+// GetState returns the current scan state with enriched data from database
 func (sm *ScanManager) GetState() ScanState {
 	sm.mutex.RLock()
-	defer sm.mutex.RUnlock()
-	return sm.state
+	state := sm.state
+	sm.mutex.RUnlock()
+	
+	// If not currently running, get last scan time from database
+	if !state.IsRunning {
+		state.ScanCount = sm.getTotalScanCount()
+		state.LastScanTime = sm.getLastScanTime()
+	}
+	
+	return state
+}
+
+// getTotalScanCount gets the total number of ping sweeps from the database
+func (sm *ScanManager) getTotalScanCount() int {
+	// Get recent ping sweep events to count scans
+	events, err := sm.pingSweepService.EventLogService.GetAll(100)
+	if err != nil {
+		return 0
+	}
+	
+	count := 0
+	for _, event := range events {
+		if event.Type == models.PingSweep && event.DurationSeconds != nil {
+			// Only count completed ping sweeps (those with duration)
+			count++
+		}
+	}
+	return count
+}
+
+// getLastScanTime gets the most recent ping sweep time from the database
+func (sm *ScanManager) getLastScanTime() *time.Time {
+	// Get recent events to find the last ping sweep
+	events, err := sm.pingSweepService.EventLogService.GetAll(50)
+	if err != nil {
+		return nil
+	}
+	
+	for _, event := range events {
+		if event.Type == models.PingSweep && event.DurationSeconds != nil {
+			// Return the time of the most recent completed ping sweep
+			return event.CreatedAt
+		}
+	}
+	return nil
 }
 
 // IsRunning returns whether a scan is currently running
@@ -124,7 +168,8 @@ func (sm *ScanManager) StartScan(networkID string) error {
 
 	// Log scan started event
 	err = sm.pingSweepService.EventLogService.CreateOne(&models.EventLog{
-		Type: models.ScanStarted,
+		Type:        models.ScanStarted,
+		Description: fmt.Sprintf("Network scan started (%s)", network.CIDR),
 	})
 	if err != nil {
 		log.Printf("Error creating scan started event log: %v", err)

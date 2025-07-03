@@ -28,7 +28,11 @@
         </thead>
         <tbody>
             {{range .Networks}}
-            <tr>
+            <tr class="network-row {{if and $.ScanState.SelectedNetwork (eq .ID $.ScanState.SelectedNetwork.ID)}}selected-network{{end}}"
+                hx-post="/api/scan/select-network"
+                hx-vals='{"network-id": "{{.ID}}"}'
+                hx-trigger="click"
+                data-network-id="{{.ID}}">
                 <td class="text-success">{{or .Name "Unnamed Network"}}</td>
                 <td class="text-success">{{.CIDR}}</td>
                 <td>

@@ -33,6 +33,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/devices/new-scan", h.APINewScan).Methods("GET")
 	api.HandleFunc("/targets", h.APITargets).Methods("GET")
 	api.HandleFunc("/system-status", h.APISystemStatus).Methods("GET")
+	api.HandleFunc("/dashboard-metrics", h.APIDashboardMetrics).Methods("GET")
 	api.HandleFunc("/event-logs", h.APIEventLogs).Methods("GET")
 	api.HandleFunc("/event-logs-table", h.APIEventLogsTable).Methods("GET")
 	api.HandleFunc("/network-map", h.APINetworkMap).Methods("GET")
