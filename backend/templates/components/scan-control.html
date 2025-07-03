@@ -8,18 +8,41 @@
 {{define "components/scan-control-inner.html"}}
 <!-- Scan Control Panel -->
 <div id="scan-control-content" class="bg-very-dark p-4">
-    <!-- CPU Status Widget -->
+    <!-- Hologram Status Widget -->
     <div class="d-flex align-items-center justify-content-center mb-3">
-        <div class="scan-widget-container {{if .ScanState.IsRunning}}scan-active-ring{{end}}" style="width: 70px; height: 70px; background: radial-gradient(circle, rgba(25,135,84,0.3) 0%, rgba(25,135,84,0.1) 50%, transparent 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
-            <!-- Spinning border when scanning -->
-            {{if .ScanState.IsRunning}}
-            <div class="scan-spinning-border" style="position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, var(--bs-success) 60deg, transparent 120deg, var(--bs-success) 180deg, transparent 240deg, var(--bs-success) 300deg, transparent 360deg); padding: 3px;">
-                <div style="width: 100%; height: 100%; background: var(--bs-dark); border-radius: 50%;"></div>
+        <div class="hologram-container {{if .ScanState.IsRunning}}hologram-active{{end}}" style="width: 80px; height: 80px; position: relative;">
+            <!-- Outer hologram ring -->
+            <div class="hologram-ring-outer {{if .ScanState.IsRunning}}hologram-ring-spinning{{end}}"></div>
+            
+            <!-- Middle hologram ring -->
+            <div class="hologram-ring-middle {{if .ScanState.IsRunning}}hologram-ring-spinning-reverse{{end}}"></div>
+            
+            <!-- Inner hologram core -->
+            <div class="hologram-core {{if .ScanState.IsRunning}}hologram-core-active{{end}}">
+                <!-- Hologram data streams -->
+                <div class="hologram-stream hologram-stream-1 {{if .ScanState.IsRunning}}hologram-stream-active{{end}}"></div>
+                <div class="hologram-stream hologram-stream-2 {{if .ScanState.IsRunning}}hologram-stream-active{{end}}"></div>
+                <div class="hologram-stream hologram-stream-3 {{if .ScanState.IsRunning}}hologram-stream-active{{end}}"></div>
+                <div class="hologram-stream hologram-stream-4 {{if .ScanState.IsRunning}}hologram-stream-active{{end}}"></div>
+                
+                <!-- Central hologram symbol -->
+                <div class="hologram-symbol {{if .ScanState.IsRunning}}hologram-symbol-active{{end}}">
+                    <div class="hologram-hexagon"></div>
+                    <div class="hologram-dots">
+                        <div class="hologram-dot"></div>
+                        <div class="hologram-dot"></div>
+                        <div class="hologram-dot"></div>
+                    </div>
+                </div>
             </div>
-            {{else}}
-            <div style="position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px; border: 2px solid var(--bs-success); border-radius: 50%;"></div>
+            
+            <!-- Hologram scan lines -->
+            <div class="hologram-scanlines {{if .ScanState.IsRunning}}hologram-scanlines-active{{end}}"></div>
+            
+            <!-- Hologram glitch effect -->
+            {{if .ScanState.IsRunning}}
+            <div class="hologram-glitch"></div>
             {{end}}
-            <i class="bi bi-cpu-fill text-success {{if .ScanState.IsRunning}}scan-active-icon{{end}}" style="font-size: 1.8rem; position: relative; z-index: 2;"></i>
         </div>
     </div>
 
@@ -120,50 +143,216 @@
 </div>
 
 <style>
-@keyframes pulse {
-    0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.1); }
-    100% { opacity: 1; transform: scale(1); }
+/* Hologram Container */
+.hologram-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-@keyframes scan-ring-pulse {
-    0% { 
-        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4);
-    }
-    70% {
-        box-shadow: 0 0 0 8px rgba(25, 135, 84, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
-    }
+/* Hologram Rings */
+.hologram-ring-outer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 2px solid rgba(25, 135, 84, 0.6);
+    border-radius: 50%;
+    border-style: dashed;
+    border-spacing: 5px;
 }
 
-@keyframes scan-icon-glow {
-    0%, 100% { 
-        opacity: 1;
-        filter: drop-shadow(0 0 2px rgba(25, 135, 84, 0.3));
-    }
-    50% { 
-        opacity: 0.8;
-        filter: drop-shadow(0 0 6px rgba(25, 135, 84, 0.6));
-    }
+.hologram-ring-middle {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    top: 10%;
+    left: 10%;
+    border: 1px solid rgba(25, 135, 84, 0.8);
+    border-radius: 50%;
+    border-top: 1px solid rgba(25, 135, 84, 1);
+    border-right: 1px solid transparent;
 }
 
-@keyframes spin-border {
+/* Hologram Core */
+.hologram-core {
+    position: absolute;
+    width: 60%;
+    height: 60%;
+    top: 20%;
+    left: 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(25, 135, 84, 0.1) 0%, transparent 70%);
+}
+
+/* Hologram Streams */
+.hologram-stream {
+    position: absolute;
+    width: 2px;
+    height: 20px;
+    background: linear-gradient(to bottom, rgba(25, 135, 84, 1), transparent);
+    opacity: 0.7;
+}
+
+.hologram-stream-1 { transform: rotate(0deg) translateY(-25px); }
+.hologram-stream-2 { transform: rotate(90deg) translateY(-25px); }
+.hologram-stream-3 { transform: rotate(180deg) translateY(-25px); }
+.hologram-stream-4 { transform: rotate(270deg) translateY(-25px); }
+
+/* Hologram Symbol */
+.hologram-symbol {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hologram-hexagon {
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    border: 1px solid rgba(25, 135, 84, 0.8);
+    transform: rotate(45deg);
+    border-radius: 2px;
+}
+
+.hologram-dots {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.hologram-dot {
+    width: 2px;
+    height: 2px;
+    background: rgba(25, 135, 84, 1);
+    border-radius: 50%;
+    position: absolute;
+    box-shadow: 0 0 3px rgba(25, 135, 84, 0.8);
+}
+
+.hologram-dot:nth-child(1) { top: -4px; left: -1px; }
+.hologram-dot:nth-child(2) { top: 2px; left: -4px; }
+.hologram-dot:nth-child(3) { top: 2px; left: 2px; }
+
+/* Hologram Scan Lines */
+.hologram-scanlines {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(25, 135, 84, 0.1) 2px,
+        rgba(25, 135, 84, 0.1) 4px
+    );
+    opacity: 0.3;
+}
+
+/* Hologram Glitch */
+.hologram-glitch {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(25, 135, 84, 0.1);
+    animation: hologram-glitch-effect 3s infinite;
+}
+
+/* Animations */
+@keyframes hologram-ring-spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-.scan-active-ring {
-    animation: scan-ring-pulse 2s infinite ease-out;
+@keyframes hologram-ring-spin-reverse {
+    0% { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
 }
 
-.scan-active-icon {
-    animation: scan-icon-glow 1.5s infinite ease-in-out;
+@keyframes hologram-core-pulse {
+    0%, 100% { 
+        background: radial-gradient(circle, rgba(25, 135, 84, 0.1) 0%, transparent 70%);
+        box-shadow: inset 0 0 20px rgba(25, 135, 84, 0.2);
+    }
+    50% { 
+        background: radial-gradient(circle, rgba(25, 135, 84, 0.3) 0%, transparent 70%);
+        box-shadow: inset 0 0 30px rgba(25, 135, 84, 0.4);
+    }
 }
 
-.scan-spinning-border {
-    animation: spin-border 3s linear infinite;
+@keyframes hologram-stream-flicker {
+    0%, 100% { opacity: 0.7; height: 20px; }
+    25% { opacity: 1; height: 25px; }
+    50% { opacity: 0.8; height: 15px; }
+    75% { opacity: 0.9; height: 22px; }
+}
+
+@keyframes hologram-symbol-glow {
+    0%, 100% { 
+        filter: drop-shadow(0 0 5px rgba(25, 135, 84, 0.6));
+        transform: scale(1);
+    }
+    50% { 
+        filter: drop-shadow(0 0 10px rgba(25, 135, 84, 1));
+        transform: scale(1.1);
+    }
+}
+
+@keyframes hologram-scanlines-sweep {
+    0% { transform: translateY(-100%); opacity: 0; }
+    50% { opacity: 0.6; }
+    100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes hologram-glitch-effect {
+    0%, 95% { opacity: 0; }
+    96% { opacity: 0.2; transform: translateX(1px); }
+    97% { opacity: 0.1; transform: translateX(-1px); }
+    98% { opacity: 0.3; transform: translateX(0px); }
+    99% { opacity: 0; transform: translateX(1px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+/* Active states */
+.hologram-ring-spinning {
+    animation: hologram-ring-spin 4s linear infinite;
+}
+
+.hologram-ring-spinning-reverse {
+    animation: hologram-ring-spin-reverse 6s linear infinite;
+}
+
+.hologram-core-active {
+    animation: hologram-core-pulse 2s ease-in-out infinite;
+}
+
+.hologram-stream-active {
+    animation: hologram-stream-flicker 1.5s ease-in-out infinite;
+}
+
+.hologram-symbol-active {
+    animation: hologram-symbol-glow 2.5s ease-in-out infinite;
+}
+
+.hologram-scanlines-active {
+    animation: hologram-scanlines-sweep 3s ease-in-out infinite;
+}
+
+/* Idle state - subtle glow */
+.hologram-container:not(.hologram-active) .hologram-ring-outer {
+    box-shadow: 0 0 10px rgba(25, 135, 84, 0.2);
+}
+
+.hologram-container:not(.hologram-active) .hologram-symbol {
+    filter: drop-shadow(0 0 3px rgba(25, 135, 84, 0.4));
 }
 </style>
 

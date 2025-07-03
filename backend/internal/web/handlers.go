@@ -135,12 +135,12 @@ func NewWebHandler(
 		},
 		"deref": func(ptr interface{}) interface{} {
 			if ptr == nil {
-				return ""
+				return "-"
 			}
 			switch v := ptr.(type) {
 			case *string:
 				if v == nil {
-					return ""
+					return "-"
 				}
 				return *v
 			case *time.Time:
@@ -545,8 +545,15 @@ func (h *WebHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data := PageData{Page: "login"}
-		log.Printf("Executing standalone login template with data: %+v", data)
+		data := struct {
+			Page     string
+			Error    string
+			Username string
+		}{
+			Page:     "login",
+			Error:    "",
+			Username: "",
+		}
 		if err := loginTmpl.Execute(w, data); err != nil {
 			log.Printf("Template execution error: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -568,7 +575,11 @@ func (h *WebHandler) Login(w http.ResponseWriter, r *http.Request) {
 		// Redirect to home page after successful login
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	} else {
-		data := PageData{
+		data := struct {
+			Page     string
+			Error    string
+			Username string
+		}{
 			Page:     "login",
 			Error:    "Invalid username or password",
 			Username: username,
@@ -1135,10 +1146,15 @@ func (h *WebHandler) APINetworks(w http.ResponseWriter, r *http.Request) {
 		networks[i] = &networksSlice[i]
 	}
 
+	// Get scan state for network selection highlighting
+	scanState := h.scanManager.GetState()
+	
 	data := struct {
-		Networks []*models.Network
+		Networks  []*models.Network
+		ScanState *scan.ScanState
 	}{
-		Networks: networks,
+		Networks:  networks,
+		ScanState: &scanState,
 	}
 
 	if err := h.templates.ExecuteTemplate(w, "components/network-list.html", data); err != nil {

@@ -31,9 +31,9 @@
             {{range .Devices}}
             <tr hx-get="/api/devices/{{.ID}}/modal" hx-target="#device-modal-content" hx-trigger="click" style="cursor: pointer;">
                 <td>{{.IPv4}}</td>
-                <td>{{or .Name .Hostname "Unknown"}}</td>
-                <td>{{or .MAC "N/A"}}</td>
-                <td>{{or .Vendor "N/A"}}</td>
+                <td>{{or .Name (deref .Hostname) "-"}}</td>
+                <td>{{deref .MAC}}</td>
+                <td>{{deref .Vendor}}</td>
                 <td>
                     {{if .OS}}{{if contains .OS.Name "Windows"}}Windows{{else if contains .OS.Name "Linux"}}Linux{{else if contains .OS.Name "macOS"}}macOS{{else if contains .OS.Name "Android"}}Android{{else if contains .OS.Name "iOS"}}iOS{{else}}{{.OS.Name}}{{end}}{{else}}Unknown{{end}}
                 </td>

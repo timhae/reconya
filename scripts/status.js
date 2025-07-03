@@ -75,9 +75,9 @@ class StatusChecker {
         Utils.log.warning('Backend web interface: connection failed');
       }
 
-      // Test backend API
+      // Test backend API (using login endpoint which doesn't require auth)
       try {
-        const apiWorking = await this.testAPI('http://localhost:3008/api/system-status');
+        const apiWorking = await this.testHTTP('http://localhost:3008/login');
         if (apiWorking) {
           Utils.log.success('Backend API: responding');
         } else {
@@ -109,11 +109,7 @@ class StatusChecker {
         const envContent = fs.readFileSync(envPath, 'utf8');
         const envVars = this.parseEnvFile(envContent);
         
-        if (envVars.NETWORK_RANGE) {
-          Utils.log.success(`Network range: ${envVars.NETWORK_RANGE}`);
-        } else {
-          Utils.log.warning('Network range: not configured');
-        }
+        // Network ranges are now configured via web interface, not .env
         
         if (envVars.LOGIN_USERNAME) {
           Utils.log.success(`Login username: ${envVars.LOGIN_USERNAME}`);

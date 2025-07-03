@@ -39,7 +39,7 @@
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Name</td>
                     <td>
-                        <span id="name-display">{{or .Name (deref .Hostname) "Unknown"}}</span>
+                        <span id="name-display">{{or .Name (deref .Hostname) "-"}}</span>
                         <input type="text" id="name-edit" class="form-control form-control-sm bg-dark text-success border-success" 
                                value="{{or .Name (deref .Hostname)}}" placeholder="Device name" style="display: none;">
                     </td>
@@ -47,18 +47,18 @@
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Comment</td>
                     <td>
-                        <span id="comment-display">{{or (deref .Comment) "No comment"}}</span>
+                        <span id="comment-display">{{or (deref .Comment) "-"}}</span>
                         <textarea id="comment-edit" class="form-control form-control-sm bg-dark text-success border-success" 
                                   rows="3" placeholder="Add a comment about this device" style="display: none;">{{deref .Comment}}</textarea>
                     </td>
                 </tr>
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Hostname</td>
-                    <td>{{or (deref .Hostname) "Unknown"}}</td>
+                    <td>{{deref .Hostname}}</td>
                 </tr>
                 <tr>
                     <td class="w-25 ps-2 fw-bold">H/W vendor</td>
-                    <td>{{or (deref .Vendor) "Unknown"}}</td>
+                    <td>{{deref .Vendor}}</td>
                 </tr>
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Device Type</td>
@@ -79,7 +79,7 @@
                 {{end}}
                 <tr>
                     <td class="w-25 ps-2 fw-bold">MAC Address</td>
-                    <td>{{or (deref .MAC) "Unknown"}}</td>
+                    <td>{{deref .MAC}}</td>
                 </tr>
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Status</td>
