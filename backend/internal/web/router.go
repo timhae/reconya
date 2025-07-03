@@ -51,6 +51,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/scan/start", h.APIScanStart).Methods("POST")
 	api.HandleFunc("/scan/stop", h.APIScanStop).Methods("POST")
 	api.HandleFunc("/scan/control", h.APIScanControl).Methods("GET")
+	api.HandleFunc("/scan/select-network", h.APIScanSelectNetwork).Methods("POST")
 
 	// 404 handler
 	r.NotFoundHandler = http.HandlerFunc(h.NotFound)

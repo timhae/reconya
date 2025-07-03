@@ -10,8 +10,16 @@
 <div id="scan-control-content" class="bg-very-dark p-4">
     <!-- CPU Status Widget -->
     <div class="d-flex align-items-center justify-content-center mb-3">
-        <div style="width: 70px; height: 70px; background: radial-gradient(circle, rgba(25,135,84,0.3) 0%, rgba(25,135,84,0.1) 50%, transparent 100%); border: 2px solid var(--bs-success); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-            <i class="bi bi-cpu-fill text-success {{if .ScanState.IsRunning}}traffic-core-breathing{{end}}" style="font-size: 1.8rem;"></i>
+        <div class="scan-widget-container {{if .ScanState.IsRunning}}scan-active-ring{{end}}" style="width: 70px; height: 70px; background: radial-gradient(circle, rgba(25,135,84,0.3) 0%, rgba(25,135,84,0.1) 50%, transparent 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
+            <!-- Spinning border when scanning -->
+            {{if .ScanState.IsRunning}}
+            <div class="scan-spinning-border" style="position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, var(--bs-success) 60deg, transparent 120deg, var(--bs-success) 180deg, transparent 240deg, var(--bs-success) 300deg, transparent 360deg); padding: 3px;">
+                <div style="width: 100%; height: 100%; background: var(--bs-dark); border-radius: 50%;"></div>
+            </div>
+            {{else}}
+            <div style="position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px; border: 2px solid var(--bs-success); border-radius: 50%;"></div>
+            {{end}}
+            <i class="bi bi-cpu-fill text-success {{if .ScanState.IsRunning}}scan-active-icon{{end}}" style="font-size: 1.8rem; position: relative; z-index: 2;"></i>
         </div>
     </div>
 
@@ -25,8 +33,8 @@
             <option value="">Select Network</option>
             {{range .Networks}}
             <option value="{{.ID}}" 
-                    {{if and $.ScanState.CurrentNetwork (eq .ID $.ScanState.CurrentNetwork.ID)}}selected{{end}}>
-                {{if .Name}}{{.Name}}{{else}}{{.CIDR}}{{end}}
+                    {{if or (and $.ScanState.CurrentNetwork (eq .ID $.ScanState.CurrentNetwork.ID)) (and $.ScanState.SelectedNetwork (eq .ID $.ScanState.SelectedNetwork.ID))}}selected{{end}}>
+                {{if .Name}}{{.Name}} - {{.CIDR}}{{else}}{{.CIDR}}{{end}}
             </option>
             {{end}}
         </select>
@@ -72,10 +80,12 @@
                     {{if not .Networks}}disabled{{end}}>
                 <i class="bi bi-play-fill me-1"></i>Start
             </button>
-            <a href="#" class="btn btn-outline-secondary btn-sm" 
-               data-page="networks">
+            <button class="btn btn-outline-secondary btn-sm"
+                    hx-get="/api/network-modal"
+                    hx-target="#network-modal-content"
+                    hx-trigger="click">
                 <i class="bi bi-plus-circle me-1"></i>Add Network
-            </a>
+            </button>
         {{end}}
     </div>
 
@@ -127,6 +137,46 @@
     50% { opacity: 0.7; transform: scale(1.1); }
     100% { opacity: 1; transform: scale(1); }
 }
+
+@keyframes scan-ring-pulse {
+    0% { 
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(25, 135, 84, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+@keyframes scan-icon-glow {
+    0%, 100% { 
+        opacity: 1;
+        filter: drop-shadow(0 0 2px rgba(25, 135, 84, 0.3));
+    }
+    50% { 
+        opacity: 0.8;
+        filter: drop-shadow(0 0 6px rgba(25, 135, 84, 0.6));
+    }
+}
+
+@keyframes spin-border {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.scan-active-ring {
+    animation: scan-ring-pulse 2s infinite ease-out;
+}
+
+.scan-active-icon {
+    animation: scan-icon-glow 1.5s infinite ease-in-out;
+}
+
+.scan-spinning-border {
+    animation: spin-border 3s linear infinite;
+}
 </style>
 
 <script>
@@ -135,7 +185,6 @@ document.addEventListener('htmx:afterRequest', function(event) {
     if (event.detail.target.id === 'scan-control-container') {
         // Refresh other components after scan state changes
         setTimeout(() => {
-            htmx.ajax('GET', '/api/system-status', { target: '#system-status-container' });
             htmx.ajax('GET', '/api/event-logs', { target: '#event-logs' });
         }, 500);
     }
@@ -147,6 +196,21 @@ document.addEventListener('change', function(event) {
         const startBtn = document.getElementById('start-scan-btn');
         if (startBtn) {
             startBtn.disabled = event.target.value === '';
+        }
+        
+        // Update selected network and refresh components
+        if (event.target.value !== '') {
+            fetch('/api/scan/select-network', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'network-id=' + encodeURIComponent(event.target.value)
+            }).then(() => {
+                // Refresh network map, devices, and system status
+                htmx.ajax('GET', '/api/network-map', { target: '#network-map' });
+                htmx.ajax('GET', '/api/devices', { target: '#devices-container' });
+            });
         }
     }
 });

@@ -553,13 +553,24 @@ func (h *WebHandler) APIDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	devicesSlice, err := h.deviceService.FindAll()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// Get current or selected network to determine which network to show
+	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
+	var devicesSlice []models.Device
+	var err error
+
+	if currentNetwork != nil {
+		// Show devices from the currently selected/scanning network
+		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		if err != nil {
+			log.Printf("Error getting devices for network %s: %v", currentNetwork.ID, err)
+			devicesSlice = []models.Device{}
+		}
+	} else {
+		// If no network is selected, show empty list
+		devicesSlice = []models.Device{}
 	}
 
-	// Show all devices with visual status indicators
+	// Show devices with visual status indicators
 	devices := make([]*models.Device, len(devicesSlice))
 	for i := range devicesSlice {
 		devices[i] = &devicesSlice[i]
@@ -658,10 +669,23 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 		log.Printf("SystemStatus found: NetworkID=%s", status.NetworkID)
 	}
 
-	devicesSlice, err := h.deviceService.FindAll()
-	if err != nil {
-		log.Printf("Error getting devices for system status: %v", err)
-		devicesSlice = []models.Device{} // Ensure it's an empty slice, not nil
+	// Get current or selected network to determine which network to show
+	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
+	scanState := h.scanManager.GetState()
+	var devicesSlice []models.Device
+	var networkCIDR string = "N/A"
+
+	if currentNetwork != nil {
+		// Show devices from the currently selected/scanning network
+		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		if err != nil {
+			log.Printf("Error getting devices for system status %s: %v", currentNetwork.ID, err)
+			devicesSlice = []models.Device{}
+		}
+		networkCIDR = currentNetwork.CIDR
+	} else {
+		// If no network is selected, show empty data
+		devicesSlice = []models.Device{}
 	}
 
 	devices := make([]*models.Device, len(devicesSlice))
@@ -670,16 +694,6 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	networkMapData := h.buildNetworkMap(devices)
-
-	// Get the network CIDR from the current scan network
-	var networkCIDR string = "N/A"
-	currentNetwork := h.scanManager.GetCurrentNetwork()
-	if currentNetwork != nil {
-		networkCIDR = currentNetwork.CIDR
-	}
-
-	// Get scan state
-	scanState := h.scanManager.GetState()
 
 	data := struct {
 		SystemStatus *models.SystemStatus
@@ -772,10 +786,21 @@ func (h *WebHandler) APINetworkMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	devicesSlice, err := h.deviceService.FindAll()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// Get current or selected network to determine which network to show
+	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
+	var devicesSlice []models.Device
+	var err error
+
+	if currentNetwork != nil {
+		// Show devices from the currently selected/scanning network
+		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		if err != nil {
+			log.Printf("Error getting devices for network map %s: %v", currentNetwork.ID, err)
+			devicesSlice = []models.Device{}
+		}
+	} else {
+		// If no network is selected, show empty map
+		devicesSlice = []models.Device{}
 	}
 
 	devices := make([]*models.Device, len(devicesSlice))
@@ -1175,20 +1200,11 @@ func (h *WebHandler) APICreateNetwork(w http.ResponseWriter, r *http.Request) {
 	// Log the event
 	h.eventLogService.Log(models.NetworkCreated, fmt.Sprintf("Network %s (%s) created", network.CIDR, network.Name), "")
 
-	// Return success message that will trigger the frontend to close modal and refresh
+	// Return success indicator that will trigger the frontend to handle the response
 	w.Header().Set("HX-Trigger", "network-saved")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`<div class="alert alert-success">
-		<i class="bi bi-check-circle me-2"></i>
-		Network created successfully!
-	</div>
-	<script>
-		setTimeout(function() {
-			const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
-			if (modal) modal.hide();
-			htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
-		}, 1000);
-	</script>`))
+	// Return empty response - frontend will handle the success message
+	w.Write([]byte(""))
 }
 
 func (h *WebHandler) APIUpdateNetwork(w http.ResponseWriter, r *http.Request) {
@@ -1234,20 +1250,11 @@ func (h *WebHandler) APIUpdateNetwork(w http.ResponseWriter, r *http.Request) {
 	// Log the event
 	h.eventLogService.Log(models.NetworkUpdated, fmt.Sprintf("Network %s (%s) updated", network.CIDR, network.Name), "")
 
-	// Return success message that will trigger the frontend to close modal and refresh
+	// Return success indicator that will trigger the frontend to handle the response
 	w.Header().Set("HX-Trigger", "network-saved")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`<div class="alert alert-success">
-		<i class="bi bi-check-circle me-2"></i>
-		Network updated successfully!
-	</div>
-	<script>
-		setTimeout(function() {
-			const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
-			if (modal) modal.hide();
-			htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
-		}, 1000);
-	</script>`))
+	// Return empty response - frontend will handle the success message
+	w.Write([]byte(""))
 }
 
 func (h *WebHandler) APIDeleteNetwork(w http.ResponseWriter, r *http.Request) {
@@ -1465,5 +1472,38 @@ func (h *WebHandler) APIScanControlWithError(w http.ResponseWriter, r *http.Requ
 		log.Printf("Error rendering scan control template: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// APIScanSelectNetwork sets the selected network (without starting scan)
+func (h *WebHandler) APIScanSelectNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	networkID := r.FormValue("network-id")
+	if networkID == "" {
+		http.Error(w, "Network ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.scanManager.SetSelectedNetwork(networkID)
+	if err != nil {
+		if scanErr, ok := err.(*scan.ScanError); ok {
+			switch scanErr.Type {
+			case scan.NetworkNotFound:
+				http.Error(w, scanErr.Message, http.StatusNotFound)
+			default:
+				http.Error(w, scanErr.Message, http.StatusBadRequest)
+			}
+		} else {
+			http.Error(w, fmt.Sprintf("Failed to select network: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 

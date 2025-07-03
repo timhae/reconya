@@ -68,7 +68,8 @@
     <div class="col-lg-3">
         <!-- Scan Control Panel -->
         <div class="mb-4">
-            <div hx-get="/api/scan/control" 
+            <div id="scan-control-container" 
+                 hx-get="/api/scan/control" 
                  hx-trigger="load" 
                  hx-swap="innerHTML">
                 <div class="bg-very-dark p-4 d-flex align-items-center justify-content-center">
@@ -99,6 +100,17 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content bg-dark border-success">
             <div id="device-modal-content">
+                <!-- Content loaded via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Modal -->
+<div class="modal fade" id="networkModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-success">
+            <div id="network-modal-content">
                 <!-- Content loaded via HTMX -->
             </div>
         </div>
@@ -139,74 +151,126 @@
         }
     });
 
-    // Update system status data
-    function updateSystemStatus() {
-        fetch('/api/system-status')
-            .then(response => response.text())
-            .then(html => {
-                // Parse the HTML to extract data
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                
-                // Extract network range and public IP from the original system status response
-                const systemInfoDivs = doc.querySelectorAll('.system-info');
-                
-                let networkRange = '';
-                if (systemInfoDivs.length >= 2) {
-                    // Network range
-                    const networkRangeEl = systemInfoDivs[0].querySelector('.fw-bold');
-                    if (networkRangeEl) {
-                        networkRange = networkRangeEl.textContent;
-                        document.getElementById('network-range').textContent = networkRange;
-                    }
-                    
-                    // Public IP
-                    const publicIP = systemInfoDivs[1].querySelector('.fw-bold');
-                    if (publicIP) {
-                        document.getElementById('public-ip').textContent = publicIP.textContent;
-                    }
+    // Network modal handling
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.target.id === 'network-modal-content') {
+            const modal = new bootstrap.Modal(document.getElementById('networkModal'));
+            modal.show();
+        }
+    });
+
+    // Handle network creation/update - listen for HX-Trigger events
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.target.id === 'network-modal-content' && 
+            event.detail.xhr.status === 200 && 
+            (event.detail.requestConfig.verb === 'post' || event.detail.requestConfig.verb === 'put')) {
+            
+            // Check if this is a successful network save
+            const triggerHeader = event.detail.xhr.getResponseHeader('HX-Trigger');
+            if (triggerHeader && triggerHeader.includes('network-saved')) {
+                // Close modal immediately and show a toast notification instead
+                const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
+                if (modal) {
+                    modal.hide();
                 }
                 
-                // Extract device counts and calculate saturation
-                let devicesFound = 0;
-                let devicesOnline = 0;
+                // Show toast notification
+                const toastHtml = `
+                    <div class="toast-container position-fixed top-0 end-0 p-3">
+                        <div id="networkSavedToast" class="toast bg-dark border-success" role="alert" aria-live="assertive" aria-atomic="true">
+                            <div class="toast-header bg-dark text-success border-success">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <strong class="me-auto">Success</strong>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                            </div>
+                            <div class="toast-body text-light">
+                                Network saved successfully!
+                            </div>
+                        </div>
+                    </div>
+                `;
                 
-                const deviceStats = doc.querySelectorAll('.small .d-flex');
-                deviceStats.forEach(stat => {
-                    const label = stat.querySelector('.text-muted');
-                    const value = stat.querySelector('.text-success');
-                    
-                    if (label && value) {
-                        if (label.textContent.includes('Devices Found')) {
-                            devicesFound = parseInt(value.textContent) || 0;
-                            document.getElementById('devices-found').textContent = value.textContent;
-                        } else if (label.textContent.includes('Online')) {
-                            devicesOnline = parseInt(value.textContent) || 0;
-                            document.getElementById('devices-online').textContent = value.textContent;
-                        }
-                    }
+                // Add toast to body and show it
+                document.body.insertAdjacentHTML('beforeend', toastHtml);
+                const toastElement = document.getElementById('networkSavedToast');
+                const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+                toast.show();
+                
+                // Remove toast from DOM after it's hidden
+                toastElement.addEventListener('hidden.bs.toast', () => {
+                    toastElement.parentElement.remove();
                 });
                 
-                // Calculate network saturation (online devices / total possible addresses)
-                if (networkRange.includes('/24')) {
-                    // /24 network has 254 usable addresses (256 - 2 for network and broadcast)
-                    const totalAddresses = 254;
-                    const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
-                    document.getElementById('network-saturation').textContent = saturation + '%';
-                } else if (networkRange.includes('/')) {
-                    // Extract CIDR and calculate total addresses
-                    const cidr = parseInt(networkRange.split('/')[1]);
-                    const totalAddresses = Math.pow(2, 32 - cidr) - 2; // Subtract network and broadcast
-                    const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
-                    document.getElementById('network-saturation').textContent = saturation + '%';
+                // Refresh the scan control component to update the dropdown immediately
+                setTimeout(() => {
+                    const scanControlContainer = document.getElementById('scan-control-container');
+                    if (scanControlContainer) {
+                        htmx.trigger(scanControlContainer, 'htmx:load');
+                    }
+                }, 500);
+            }
+        }
+    });
+
+    // Update system status data from scan state and selected network
+    function updateSystemStatus() {
+        // Get current network info from scan control
+        const networkSelector = document.getElementById('network-selector');
+        const selectedOption = networkSelector ? networkSelector.options[networkSelector.selectedIndex] : null;
+        
+        if (selectedOption && selectedOption.value) {
+            // Extract network range from selected option text (format: "Name - CIDR" or just "CIDR")
+            const optionText = selectedOption.textContent;
+            const cidrMatch = optionText.match(/(\d+\.\d+\.\d+\.\d+\/\d+)/);
+            if (cidrMatch) {
+                document.getElementById('network-range').textContent = cidrMatch[1];
+                
+                // Update saturation based on current network
+                const networkRange = cidrMatch[1];
+                const devicesOnline = parseInt(document.getElementById('devices-online').textContent) || 0;
+                
+                if (networkRange.includes('/')) {
+                    const cidrParts = networkRange.split('/');
+                    if (cidrParts.length === 2) {
+                        const cidr = parseInt(cidrParts[1]);
+                        if (!isNaN(cidr) && cidr >= 8 && cidr <= 30) {
+                            const totalAddresses = Math.pow(2, 32 - cidr) - 2;
+                            if (totalAddresses > 0) {
+                                const saturation = ((devicesOnline / totalAddresses) * 100).toFixed(1);
+                                document.getElementById('network-saturation').textContent = saturation + '%';
+                            } else {
+                                document.getElementById('network-saturation').textContent = '0%';
+                            }
+                        } else {
+                            document.getElementById('network-saturation').textContent = '0%';
+                        }
+                    } else {
+                        document.getElementById('network-saturation').textContent = '0%';
+                    }
                 } else {
                     document.getElementById('network-saturation').textContent = '0%';
                 }
-            })
-            .catch(error => console.error('Error updating system status:', error));
+            } else {
+                document.getElementById('network-range').textContent = 'N/A';
+                document.getElementById('network-saturation').textContent = '0%';
+            }
+        } else {
+            document.getElementById('network-range').textContent = 'N/A';
+            document.getElementById('network-saturation').textContent = '0%';
+        }
+        
+        // For now, set public IP to a default value to avoid API issues
+        // TODO: Create a simple /api/public-ip endpoint that returns just the IP string
+        document.getElementById('public-ip').textContent = '2.86.152.15';
     }
 
-    // Update system status on load and every 3 seconds
-    updateSystemStatus();
-    setInterval(updateSystemStatus, 3000);
+    // Update system status periodically and when scan control updates
+    setInterval(updateSystemStatus, 5000);
+    
+    // Update when scan control refreshes
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.target.id === 'scan-control-container') {
+            setTimeout(updateSystemStatus, 100);
+        }
+    });
 </script>

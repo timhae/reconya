@@ -297,6 +297,27 @@ func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
 	return device, nil
 }
 
+func (s *DeviceService) FindByNetworkID(networkID string) ([]models.Device, error) {
+	ctx := context.Background()
+	devices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter devices by network ID
+	var filteredDevices []models.Device
+	for _, d := range devices {
+		if d.NetworkID == networkID {
+			filteredDevices = append(filteredDevices, *d)
+		}
+	}
+
+	// Sort devices by IP address
+	sortDevicesByIP(filteredDevices)
+
+	return filteredDevices, nil
+}
+
 func (s *DeviceService) FindAllForNetwork(cidr string) ([]models.Device, error) {
 	var deviceValues []models.Device
 

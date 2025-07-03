@@ -14,6 +14,7 @@ type ScanState struct {
 	IsRunning       bool              `json:"is_running"`
 	IsStopping      bool              `json:"is_stopping"`
 	CurrentNetwork  *models.Network   `json:"current_network"`
+	SelectedNetwork *models.Network   `json:"selected_network"`
 	StartTime       *time.Time        `json:"start_time"`
 	LastScanTime    *time.Time        `json:"last_scan_time"`
 	ScanCount       int               `json:"scan_count"`
@@ -61,6 +62,36 @@ func (sm *ScanManager) GetCurrentNetwork() *models.Network {
 	return sm.state.CurrentNetwork
 }
 
+// SetSelectedNetwork sets the network that's selected in the UI (even when not scanning)
+func (sm *ScanManager) SetSelectedNetwork(networkID string) error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	// Get the network
+	network, err := sm.networkService.FindByID(networkID)
+	if err != nil {
+		return &ScanError{Type: NetworkNotFound, Message: "Network not found"}
+	}
+	if network == nil {
+		return &ScanError{Type: NetworkNotFound, Message: "Network not found"}
+	}
+
+	// Update selected network
+	sm.state.SelectedNetwork = network
+	return nil
+}
+
+// GetSelectedOrCurrentNetwork returns the selected network if not scanning, or current network if scanning
+func (sm *ScanManager) GetSelectedOrCurrentNetwork() *models.Network {
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+	
+	if sm.state.IsRunning && sm.state.CurrentNetwork != nil {
+		return sm.state.CurrentNetwork
+	}
+	return sm.state.SelectedNetwork
+}
+
 // StartScan starts scanning the specified network
 func (sm *ScanManager) StartScan(networkID string) error {
 	sm.mutex.Lock()
@@ -83,12 +114,21 @@ func (sm *ScanManager) StartScan(networkID string) error {
 	now := time.Now()
 	sm.state.IsRunning = true
 	sm.state.CurrentNetwork = network
+	sm.state.SelectedNetwork = network  // Also update selected network
 	sm.state.StartTime = &now
 	sm.state.ScanCount = 0
 
 	// Create channels for communication
 	sm.stopChannel = make(chan bool)
 	sm.done = make(chan bool)
+
+	// Log scan started event
+	err = sm.pingSweepService.EventLogService.CreateOne(&models.EventLog{
+		Type: models.ScanStarted,
+	})
+	if err != nil {
+		log.Printf("Error creating scan started event log: %v", err)
+	}
 
 	// Start the scanning goroutine
 	go sm.runScanLoop()
@@ -165,6 +205,14 @@ func (sm *ScanManager) runSingleScan() {
 	}
 
 	log.Printf("Running scan on network: %s", network.CIDR)
+	
+	// Log ping sweep started event
+	err := sm.pingSweepService.EventLogService.CreateOne(&models.EventLog{
+		Type: models.PingSweep,
+	})
+	if err != nil {
+		log.Printf("Error creating ping sweep started event log: %v", err)
+	}
 	
 	// Execute the ping sweep with the current network
 	devices, err := sm.pingSweepService.ExecuteSweepScanCommand(network.CIDR)
