@@ -65,6 +65,48 @@ func runDeviceUpdater(service *device.DeviceService, done <-chan bool) {
 	}
 }
 
+func runGeolocationCacheCleanup(repo *db.GeolocationRepository, done <-chan bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			errorLogger.Printf("Geolocation cache cleanup panic recovered: %v", r)
+			errorLogger.Printf("Cache cleanup stack trace: %s", debug.Stack())
+		}
+		infoLogger.Println("Geolocation cache cleanup service stopped")
+	}()
+
+	// Run cleanup every 6 hours
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+
+	infoLogger.Println("Geolocation cache cleanup service started")
+	
+	// Run initial cleanup
+	ctx := context.Background()
+	if err := repo.CleanupExpired(ctx); err != nil {
+		errorLogger.Printf("Initial geolocation cache cleanup failed: %v", err)
+	}
+
+	for {
+		select {
+		case <-done:
+			infoLogger.Println("Geolocation cache cleanup received shutdown signal")
+			return
+		case <-ticker.C:
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						errorLogger.Printf("Cache cleanup iteration panic: %v", r)
+					}
+				}()
+				
+				if err := repo.CleanupExpired(ctx); err != nil {
+					errorLogger.Printf("Geolocation cache cleanup failed: %v", err)
+				}
+			}()
+		}
+	}
+}
+
 // Global loggers for different output streams
 var (
 	infoLogger  = log.New(os.Stdout, "", log.LstdFlags)
@@ -136,6 +178,7 @@ func main() {
 	deviceRepo := repoFactory.NewDeviceRepository()
 	eventLogRepo := repoFactory.NewEventLogRepository()
 	systemStatusRepo := repoFactory.NewSystemStatusRepository()
+	geolocationRepo := repoFactory.NewGeolocationRepository()
 
 	// Create database manager for concurrent access control
 	dbManager := db.NewDBManager()
@@ -174,10 +217,13 @@ func main() {
 	// nicService.Identify()
 	// Remove automatic ping sweep - now controlled by scan manager
 	go runDeviceUpdater(deviceService, done)
+	
+	// Start geolocation cache cleanup routine
+	go runGeolocationCacheCleanup(geolocationRepo, done)
 
 	// Initialize web handlers for HTMX frontend
 	sessionSecret := "your-secret-key-here-replace-in-production"
-	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, cfg, sessionSecret)
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, geolocationRepo, cfg, sessionSecret)
 	router := webHandler.SetupRoutes()
 	loggedRouter := middleware.LoggingMiddleware(router)
 

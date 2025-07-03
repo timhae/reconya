@@ -269,6 +269,40 @@ func InitializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create index on web_services.device_id: %w", err)
 	}
 
+	// Create geolocation_cache table
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS geolocation_cache (
+		id TEXT PRIMARY KEY,
+		ip TEXT NOT NULL UNIQUE,
+		city TEXT,
+		region TEXT,
+		country TEXT,
+		country_code TEXT,
+		latitude REAL,
+		longitude REAL,
+		timezone TEXT,
+		isp TEXT,
+		source TEXT NOT NULL DEFAULT 'api',
+		created_at TIMESTAMP NOT NULL,
+		updated_at TIMESTAMP NOT NULL,
+		expires_at TIMESTAMP NOT NULL
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create geolocation_cache table: %w", err)
+	}
+
+	// Create index on IP for geolocation cache
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_geolocation_cache_ip ON geolocation_cache(ip)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on geolocation_cache.ip: %w", err)
+	}
+
+	// Create index on expires_at for cache cleanup
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_geolocation_cache_expires_at ON geolocation_cache(expires_at)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on geolocation_cache.expires_at: %w", err)
+	}
+
 	log.Println("Database schema initialized successfully")
 	return nil
 }

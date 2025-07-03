@@ -56,6 +56,17 @@ type SystemStatusRepository interface {
 	FindLatest(ctx context.Context) (*models.SystemStatus, error)
 }
 
+// GeolocationRepositoryInterface defines the interface for geolocation cache operations
+type GeolocationRepositoryInterface interface {
+	Repository
+	FindByIP(ctx context.Context, ip string) (*models.GeolocationCache, error)
+	Create(ctx context.Context, cache *models.GeolocationCache) error
+	Update(ctx context.Context, cache *models.GeolocationCache) error
+	Upsert(ctx context.Context, cache *models.GeolocationCache) error
+	CleanupExpired(ctx context.Context) error
+	IsValidCache(cache *models.GeolocationCache) bool
+}
+
 // RepositoryFactory creates repositories
 type RepositoryFactory struct {
 	SQLiteDB *sql.DB
@@ -88,6 +99,11 @@ func (f *RepositoryFactory) NewEventLogRepository() EventLogRepository {
 // NewSystemStatusRepository creates a new system status repository
 func (f *RepositoryFactory) NewSystemStatusRepository() SystemStatusRepository {
 	return NewSQLiteSystemStatusRepository(f.SQLiteDB)
+}
+
+// NewGeolocationRepository creates a new geolocation repository
+func (f *RepositoryFactory) NewGeolocationRepository() *GeolocationRepository {
+	return NewGeolocationRepository(f.SQLiteDB)
 }
 
 // GenerateID generates a unique ID for a record
