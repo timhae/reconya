@@ -109,7 +109,7 @@ If you prefer to install manually or the script doesn't work on your system:
    ```bash
    cd backend
    cp .env.example .env
-   # Edit .env file to set your network range and credentials
+   # Edit .env file to set your credentials
    go mod download
    ```
 
@@ -134,14 +134,16 @@ If you prefer to install manually or the script doesn't work on your system:
 ## How to Use
 
 1. Login with your credentials (default: `admin` / `password`)
-2. Devices will automatically appear as they're discovered on your network
-3. Click on devices to see details including:
+2. Set up a new network
+3. Choose the network from the dropdown and start scan
+4. Devices will automatically appear as they're discovered on your network
+5. Click on devices to see details including:
    - MAC addresses and vendor information
    - Open ports and running services
    - Operating system fingerprints
    - Device screenshots (for web services)
-4. Use the network map to visualize device locations
-5. Monitor the event log for network activity
+6. Use the network map to visualize device locations
+7. Monitor the event log for network activity
 
 ## Configuration
 
@@ -150,7 +152,6 @@ Edit the `backend/.env` file to customize:
 ```bash
 LOGIN_USERNAME=admin
 LOGIN_PASSWORD=your_secure_password
-NETWORK_RANGE="192.168.1.0/24"  # Set to your actual network range
 DATABASE_NAME="reconya-dev"
 JWT_SECRET_KEY="your_jwt_secret"
 SQLITE_PATH="data/reconya-dev.db"
@@ -201,7 +202,6 @@ Reconya uses a multi-layered scanning approach that combines nmap integration wi
 - Try running `npm run install` again
 
 **No devices found**
-- Verify your network range is correct in `backend/.env` file
 - Run `npm run status` to check if nmap is installed and configured
 - Check that you're on the same network segment as target devices
 
