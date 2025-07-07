@@ -793,11 +793,47 @@
                 document.title = 'Settings - reconYa';
             }
 
+            // Global modal instance
+            let deviceModalInstance = null;
+
             // Handle device modal opening
             document.addEventListener('htmx:afterRequest', function(event) {
                 if (event.detail.target.id === 'device-modal-content') {
-                    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
-                    modal.show();
+                    const modalElement = document.getElementById('deviceModal');
+                    
+                    // Dispose of existing modal instance if it exists
+                    if (deviceModalInstance) {
+                        deviceModalInstance.dispose();
+                    }
+                    
+                    // Create new modal instance
+                    deviceModalInstance = new bootstrap.Modal(modalElement, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
+                    
+                    // Add event listeners for cleanup
+                    modalElement.addEventListener('hidden.bs.modal', function() {
+                        // Clean up modal instance when hidden
+                        if (deviceModalInstance) {
+                            deviceModalInstance.dispose();
+                            deviceModalInstance = null;
+                        }
+                        
+                        // Ensure backdrop is removed
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) {
+                            backdrop.remove();
+                        }
+                        
+                        // Ensure body classes are removed
+                        document.body.classList.remove('modal-open');
+                        document.body.style.removeProperty('padding-right');
+                        document.body.style.removeProperty('overflow');
+                    }, { once: true });
+                    
+                    deviceModalInstance.show();
                 }
             });
 

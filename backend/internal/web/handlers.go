@@ -680,6 +680,8 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("hostname")
 	comment := r.FormValue("comment")
 
+	log.Printf("Updating device %s: name='%s', comment='%s'", deviceID, name, comment)
+
 	var namePtr, commentPtr *string
 	if name != "" {
 		namePtr = &name
@@ -690,12 +692,16 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 
 	device, err := h.deviceService.UpdateDevice(deviceID, namePtr, commentPtr)
 	if err != nil {
+		log.Printf("Failed to update device %s: %v", deviceID, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("Successfully updated device %s", deviceID)
+
 	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", device); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Template execution error for device %s: %v", deviceID, err)
+		http.Error(w, "Failed to render device modal", http.StatusInternalServerError)
 	}
 }
 
