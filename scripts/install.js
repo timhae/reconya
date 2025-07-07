@@ -144,7 +144,20 @@ class Installer {
     if (!Utils.commandExists('go')) {
       Utils.log.info('Installing Go...');
       const goVersion = '1.21.5';
-      const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+      // Map Node.js architectures to Go architectures
+      let arch;
+      switch (process.arch) {
+        case 'arm64':
+          arch = 'arm64';
+          break;
+        case 'x64':
+        case 'x86_64':
+        case 'amd64':
+          arch = 'amd64';
+          break;
+        default:
+          throw new Error(`Unsupported architecture: ${process.arch}. Only arm64 and x86_64/amd64 are supported.`);
+      }
       
       const { stdout } = await Utils.runCommandWithOutput('wget', [
         `https://golang.org/dl/go${goVersion}.linux-${arch}.tar.gz`,
@@ -215,7 +228,20 @@ class Installer {
     if (!Utils.commandExists('go')) {
       Utils.log.info('Installing Go...');
       const goVersion = '1.21.5';
-      const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+      // Map Node.js architectures to Go architectures
+      let arch;
+      switch (process.arch) {
+        case 'arm64':
+          arch = 'arm64';
+          break;
+        case 'x64':
+        case 'x86_64':
+        case 'amd64':
+          arch = 'amd64';
+          break;
+        default:
+          throw new Error(`Unsupported architecture: ${process.arch}. Only arm64 and x86_64/amd64 are supported.`);
+      }
       
       await Utils.runCommandWithOutput('wget', [
         `https://golang.org/dl/go${goVersion}.linux-${arch}.tar.gz`,
