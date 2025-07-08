@@ -252,23 +252,31 @@ func sortDevicesByIP(devices []models.Device) {
 	})
 }
 
-func (s *DeviceService) FindAll() ([]models.Device, error) {
+// sortDevicePointersByIP sorts a slice of device pointers by IP address
+func sortDevicePointersByIP(devices []*models.Device) {
+	sort.Slice(devices, func(i, j int) bool {
+		ip1 := net.ParseIP(devices[i].IPv4)
+		ip2 := net.ParseIP(devices[j].IPv4)
+		
+		if ip1 == nil || ip2 == nil {
+			return devices[i].IPv4 < devices[j].IPv4
+		}
+		
+		return bytes.Compare(ip1, ip2) < 0
+	})
+}
+
+func (s *DeviceService) FindAll() ([]*models.Device, error) {
 	ctx := context.Background()
 	devices, err := s.repository.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert pointers to values
-	deviceValues := make([]models.Device, len(devices))
-	for i, d := range devices {
-		deviceValues[i] = *d
-	}
+	// Sort devices by IP address directly on pointers
+	sortDevicePointersByIP(devices)
 
-	// Sort devices by IP address
-	sortDevicesByIP(deviceValues)
-
-	return deviceValues, nil
+	return devices, nil
 }
 
 func (s *DeviceService) FindByID(deviceID string) (*models.Device, error) {

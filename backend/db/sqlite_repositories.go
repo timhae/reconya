@@ -256,6 +256,9 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	row := tx.QueryRowContext(ctx, query, id)
 
 	var device models.Device
+	// Initialize slices to prevent any nil slice issues
+	device.Ports = make([]models.Port, 0)
+	device.WebServices = make([]models.WebService, 0)
 	var mac, vendor, hostname, comment sql.NullString
 	var deviceType sql.NullString
 	var osName, osVersion, osFamily sql.NullString
@@ -343,6 +346,12 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 		}
 		device.Ports = append(device.Ports, port)
 	}
+	
+	// Check for errors from iterating over rows
+	if err := portRows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over port rows: %w", err)
+	}
+	
 
 	// Load web services
 	webServicesQuery := `

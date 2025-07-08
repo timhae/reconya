@@ -14,7 +14,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-dark table-hover table-sm" id="devicesTable">
+    <table class="table table-dark table-sm" id="devicesTable">
         <thead>
             <tr>
                 <th>IP Address</th>
@@ -35,12 +35,31 @@
                 <td>{{deref .MAC}}</td>
                 <td>{{deref .Vendor}}</td>
                 <td>
-                    {{if .OS}}{{if contains .OS.Name "Windows"}}Windows{{else if contains .OS.Name "Linux"}}Linux{{else if contains .OS.Name "macOS"}}macOS{{else if contains .OS.Name "Android"}}Android{{else if contains .OS.Name "iOS"}}iOS{{else}}{{.OS.Name}}{{end}}{{else}}Unknown{{end}}
+                    {{if .OS}}
+                        {{if contains .OS.Name "Windows"}}<i class="bi bi-windows" title="{{.OS.Name}}"></i>{{else if contains .OS.Name "Linux"}}<i class="bi bi-ubuntu" title="{{.OS.Name}}"></i>{{else if contains .OS.Name "macOS"}}<i class="bi bi-apple" title="{{.OS.Name}}"></i>{{else if contains .OS.Name "Android"}}<i class="bi bi-android2" title="{{.OS.Name}}"></i>{{else if contains .OS.Name "iOS"}}<i class="bi bi-phone" title="{{.OS.Name}}"></i>{{else}}<i class="bi bi-device-hdd" title="{{.OS.Name}}"></i>{{end}}
+                    {{else}}
+                        <i class="bi bi-question-circle text-muted" title="Unknown OS"></i>
+                    {{end}}
                 </td>
                 <td class="status-{{string .Status}}">
                     {{.Status}}
                 </td>
-                <td>{{len .Ports}}</td>
+                <td>
+                    {{$filtered := 0}}{{$open := 0}}
+                    {{range .Ports}}
+                        {{if eq .State "filtered"}}{{$filtered = add $filtered 1}}{{end}}
+                        {{if eq .State "open"}}{{$open = add $open 1}}{{end}}
+                    {{end}}
+                    {{if and (gt $filtered 0) (gt $open 0)}}
+                        <span class="text-warning">{{$filtered}}</span> / <span class="text-danger">{{$open}}</span>
+                    {{else if gt $filtered 0}}
+                        <span class="text-warning">{{$filtered}}</span>
+                    {{else if gt $open 0}}
+                        <span class="text-danger">{{$open}}</span>
+                    {{else}}
+                        <span class="text-muted">-</span>
+                    {{end}}
+                </td>
                 <td>{{formatTimeAgo .LastSeenOnlineAt}}</td>
             </tr>
             {{else}}
@@ -83,4 +102,30 @@ setTimeout(function() {
     }
 }, 100);
 </script>
+
+<style>
+/* Custom hover effect with green border instead of gray background */
+#devicesTable {
+    border-collapse: separate;
+    border-spacing: 0 2px;
+}
+
+#devicesTable tbody tr {
+    border: 1px solid transparent;
+}
+
+#devicesTable tbody tr:hover {
+    background-color: transparent !important;
+    border: 2px solid rgba(25, 135, 84, 0.8) !important;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    outline: 1px solid rgba(25, 135, 84, 0.8);
+    outline-offset: -1px;
+}
+
+#devicesTable tbody tr:hover td {
+    background-color: transparent !important;
+}
+</style>
 {{end}}

@@ -468,31 +468,32 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 	// Get current or selected network to determine which network to show
 	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
 	scanState := h.scanManager.GetState()
-	var devicesSlice []models.Device
+	var devices []*models.Device
 	var networkCIDR string = "N/A"
 
 	if currentNetwork != nil {
 		log.Printf("Home: currentNetwork is not nil, ID: %s", currentNetwork.ID)
 		// Show devices from the currently selected/scanning network
-		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		devicesSlice, err := h.deviceService.FindByNetworkID(currentNetwork.ID)
 		if err != nil {
 			log.Printf("Error getting devices for home page system status %s: %v", currentNetwork.ID, err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
+		} else {
+			// Convert []models.Device to []*models.Device
+			devices = make([]*models.Device, len(devicesSlice))
+			for i := range devicesSlice {
+				devices[i] = &devicesSlice[i]
+			}
 		}
 		networkCIDR = currentNetwork.CIDR
 	} else {
 		log.Println("Home: currentNetwork is nil, falling back to all devices")
 		// If no network is selected, show all devices
-		devicesSlice, err = h.deviceService.FindAll()
+		devices, err = h.deviceService.FindAll()
 		if err != nil {
 			log.Printf("Error getting all devices for home page system status: %v", err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
 		}
-	}
-
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
 	}
 
 	networkMapData := h.buildNetworkMap(devices)
@@ -737,31 +738,32 @@ func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {
 	// Get current or selected network to determine which network to show
 	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
 	scanState := h.scanManager.GetState()
-	var devicesSlice []models.Device
+	var devices []*models.Device
 	var networkCIDR string = "N/A"
 
 	if currentNetwork != nil {
 		log.Printf("APISystemStatus: currentNetwork is not nil, ID: %s", currentNetwork.ID)
 		// Show devices from the currently selected/scanning network
-		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		devicesSlice, err := h.deviceService.FindByNetworkID(currentNetwork.ID)
 		if err != nil {
 			log.Printf("Error getting devices for system status %s: %v", currentNetwork.ID, err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
+		} else {
+			// Convert []models.Device to []*models.Device
+			devices = make([]*models.Device, len(devicesSlice))
+			for i := range devicesSlice {
+				devices[i] = &devicesSlice[i]
+			}
 		}
 		networkCIDR = currentNetwork.CIDR
 	} else {
 		log.Println("APISystemStatus: currentNetwork is nil, falling back to all devices")
 		// If no network is selected, show all devices
-		devicesSlice, err = h.deviceService.FindAll()
+		devices, err = h.deviceService.FindAll()
 		if err != nil {
 			log.Printf("Error getting all devices for system status: %v", err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
 		}
-	}
-
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
 	}
 
 	networkMapData := h.buildNetworkMap(devices)
@@ -1031,15 +1033,10 @@ func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
 
 func (h *WebHandler) APITargets(w http.ResponseWriter, r *http.Request) {
 	// Same as APIDevices - targets are devices
-	devicesSlice, err := h.deviceService.FindAll()
+	devices, err := h.deviceService.FindAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
 	}
 
 	viewMode := r.URL.Query().Get("view")
@@ -1057,16 +1054,10 @@ func (h *WebHandler) APITargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) APITrafficCore(w http.ResponseWriter, r *http.Request) {
-	devicesSlice, err := h.deviceService.FindAll()
+	devices, err := h.deviceService.FindAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	// Show all devices (online, idle, and offline) with visual indicators
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
 	}
 
 	data := struct {
@@ -1081,17 +1072,12 @@ func (h *WebHandler) APITrafficCore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) APIDeviceList(w http.ResponseWriter, r *http.Request) {
-	devicesSlice, err := h.deviceService.FindAll()
+	devices, err := h.deviceService.FindAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Show all devices (online, idle, and offline) with visual indicators
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
-	}
 
 	data := struct {
 		Devices []*models.Device
@@ -1554,30 +1540,31 @@ func (h *WebHandler) APIDashboardMetrics(w http.ResponseWriter, r *http.Request)
 
 	// Get current or selected network to determine which network to show
 	currentNetwork := h.scanManager.GetSelectedOrCurrentNetwork()
-	var devicesSlice []models.Device
+	var devices []*models.Device
 	var networkCIDR string = "N/A"
 	var err error
 
 	if currentNetwork != nil {
 		// Show devices from the currently selected/scanning network
-		devicesSlice, err = h.deviceService.FindByNetworkID(currentNetwork.ID)
+		devicesSlice, err := h.deviceService.FindByNetworkID(currentNetwork.ID)
 		if err != nil {
 			log.Printf("Error getting devices for dashboard metrics %s: %v", currentNetwork.ID, err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
+		} else {
+			// Convert []models.Device to []*models.Device
+			devices = make([]*models.Device, len(devicesSlice))
+			for i := range devicesSlice {
+				devices[i] = &devicesSlice[i]
+			}
 		}
 		networkCIDR = currentNetwork.CIDR
 	} else {
 		// If no network is selected, show all devices
-		devicesSlice, err = h.deviceService.FindAll()
+		devices, err = h.deviceService.FindAll()
 		if err != nil {
 			log.Printf("Error getting all devices for dashboard metrics: %v", err)
-			devicesSlice = []models.Device{}
+			devices = []*models.Device{}
 		}
-	}
-
-	devices := make([]*models.Device, len(devicesSlice))
-	for i := range devicesSlice {
-		devices[i] = &devicesSlice[i]
 	}
 
 	networkMapData := h.buildNetworkMap(devices)

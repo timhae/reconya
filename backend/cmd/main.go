@@ -234,18 +234,20 @@ func main() {
 
 	infoLogger.Println("Backend initialization completed successfully")
 
-	// Channel to signal server startup completion
-	serverReady := make(chan bool)
+	// Channel to signal server startup completion (buffered to prevent blocking)
+	serverReady := make(chan bool, 1)
 
 	go func() {
-		defer close(serverReady)
 		infoLogger.Printf("Server is starting on port %s...", cfg.Port)
 
 		// Test if port is available before starting
 		ln, err := net.Listen("tcp", ":"+cfg.Port)
 		if err != nil {
 			infoLogger.Printf("Port %s is not available: %v", cfg.Port, err)
-			serverReady <- false
+			select {
+			case serverReady <- false:
+			default:
+			}
 			return
 		}
 		ln.Close()
@@ -255,7 +257,10 @@ func main() {
 			infoLogger.Printf("Server ListenAndServe error: %v", err)
 			// Signal background services to stop
 			close(done)
-			serverReady <- false
+			select {
+			case serverReady <- false:
+			default:
+			}
 			infoLogger.Printf("SERVER ERROR - RESTARTING IN 2 SECONDS...")
 			time.Sleep(2 * time.Second)
 			main() // Restart instead of fatal exit
@@ -271,13 +276,17 @@ func main() {
 		resp, err := http.Get("http://localhost:" + cfg.Port + "/")
 		if err == nil {
 			resp.Body.Close()
-			serverReady <- true
+			select {
+			case serverReady <- true:
+			default:
+				// Channel full or closed, ignore
+			}
 		} else {
 			infoLogger.Printf("Server health check failed: %v", err)
 		}
 	}()
 
-	// Wait for startup completion
+	// Wait for startup completion with timeout
 	select {
 	case ready := <-serverReady:
 		if ready {
