@@ -541,6 +541,35 @@ func (h *WebHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *WebHandler) About(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		if r.Header.Get("HX-Request") == "true" {
+			w.Header().Set("HX-Redirect", "/login")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	data := struct {
+		Page    string
+		User    *models.User
+		Version string
+	}{
+		Page:    "about",
+		User:    user,
+		Version: "0.14",
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "about.html", data); err != nil {
+		log.Printf("About template execution error: %v", err)
+		http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
+	}
+}
+
 func (h *WebHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// Use standalone login template to avoid conflicts
@@ -1622,6 +1651,27 @@ func (h *WebHandler) APIScanSelectNetwork(w http.ResponseWriter, r *http.Request
 	log.Println("APIScanSelectNetwork completed successfully")
 	w.Header().Set("HX-Trigger", "network-selected")
 	w.WriteHeader(http.StatusOK)
+}
+
+// APIAbout returns the about page content for the SPA
+func (h *WebHandler) APIAbout(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	data := struct {
+		Version string
+	}{
+		Version: "0.14",
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/about.html", data); err != nil {
+		log.Printf("About component template execution error: %v", err)
+		http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
+	}
 }
 
 // WorldMapData holds geolocation information for the world map component

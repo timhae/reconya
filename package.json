@@ -1,6 +1,6 @@
 {
   "name": "reconya",
-  "version": "1.0.0",
+  "version": "0.14",
   "description": "Network reconnaissance and asset discovery tool",
   "scripts": {
     "install": "cd scripts && npm install && node install.js",

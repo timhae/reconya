@@ -16,13 +16,14 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	r.HandleFunc("/login", h.Login).Methods("GET", "POST")
 	r.HandleFunc("/logout", h.Logout).Methods("POST")
 	r.HandleFunc("/targets", h.Targets).Methods("GET")
-	
+
 	// SPA routes - all serve the main index template
 	r.HandleFunc("/devices", h.Index).Methods("GET")
 	r.HandleFunc("/logs", h.Index).Methods("GET")
 	r.HandleFunc("/networks", h.Index).Methods("GET")
 	r.HandleFunc("/alerts", h.Index).Methods("GET")
 	r.HandleFunc("/settings", h.Index).Methods("GET")
+	r.HandleFunc("/about", h.Index).Methods("GET")
 
 	// HTMX API endpoints
 	api := r.PathPrefix("/api").Subrouter()
@@ -47,13 +48,14 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIDeleteNetwork).Methods("DELETE")
 	api.HandleFunc("/network-modal", h.APINetworkModal).Methods("GET")
 	api.HandleFunc("/network-modal/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APINetworkModal).Methods("GET")
-	
+
 	// Scan management endpoints
 	api.HandleFunc("/scan/status", h.APIScanStatus).Methods("GET")
 	api.HandleFunc("/scan/start", h.APIScanStart).Methods("POST")
 	api.HandleFunc("/scan/stop", h.APIScanStop).Methods("POST")
 	api.HandleFunc("/scan/control", h.APIScanControl).Methods("GET")
 	api.HandleFunc("/scan/select-network", h.APIScanSelectNetwork).Methods("POST")
+	api.HandleFunc("/about", h.APIAbout).Methods("GET")
 
 	// 404 handler
 	r.NotFoundHandler = http.HandlerFunc(h.NotFound)
@@ -142,12 +144,6 @@ function startScan() {
 }
 
 func (h *WebHandler) NotFound(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
-	data := PageData{
-		Page:  "404",
-		Error: "Page not found",
-	}
-	if err := h.templates.ExecuteTemplate(w, "404.html", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	// For unknown routes, serve the main SPA and let JavaScript handle the 404
+	h.Index(w, r)
 }
