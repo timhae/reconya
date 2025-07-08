@@ -1,6 +1,6 @@
 {
   "name": "reconya-scripts",
-  "version": "0.14",
+  "version": "0.15",
   "description": "reconYa installation and management scripts",
   "main": "index.js",
   "scripts": {
