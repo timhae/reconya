@@ -639,6 +639,55 @@ func generateDeviceID() string {
 	return fmt.Sprintf("device_%d", time.Now().UnixNano())
 }
 
+func (s *DeviceService) CleanupNetworkBroadcastDevices() error {
+	ctx := context.Background()
+	
+	// Get all devices
+	devices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch devices: %v", err)
+	}
+	
+	// Get all networks to check CIDRs
+	networks, err := s.networkService.FindAll()
+	if err != nil {
+		return fmt.Errorf("failed to fetch networks: %v", err)
+	}
+	
+	var deletedCount int
+	for _, device := range devices {
+		if device.NetworkID == "" {
+			continue
+		}
+		
+		// Find the network for this device
+		var network *models.Network
+		for _, n := range networks {
+			if n.ID == device.NetworkID {
+				network = &n
+				break
+			}
+		}
+		
+		if network == nil {
+			continue
+		}
+		
+		// Check if this device is a network/broadcast address
+		if s.isNetworkOrBroadcastAddress(device.IPv4, network.CIDR) {
+			log.Printf("Cleaning up network/broadcast device: %s", device.IPv4)
+			if err := s.repository.DeleteByID(ctx, device.ID); err != nil {
+				log.Printf("Failed to delete device %s: %v", device.IPv4, err)
+			} else {
+				deletedCount++
+			}
+		}
+	}
+	
+	log.Printf("Cleaned up %d network/broadcast address devices", deletedCount)
+	return nil
+}
+
 func (s *DeviceService) CleanupAllDeviceNames() error {
 	ctx := context.Background()
 	

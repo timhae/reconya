@@ -1154,6 +1154,25 @@ func (h *WebHandler) APIDeviceList(w http.ResponseWriter, r *http.Request) {
 }
 
 // APICleanupDeviceNames clears all device names
+func (h *WebHandler) APICleanupNetworkBroadcastDevices(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	err := h.deviceService.CleanupNetworkBroadcastDevices()
+	if err != nil {
+		log.Printf("Error cleaning up network/broadcast devices: %v", err)
+		http.Error(w, "Failed to cleanup network/broadcast devices", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Network/broadcast devices cleaned up successfully"))
+}
+
 func (h *WebHandler) APICleanupDeviceNames(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, "reconya-session")
 	user := h.getUserFromSession(session)

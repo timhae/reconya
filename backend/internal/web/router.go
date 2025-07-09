@@ -43,6 +43,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/device-list", h.APIDeviceList).Methods("GET")
 	api.HandleFunc("/world-map", h.APIWorldMap).Methods("GET")
 	api.HandleFunc("/devices/cleanup-names", h.APICleanupDeviceNames).Methods("POST")
+	api.HandleFunc("/devices/cleanup-network-broadcast", h.APICleanupNetworkBroadcastDevices).Methods("POST")
 	api.HandleFunc("/networks", h.APINetworks).Methods("GET")
 	api.HandleFunc("/networks", h.APICreateNetwork).Methods("POST")
 	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIUpdateNetwork).Methods("PUT")
