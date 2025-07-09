@@ -13,6 +13,35 @@ class ServiceManager {
     this.isShuttingDown = false;
   }
 
+  findGoExecutable() {
+    const { execSync } = require('child_process');
+    const fs = require('fs');
+    
+    const commonPaths = [
+      '/opt/homebrew/bin/go',
+      '/usr/local/go/bin/go',
+      '/usr/local/bin/go',
+      '/usr/bin/go'
+    ];
+    
+    try {
+      const goPath = execSync('which go', { encoding: 'utf8' }).trim();
+      if (goPath && fs.existsSync(goPath)) {
+        return goPath;
+      }
+    } catch (error) {
+      // 'which' command failed, continue with manual search
+    }
+    
+    for (const path of commonPaths) {
+      if (fs.existsSync(path)) {
+        return path;
+      }
+    }
+    
+    return 'go';
+  }
+
   async start() {
     console.log('==========================================');
     console.log('         Starting reconYa Backend        ');
@@ -122,10 +151,18 @@ class ServiceManager {
   }
 
   createBackendProcess(backendPath, resolve, reject) {
-    this.backendProcess = spawn('go', ['run', './cmd'], {
+    // Ensure Go is in the PATH by checking common locations
+    const goPath = this.findGoExecutable();
+    if (!goPath) {
+      reject(new Error('Go executable not found. Please ensure Go is installed and in your PATH.'));
+      return;
+    }
+
+    this.backendProcess = spawn(goPath, ['run', './cmd'], {
       cwd: backendPath,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: Utils.isWindows()
+      shell: Utils.isWindows(),
+      env: process.env
     });
 
     let startupTimeout;
