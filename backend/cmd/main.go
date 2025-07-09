@@ -210,7 +210,7 @@ func main() {
 	ipv6MonitorService := ipv6monitor.NewIPv6MonitorService(deviceService, networkService, infoLogger)
 	
 	// Initialize scan manager to control scanning
-	scanManager := scan.NewScanManager(pingSweepService, networkService)
+	scanManager := scan.NewScanManager(pingSweepService, networkService, ipv6MonitorService)
 
 	// NIC identification commented out - networks are now user-configured
 	// nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
@@ -221,19 +221,6 @@ func main() {
 	// nicService.Identify()
 	// Remove automatic ping sweep - now controlled by scan manager
 	go runDeviceUpdater(deviceService, done)
-	
-	// Start IPv6 monitoring service
-	go func() {
-		if err := ipv6MonitorService.Start(); err != nil {
-			infoLogger.Printf("Failed to start IPv6 monitoring service: %v", err)
-		}
-		
-		// Wait for shutdown signal
-		<-done
-		if err := ipv6MonitorService.Stop(); err != nil {
-			infoLogger.Printf("Error stopping IPv6 monitoring service: %v", err)
-		}
-	}()
 	
 	// Start geolocation cache cleanup routine
 	go runGeolocationCacheCleanup(geolocationRepo, done)

@@ -8,6 +8,7 @@ import (
 	"reconya-ai/models"
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/network"
+	"reconya-ai/internal/ipv6monitor"
 )
 
 // ScanState represents the current state of the scanning system
@@ -19,6 +20,7 @@ type ScanState struct {
 	StartTime       *time.Time        `json:"start_time"`
 	LastScanTime    *time.Time        `json:"last_scan_time"`
 	ScanCount       int               `json:"scan_count"`
+	IPv6Monitoring  bool              `json:"ipv6_monitoring"`
 }
 
 // ScanManager manages the network scanning state and operations
@@ -27,18 +29,21 @@ type ScanManager struct {
 	mutex           sync.RWMutex
 	pingSweepService *pingsweep.PingSweepService
 	networkService  *network.NetworkService
+	ipv6MonitorService *ipv6monitor.IPv6MonitorService
 	stopChannel     chan bool
 	done            chan bool
 }
 
 // NewScanManager creates a new scan manager
-func NewScanManager(pingSweepService *pingsweep.PingSweepService, networkService *network.NetworkService) *ScanManager {
+func NewScanManager(pingSweepService *pingsweep.PingSweepService, networkService *network.NetworkService, ipv6MonitorService *ipv6monitor.IPv6MonitorService) *ScanManager {
 	return &ScanManager{
 		state: ScanState{
 			IsRunning: false,
+			IPv6Monitoring: false,
 		},
 		pingSweepService: pingSweepService,
 		networkService:  networkService,
+		ipv6MonitorService: ipv6MonitorService,
 	}
 }
 
@@ -175,6 +180,15 @@ func (sm *ScanManager) StartScan(networkID string) error {
 		log.Printf("Error creating scan started event log: %v", err)
 	}
 
+	// Start the IPv6 monitoring service
+	if err := sm.ipv6MonitorService.Start(); err != nil {
+		log.Printf("Failed to start IPv6 monitoring service: %v", err)
+		sm.state.IPv6Monitoring = false
+	} else {
+		log.Printf("Started IPv6 monitoring service")
+		sm.state.IPv6Monitoring = true
+	}
+
 	// Start the scanning goroutine
 	go sm.runScanLoop()
 
@@ -204,12 +218,21 @@ func (sm *ScanManager) StopScan() error {
 	// Wait for the scan loop to finish
 	go func() {
 		<-sm.done
+		
+		// Stop the IPv6 monitoring service
+		if err := sm.ipv6MonitorService.Stop(); err != nil {
+			log.Printf("Error stopping IPv6 monitoring service: %v", err)
+		} else {
+			log.Printf("Stopped IPv6 monitoring service")
+		}
+		
 		sm.mutex.Lock()
 		defer sm.mutex.Unlock()
 		sm.state.IsRunning = false
 		sm.state.IsStopping = false
 		sm.state.CurrentNetwork = nil
 		sm.state.StartTime = nil
+		sm.state.IPv6Monitoring = false
 		log.Println("Scan stopped successfully")
 	}()
 

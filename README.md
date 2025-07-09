@@ -10,11 +10,14 @@ Reconya discovers and monitors devices on your network with real-time updates. S
 
 ### Features
 
-- Network scanning with nmap integration
-- Device identification (MAC addresses, vendor detection, hostnames)
-- Real-time monitoring and event logging
-- Web-based dashboard
-- Device fingerprinting
+- **IPv4 Network Scanning** - Comprehensive device discovery with nmap integration
+- **IPv6 Passive Monitoring** - Detects IPv6 devices through neighbor discovery and interface monitoring
+- **Device Identification** - MAC addresses, vendor detection, hostnames, and device types
+- **Dual-Stack Support** - Full IPv4 and IPv6 address display and management
+- **Real-time Monitoring** - Live device status updates and event logging
+- **Web-based Dashboard** - Modern HTMX-powered interface with dark theme
+- **Device Fingerprinting** - Automatic OS and device type detection
+- **Network Management** - Multi-network support with CIDR configuration
 
 ## Community
 
@@ -145,6 +148,27 @@ If you prefer to install manually or the script doesn't work on your system:
 6. Use the network map to visualize device locations
 7. Monitor the event log for network activity
 
+## IPv6 Passive Monitoring
+
+reconYa includes advanced IPv6 passive monitoring capabilities that activate automatically during network scans:
+
+### How It Works
+- **Neighbor Discovery Protocol (NDP)** - Monitors IPv6 neighbor cache for active devices
+- **Interface Monitoring** - Detects IPv6 addresses on network interfaces
+- **Automatic Classification** - Identifies Link-Local, Unique Local, and Global addresses
+- **Dual-Stack Integration** - Links IPv6 addresses to existing IPv4 devices via MAC addresses
+
+### IPv6 Address Types
+- **Link-Local** (`fe80::/10`) - Local network segment addresses
+- **Unique Local** (`fc00::/7`) - Private network addresses  
+- **Global** (`2000::/3`) - Internet-routable addresses
+
+### Features
+- **Passive Detection** - No network traffic generated, only monitors existing traffic
+- **Real-time Updates** - IPv6 addresses appear in device list and details
+- **Cross-Platform** - Works on Linux, macOS, and Windows
+- **Automatic Activation** - Starts with scanning, stops when idle
+
 ## Configuration
 
 Edit the `backend/.env` file to customize:
@@ -155,6 +179,13 @@ LOGIN_PASSWORD=your_secure_password
 DATABASE_NAME="reconya-dev"
 JWT_SECRET_KEY="your_jwt_secret"
 SQLITE_PATH="data/reconya-dev.db"
+
+# IPv6 Monitoring Configuration
+IPV6_MONITORING_ENABLED=true
+IPV6_MONITOR_INTERFACES=
+IPV6_MONITOR_INTERVAL=30
+IPV6_LINK_LOCAL_MONITORING=true
+IPV6_MULTICAST_MONITORING=false
 ```
 
 ## Architecture
