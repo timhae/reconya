@@ -18,6 +18,7 @@ import (
 	"reconya-ai/internal/config"
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
+	"reconya-ai/internal/ipv6monitor"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/oui"
 	"reconya-ai/internal/pingsweep"
@@ -205,6 +206,9 @@ func main() {
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
 	
+	// Initialize IPv6 monitoring service
+	ipv6MonitorService := ipv6monitor.NewIPv6MonitorService(deviceService, networkService, infoLogger)
+	
 	// Initialize scan manager to control scanning
 	scanManager := scan.NewScanManager(pingSweepService, networkService)
 
@@ -217,6 +221,19 @@ func main() {
 	// nicService.Identify()
 	// Remove automatic ping sweep - now controlled by scan manager
 	go runDeviceUpdater(deviceService, done)
+	
+	// Start IPv6 monitoring service
+	go func() {
+		if err := ipv6MonitorService.Start(); err != nil {
+			infoLogger.Printf("Failed to start IPv6 monitoring service: %v", err)
+		}
+		
+		// Wait for shutdown signal
+		<-done
+		if err := ipv6MonitorService.Stop(); err != nil {
+			infoLogger.Printf("Error stopping IPv6 monitoring service: %v", err)
+		}
+	}()
 	
 	// Start geolocation cache cleanup routine
 	go runGeolocationCacheCleanup(geolocationRepo, done)

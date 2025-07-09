@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reconya-ai/models"
 	"time"
@@ -248,7 +249,8 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	defer tx.Rollback()
 
 	query := `
-	SELECT id, name, comment, ipv4, mac, vendor, device_type, os_name, os_version, os_family, os_confidence,
+	SELECT id, name, comment, ipv4, ipv6_link_local, ipv6_unique_local, ipv6_global, ipv6_addresses,
+	       mac, vendor, device_type, os_name, os_version, os_family, os_confidence,
 	       status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
 	       port_scan_started_at, port_scan_ended_at, web_scan_ended_at
 	FROM devices WHERE id = ?`
@@ -259,7 +261,9 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	// Initialize slices to prevent any nil slice issues
 	device.Ports = make([]models.Port, 0)
 	device.WebServices = make([]models.WebService, 0)
+	device.IPv6Addresses = make([]string, 0)
 	var mac, vendor, hostname, comment sql.NullString
+	var ipv6LinkLocal, ipv6UniqueLocal, ipv6Global, ipv6Addresses sql.NullString
 	var deviceType sql.NullString
 	var osName, osVersion, osFamily sql.NullString
 	var osConfidence sql.NullInt64
@@ -267,7 +271,9 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	var lastSeenOnlineAt, portScanStartedAt, portScanEndedAt, webScanEndedAt sql.NullTime
 
 	err = row.Scan(
-		&device.ID, &device.Name, &comment, &device.IPv4, &mac, &vendor, &deviceType,
+		&device.ID, &device.Name, &comment, &device.IPv4, 
+		&ipv6LinkLocal, &ipv6UniqueLocal, &ipv6Global, &ipv6Addresses,
+		&mac, &vendor, &deviceType,
 		&osName, &osVersion, &osFamily, &osConfidence,
 		&device.Status, &networkID, &hostname, &device.CreatedAt, &device.UpdatedAt,
 		&lastSeenOnlineAt, &portScanStartedAt, &portScanEndedAt, &webScanEndedAt,
@@ -292,6 +298,24 @@ func (r *SQLiteDeviceRepository) FindByID(ctx context.Context, id string) (*mode
 	}
 	if comment.Valid {
 		device.Comment = &comment.String
+	}
+	
+	// IPv6 fields
+	if ipv6LinkLocal.Valid {
+		device.IPv6LinkLocal = &ipv6LinkLocal.String
+	}
+	if ipv6UniqueLocal.Valid {
+		device.IPv6UniqueLocal = &ipv6UniqueLocal.String
+	}
+	if ipv6Global.Valid {
+		device.IPv6Global = &ipv6Global.String
+	}
+	if ipv6Addresses.Valid && ipv6Addresses.String != "" {
+		// Parse JSON array of IPv6 addresses
+		var addresses []string
+		if err := json.Unmarshal([]byte(ipv6Addresses.String), &addresses); err == nil {
+			device.IPv6Addresses = addresses
+		}
 	}
 	if deviceType.Valid {
 		device.DeviceType = models.DeviceType(deviceType.String)
@@ -508,7 +532,8 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		UPDATE devices SET name = ?, comment = ?, mac = ?, vendor = ?, device_type = ?, 
 			os_name = ?, os_version = ?, os_family = ?, os_confidence = ?,
 			status = ?, network_id = ?, hostname = ?, updated_at = ?, last_seen_online_at = ?, 
-			port_scan_started_at = ?, port_scan_ended_at = ?, web_scan_ended_at = ?
+			port_scan_started_at = ?, port_scan_ended_at = ?, web_scan_ended_at = ?,
+			ipv6_link_local = ?, ipv6_unique_local = ?, ipv6_global = ?, ipv6_addresses = ?
 		WHERE id = ?`
 
 		// Prepare OS fields
@@ -529,12 +554,21 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 			}
 		}
 
+		// Prepare IPv6 JSON
+		var ipv6AddressesJSON sql.NullString
+		if len(device.IPv6Addresses) > 0 {
+			if jsonBytes, err := json.Marshal(device.IPv6Addresses); err == nil {
+				ipv6AddressesJSON = sql.NullString{String: string(jsonBytes), Valid: true}
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, query,
 			device.Name, nullableString(device.Comment), nullableString(device.MAC), nullableString(device.Vendor), 
 			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
 			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt), nullableTime(device.WebScanEndedAt),
+			nullableString(device.IPv6LinkLocal), nullableString(device.IPv6UniqueLocal), nullableString(device.IPv6Global), ipv6AddressesJSON,
 			device.ID,
 		)
 		if err != nil {
@@ -567,8 +601,9 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 		INSERT INTO devices (id, name, comment, ipv4, mac, vendor, device_type, 
 			os_name, os_version, os_family, os_confidence,
 			status, network_id, hostname, created_at, updated_at, last_seen_online_at, 
-			port_scan_started_at, port_scan_ended_at, web_scan_ended_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			port_scan_started_at, port_scan_ended_at, web_scan_ended_at,
+			ipv6_link_local, ipv6_unique_local, ipv6_global, ipv6_addresses)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		// Prepare OS fields for insert
 		var osName, osVersion, osFamily sql.NullString
@@ -588,12 +623,21 @@ func (r *SQLiteDeviceRepository) CreateOrUpdate(ctx context.Context, device *mod
 			}
 		}
 
+		// Prepare IPv6 JSON for insert
+		var ipv6AddressesJSON sql.NullString
+		if len(device.IPv6Addresses) > 0 {
+			if jsonBytes, err := json.Marshal(device.IPv6Addresses); err == nil {
+				ipv6AddressesJSON = sql.NullString{String: string(jsonBytes), Valid: true}
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, query,
 			device.ID, device.Name, nullableString(device.Comment), device.IPv4, nullableString(device.MAC), nullableString(device.Vendor),
 			string(device.DeviceType), osName, osVersion, osFamily, osConfidence,
 			device.Status, networkIDPtr, nullableString(device.Hostname),
 			device.CreatedAt, device.UpdatedAt, nullableTime(device.LastSeenOnlineAt),
 			nullableTime(device.PortScanStartedAt), nullableTime(device.PortScanEndedAt), nullableTime(device.WebScanEndedAt),
+			nullableString(device.IPv6LinkLocal), nullableString(device.IPv6UniqueLocal), nullableString(device.IPv6Global), ipv6AddressesJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error inserting device: %w", err)

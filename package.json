@@ -1,6 +1,6 @@
 {
   "name": "reconya",
-  "version": "0.16.2",
+  "version": "0.17",
   "description": "Network reconnaissance and asset discovery tool",
   "main": "scripts/index.js",
   "scripts": {

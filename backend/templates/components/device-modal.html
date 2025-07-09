@@ -81,6 +81,43 @@
                     <td class="w-25 ps-2 fw-bold">MAC Address</td>
                     <td>{{deref .MAC}}</td>
                 </tr>
+                {{if .IPv6Global}}
+                <tr>
+                    <td class="w-25 ps-2 fw-bold">IPv6 Global</td>
+                    <td>
+                        <span class="text-info">{{.IPv6Global}}</span>
+                        <small class="text-muted ms-2">(Global)</small>
+                    </td>
+                </tr>
+                {{end}}
+                {{if .IPv6UniqueLocal}}
+                <tr>
+                    <td class="w-25 ps-2 fw-bold">IPv6 Unique Local</td>
+                    <td>
+                        <span class="text-warning">{{.IPv6UniqueLocal}}</span>
+                        <small class="text-muted ms-2">(Unique Local)</small>
+                    </td>
+                </tr>
+                {{end}}
+                {{if .IPv6LinkLocal}}
+                <tr>
+                    <td class="w-25 ps-2 fw-bold">IPv6 Link Local</td>
+                    <td>
+                        <span class="text-secondary">{{.IPv6LinkLocal}}</span>
+                        <small class="text-muted ms-2">(Link Local)</small>
+                    </td>
+                </tr>
+                {{end}}
+                {{if .IPv6Addresses}}
+                <tr>
+                    <td class="w-25 ps-2 fw-bold">Other IPv6</td>
+                    <td>
+                        {{range .IPv6Addresses}}
+                        <div class="text-light">{{.}}</div>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
                 <tr>
                     <td class="w-25 ps-2 fw-bold">Status</td>
                     <td>

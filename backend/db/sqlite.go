@@ -107,6 +107,22 @@ func InitializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create index on devices.network_id: %w", err)
 	}
 
+	// Create IPv6 indexes for faster IPv6 lookups
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_ipv6_link_local ON devices(ipv6_link_local)`)
+	if err != nil {
+		log.Printf("Note: IPv6 link local index might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_ipv6_unique_local ON devices(ipv6_unique_local)`)
+	if err != nil {
+		log.Printf("Note: IPv6 unique local index might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_ipv6_global ON devices(ipv6_global)`)
+	if err != nil {
+		log.Printf("Note: IPv6 global index might already exist: %v", err)
+	}
+
 	// Create ports table
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS ports (
@@ -206,6 +222,27 @@ func InitializeSchema(db *sql.DB) error {
 		log.Printf("Note: comment column might already exist: %v", err)
 	}
 
+	// Add IPv6 columns if they don't exist (for IPv6 support)
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN ipv6_link_local TEXT`)
+	if err != nil {
+		log.Printf("Note: ipv6_link_local column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN ipv6_unique_local TEXT`)
+	if err != nil {
+		log.Printf("Note: ipv6_unique_local column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN ipv6_global TEXT`)
+	if err != nil {
+		log.Printf("Note: ipv6_global column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE devices ADD COLUMN ipv6_addresses TEXT`)
+	if err != nil {
+		log.Printf("Note: ipv6_addresses column might already exist: %v", err)
+	}
+
 	// Add network table columns for extended network management
 	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN name TEXT`)
 	if err != nil {
@@ -240,6 +277,17 @@ func InitializeSchema(db *sql.DB) error {
 	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN updated_at TIMESTAMP`)
 	if err != nil {
 		log.Printf("Note: networks.updated_at column might already exist: %v", err)
+	}
+
+	// Add IPv6 support to networks table
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN ipv6_prefix TEXT`)
+	if err != nil {
+		log.Printf("Note: networks.ipv6_prefix column might already exist: %v", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE networks ADD COLUMN address_family TEXT DEFAULT 'ipv4'`)
+	if err != nil {
+		log.Printf("Note: networks.address_family column might already exist: %v", err)
 	}
 
 	// Create web_services table

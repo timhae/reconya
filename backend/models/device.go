@@ -44,6 +44,11 @@ type Device struct {
 	Name              string        `bson:"name" json:"name"`
 	Comment           *string       `bson:"comment,omitempty" json:"comment,omitempty"`
 	IPv4              string        `bson:"ipv4" json:"ipv4"`
+	// IPv6 support
+	IPv6LinkLocal     *string       `bson:"ipv6_link_local,omitempty" json:"ipv6_link_local,omitempty"`
+	IPv6UniqueLocal   *string       `bson:"ipv6_unique_local,omitempty" json:"ipv6_unique_local,omitempty"`
+	IPv6Global        *string       `bson:"ipv6_global,omitempty" json:"ipv6_global,omitempty"`
+	IPv6Addresses     []string      `bson:"ipv6_addresses,omitempty" json:"ipv6_addresses,omitempty"`
 	MAC               *string       `bson:"mac,omitempty" json:"mac,omitempty"`
 	Vendor            *string       `bson:"vendor,omitempty" json:"vendor,omitempty"`
 	DeviceType        DeviceType    `bson:"device_type,omitempty" json:"device_type,omitempty"`
@@ -59,4 +64,59 @@ type Device struct {
 	PortScanStartedAt *time.Time    `bson:"port_scan_started_at,omitempty" json:"port_scan_started_at,omitempty"`
 	PortScanEndedAt   *time.Time    `bson:"port_scan_ended_at,omitempty" json:"port_scan_ended_at,omitempty"`
 	WebScanEndedAt    *time.Time    `bson:"web_scan_ended_at,omitempty" json:"web_scan_ended_at,omitempty"`
+}
+
+// IPv6 helper methods
+func (d *Device) HasIPv6() bool {
+	return d.IPv6LinkLocal != nil || d.IPv6UniqueLocal != nil || d.IPv6Global != nil || len(d.IPv6Addresses) > 0
+}
+
+func (d *Device) GetPrimaryIPv6() *string {
+	if d.IPv6Global != nil {
+		return d.IPv6Global
+	}
+	if d.IPv6UniqueLocal != nil {
+		return d.IPv6UniqueLocal
+	}
+	if d.IPv6LinkLocal != nil {
+		return d.IPv6LinkLocal
+	}
+	if len(d.IPv6Addresses) > 0 {
+		return &d.IPv6Addresses[0]
+	}
+	return nil
+}
+
+func (d *Device) AddIPv6Address(address string) {
+	// Check if address already exists
+	for _, existing := range d.IPv6Addresses {
+		if existing == address {
+			return
+		}
+	}
+	d.IPv6Addresses = append(d.IPv6Addresses, address)
+}
+
+func (d *Device) RemoveIPv6Address(address string) {
+	for i, existing := range d.IPv6Addresses {
+		if existing == address {
+			d.IPv6Addresses = append(d.IPv6Addresses[:i], d.IPv6Addresses[i+1:]...)
+			return
+		}
+	}
+}
+
+func (d *Device) GetAllIPv6Addresses() []string {
+	var addresses []string
+	if d.IPv6LinkLocal != nil {
+		addresses = append(addresses, *d.IPv6LinkLocal)
+	}
+	if d.IPv6UniqueLocal != nil {
+		addresses = append(addresses, *d.IPv6UniqueLocal)
+	}
+	if d.IPv6Global != nil {
+		addresses = append(addresses, *d.IPv6Global)
+	}
+	addresses = append(addresses, d.IPv6Addresses...)
+	return addresses
 }

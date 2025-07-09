@@ -698,6 +698,10 @@ func (h *WebHandler) APIDeviceModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Debug logging for IPv6 fields
+	log.Printf("Device %s IPv6 data: LinkLocal=%v, UniqueLocal=%v, Global=%v, Addresses=%v", 
+		device.ID, device.IPv6LinkLocal, device.IPv6UniqueLocal, device.IPv6Global, device.IPv6Addresses)
+
 	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", device); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -733,6 +737,36 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Template execution error for device %s: %v", deviceID, err)
 		http.Error(w, "Failed to render device modal", http.StatusInternalServerError)
 	}
+}
+
+// Test endpoint to add IPv6 data to a device (for debugging)
+func (h *WebHandler) APITestIPv6(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	deviceID := r.FormValue("device_id")
+	if deviceID == "" {
+		http.Error(w, "device_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Add test IPv6 data to the device
+	ipv6Addresses := map[string]string{
+		"link_local":    "fe80::1234:5678:90ab:cdef",
+		"unique_local":  "fd00::1234:5678:90ab:cdef",
+		"global":        "2001:db8::1234:5678:90ab:cdef",
+	}
+
+	err := h.deviceService.UpdateDeviceIPv6Addresses(deviceID, ipv6Addresses)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update device IPv6: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("IPv6 addresses added successfully"))
 }
 
 func (h *WebHandler) APISystemStatus(w http.ResponseWriter, r *http.Request) {

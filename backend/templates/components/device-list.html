@@ -8,7 +8,7 @@
         <input type="text" 
                class="form-control bg-very-dark border-success text-light" 
                id="deviceSearch" 
-               placeholder="Search devices by IP, name, MAC, vendor..."
+               placeholder="Search devices by IP, IPv6, name, MAC, vendor..."
                style="background-color: var(--bg-very-dark) !important; border-color: rgba(25, 135, 84, 0.3) !important; color: #e9ecef !important;">
     </div>
 </div>
@@ -18,6 +18,7 @@
         <thead>
             <tr>
                 <th>IP Address</th>
+                <th>IPv6 Address</th>
                 <th>Name</th>
                 <th>MAC Address</th>
                 <th>Vendor</th>
@@ -31,6 +32,17 @@
             {{range .Devices}}
             <tr hx-get="/api/devices/{{.ID}}/modal" hx-target="#device-modal-content" hx-trigger="click" style="cursor: pointer;">
                 <td>{{.IPv4}}</td>
+                <td>
+                    {{if .IPv6Global}}
+                        <span class="text-info" title="Global IPv6">{{.IPv6Global}}</span>
+                    {{else if .IPv6UniqueLocal}}
+                        <span class="text-warning" title="Unique Local IPv6">{{.IPv6UniqueLocal}}</span>
+                    {{else if .IPv6LinkLocal}}
+                        <span class="text-secondary" title="Link Local IPv6">{{.IPv6LinkLocal}}</span>
+                    {{else}}
+                        <span class="text-muted">-</span>
+                    {{end}}
+                </td>
                 <td>{{or .Name (deref .Hostname) "-"}}</td>
                 <td>{{deref .MAC}}</td>
                 <td>{{deref .Vendor}}</td>
@@ -64,7 +76,7 @@
             </tr>
             {{else}}
             <tr>
-                <td colspan="8" class="text-center text-muted">No devices found.</td>
+                <td colspan="9" class="text-center text-muted">No devices found.</td>
             </tr>
             {{end}}
         </tbody>

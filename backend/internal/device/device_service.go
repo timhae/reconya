@@ -49,13 +49,19 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		return nil, fmt.Errorf("device must have a network ID set")
 	}
 
-	// Verify the network exists
+	// Get the network to check CIDR
 	network, err := s.networkService.FindByID(device.NetworkID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid network ID: %v", err)
+		return nil, fmt.Errorf("failed to find network: %v", err)
 	}
 	if network == nil {
 		return nil, fmt.Errorf("network not found")
+	}
+
+	// Skip network and broadcast addresses
+	if s.isNetworkOrBroadcastAddress(device.IPv4, network.CIDR) {
+		log.Printf("Skipping network/broadcast address: %s", device.IPv4)
+		return nil, fmt.Errorf("network or broadcast address not allowed: %s", device.IPv4)
 	}
 
 	existingDevice, err := s.FindByIPv4(device.IPv4)
@@ -512,6 +518,127 @@ func (s *DeviceService) PerformDeviceFingerprinting(device *models.Device) {
 }
 
 // CleanupAllDeviceNames clears the names of all devices in the database
+// IPv6-specific methods
+func (s *DeviceService) FindDeviceByIPv6(ipv6Address string) (*models.Device, error) {
+	devices, err := s.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	
+	for _, device := range devices {
+		if device.IPv6LinkLocal != nil && *device.IPv6LinkLocal == ipv6Address {
+			return device, nil
+		}
+		if device.IPv6UniqueLocal != nil && *device.IPv6UniqueLocal == ipv6Address {
+			return device, nil
+		}
+		if device.IPv6Global != nil && *device.IPv6Global == ipv6Address {
+			return device, nil
+		}
+		
+		// Check additional IPv6 addresses
+		for _, addr := range device.IPv6Addresses {
+			if addr == ipv6Address {
+				return device, nil
+			}
+		}
+	}
+	
+	return nil, fmt.Errorf("device not found with IPv6 address: %s", ipv6Address)
+}
+
+func (s *DeviceService) FindDeviceByMAC(macAddress string) (*models.Device, error) {
+	devices, err := s.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	
+	for _, device := range devices {
+		if device.MAC != nil && *device.MAC == macAddress {
+			return device, nil
+		}
+	}
+	
+	return nil, fmt.Errorf("device not found with MAC address: %s", macAddress)
+}
+
+func (s *DeviceService) UpdateDeviceIPv6Addresses(deviceID string, ipv6Addresses map[string]string) error {
+	device, err := s.FindByID(deviceID)
+	if err != nil {
+		return err
+	}
+	
+	// Update IPv6 addresses
+	if linkLocal, ok := ipv6Addresses["link_local"]; ok && linkLocal != "" {
+		device.IPv6LinkLocal = &linkLocal
+	}
+	if uniqueLocal, ok := ipv6Addresses["unique_local"]; ok && uniqueLocal != "" {
+		device.IPv6UniqueLocal = &uniqueLocal
+	}
+	if global, ok := ipv6Addresses["global"]; ok && global != "" {
+		device.IPv6Global = &global
+	}
+	
+	// Update additional addresses
+	if additional, ok := ipv6Addresses["additional"]; ok && additional != "" {
+		device.AddIPv6Address(additional)
+	}
+	
+	device.UpdatedAt = time.Now()
+	
+	// Update device in database
+	_, err = s.repository.CreateOrUpdate(context.Background(), device)
+	return err
+}
+
+func (s *DeviceService) GetDevicesByIPv6Prefix(prefix string) ([]models.Device, error) {
+	devices, err := s.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	
+	var result []models.Device
+	for _, device := range devices {
+		if device.HasIPv6() {
+			allAddresses := device.GetAllIPv6Addresses()
+			for _, addr := range allAddresses {
+				if strings.HasPrefix(addr, prefix) {
+					result = append(result, *device)
+					break
+				}
+			}
+		}
+	}
+	
+	return result, nil
+}
+
+func (s *DeviceService) CreateDevice(device *models.Device) error {
+	// Generate ID if not set
+	if device.ID == "" {
+		device.ID = generateDeviceID()
+	}
+	
+	// Set timestamps
+	now := time.Now()
+	device.CreatedAt = now
+	device.UpdatedAt = now
+	
+	// Create device in database
+	_, err := s.repository.CreateOrUpdate(context.Background(), device)
+	return err
+}
+
+func (s *DeviceService) UpdateDeviceRecord(device *models.Device) error {
+	device.UpdatedAt = time.Now()
+	_, err := s.repository.CreateOrUpdate(context.Background(), device)
+	return err
+}
+
+func generateDeviceID() string {
+	return fmt.Sprintf("device_%d", time.Now().UnixNano())
+}
+
 func (s *DeviceService) CleanupAllDeviceNames() error {
 	ctx := context.Background()
 	
