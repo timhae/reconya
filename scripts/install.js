@@ -35,19 +35,33 @@ class Installer {
       Utils.log.success('reconYa installation completed!');
       console.log('==========================================\n');
       
-      // Try to determine the port from .env file
+      // Try to determine the port and credentials from .env file
       const envPath = path.join(process.cwd(), 'backend', '.env');
       let port = '3008'; // default
+      let username = 'admin'; // default
+      let password = 'password'; // default
+      
       try {
         if (fs.existsSync(envPath)) {
           const envContent = fs.readFileSync(envPath, 'utf8');
+          
           const portMatch = envContent.match(/^PORT=(.+)$/m);
           if (portMatch) {
             port = portMatch[1].trim();
           }
+          
+          const usernameMatch = envContent.match(/^LOGIN_USERNAME=(.+)$/m);
+          if (usernameMatch) {
+            username = usernameMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
+          
+          const passwordMatch = envContent.match(/^LOGIN_PASSWORD=(.+)$/m);
+          if (passwordMatch) {
+            password = passwordMatch[1].trim().replace(/^["']|["']$/g, '');
+          }
         }
       } catch (error) {
-        // Use default port if can't read .env
+        // Use default values if can't read .env
       }
 
       Utils.log.info('To start reconYa, run:');
@@ -58,7 +72,7 @@ class Installer {
       console.log('  npm run stop    - Stop reconYa');
       console.log('  npm run install - Reinstall dependencies\n');
       Utils.log.info(`Then open your browser to: http://localhost:${port}`);
-      Utils.log.info('Default login: admin / password');
+      Utils.log.info(`Login credentials: ${username} / ${password}`);
       
     } catch (error) {
       Utils.log.error('Installation failed: ' + error.message);
