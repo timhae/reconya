@@ -35,6 +35,21 @@ class Installer {
       Utils.log.success('reconYa installation completed!');
       console.log('==========================================\n');
       
+      // Try to determine the port from .env file
+      const envPath = path.join(process.cwd(), 'backend', '.env');
+      let port = '3008'; // default
+      try {
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, 'utf8');
+          const portMatch = envContent.match(/^PORT=(.+)$/m);
+          if (portMatch) {
+            port = portMatch[1].trim();
+          }
+        }
+      } catch (error) {
+        // Use default port if can't read .env
+      }
+
       Utils.log.info('To start reconYa, run:');
       console.log('  npm run start\n');
       Utils.log.info('Or use the individual commands:');
@@ -42,9 +57,8 @@ class Installer {
       console.log('  npm run start   - Start reconYa');
       console.log('  npm run stop    - Stop reconYa');
       console.log('  npm run install - Reinstall dependencies\n');
-      Utils.log.info('Then open your browser to: http://localhost:3000');
-      Utils.log.info('Default login: admin / password\n');
-      Utils.log.warning('Important: Configure your network range in backend/.env');
+      Utils.log.info(`Then open your browser to: http://localhost:${port}`);
+      Utils.log.info('Default login: admin / password');
       
     } catch (error) {
       Utils.log.error('Installation failed: ' + error.message);
@@ -312,8 +326,8 @@ class Installer {
   async setupreconYa() {
     Utils.log.info('Setting up reconYa...');
 
-    // Go up one directory to get to project root (we're in scripts/ dir)
-    const projectRoot = path.join(process.cwd(), '..');
+    // Get project root - since we're running from root now, use current directory
+    const projectRoot = process.cwd();
     Utils.log.info(`Project root: ${projectRoot}`);
     
     // Verify directory structure
