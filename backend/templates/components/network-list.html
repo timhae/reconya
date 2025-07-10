@@ -32,6 +32,7 @@
                 hx-post="/api/scan/select-network"
                 hx-vals='{"network-id": "{{.ID}}"}'
                 hx-trigger="click"
+                hx-swap="none"
                 data-network-id="{{.ID}}">
                 <td class="text-success">{{or .Name "Unnamed Network"}}</td>
                 <td class="text-success">{{.CIDR}}</td>
@@ -107,4 +108,53 @@ document.addEventListener('htmx:afterRequest', function(event) {
     }
 });
 </script>
+
+<style>
+/* Custom hover effect with green border instead of gray background */
+#networksTable {
+    border-collapse: separate;
+    border-spacing: 0 2px;
+}
+
+#networksTable tbody tr {
+    border: 1px solid transparent;
+}
+
+#networksTable tbody tr:hover {
+    background-color: transparent !important;
+    border: 2px solid rgba(25, 135, 84, 0.8) !important;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    outline: 1px solid rgba(25, 135, 84, 0.8);
+    outline-offset: -1px;
+}
+
+/* Override Bootstrap table-hover class with more specific selectors */
+#networksTable.table-hover tbody tr:hover {
+    background-color: transparent !important;
+}
+
+#networksTable tbody tr:hover td {
+    background-color: transparent !important;
+}
+
+/* More specific Bootstrap overrides */
+.table-hover tbody tr:hover {
+    background-color: transparent !important;
+}
+
+.table-hover tbody tr:hover td {
+    background-color: transparent !important;
+}
+
+/* Even more specific override for dark theme */
+.table-dark.table-hover tbody tr:hover {
+    background-color: transparent !important;
+}
+
+.table-dark.table-hover tbody tr:hover td {
+    background-color: transparent !important;
+}
+</style>
 {{end}}
