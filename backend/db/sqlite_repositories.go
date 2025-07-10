@@ -1005,3 +1005,70 @@ func nullableInt64(i *int64) sql.NullInt64 {
 	}
 	return sql.NullInt64{Int64: *i, Valid: true}
 }
+
+// SQLiteSettingsRepository implements the SettingsRepository interface for SQLite
+type SQLiteSettingsRepository struct {
+	db *sql.DB
+}
+
+// NewSQLiteSettingsRepository creates a new SQLiteSettingsRepository
+func NewSQLiteSettingsRepository(db *sql.DB) *SQLiteSettingsRepository {
+	return &SQLiteSettingsRepository{db: db}
+}
+
+// Close closes the database connection
+func (r *SQLiteSettingsRepository) Close() error {
+	return r.db.Close()
+}
+
+// FindByUserID finds settings by user ID
+func (r *SQLiteSettingsRepository) FindByUserID(userID string) (*models.Settings, error) {
+	query := `SELECT id, user_id, screenshots_enabled, created_at, updated_at FROM settings WHERE user_id = ?`
+	row := r.db.QueryRow(query, userID)
+
+	var settings models.Settings
+	var createdAt, updatedAt sql.NullTime
+	
+	err := row.Scan(&settings.ID, &settings.UserID, &settings.ScreenshotsEnabled, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // No settings found for this user
+		}
+		return nil, fmt.Errorf("error scanning settings: %w", err)
+	}
+
+	if createdAt.Valid {
+		settings.CreatedAt = &createdAt.Time
+	}
+	if updatedAt.Valid {
+		settings.UpdatedAt = &updatedAt.Time
+	}
+
+	return &settings, nil
+}
+
+// Create creates new settings
+func (r *SQLiteSettingsRepository) Create(settings *models.Settings) error {
+	query := `INSERT INTO settings (id, user_id, screenshots_enabled, created_at, updated_at) 
+			  VALUES (?, ?, ?, ?, ?)`
+	
+	_, err := r.db.Exec(query, settings.ID, settings.UserID, settings.ScreenshotsEnabled, 
+		settings.CreatedAt, settings.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("error creating settings: %w", err)
+	}
+	
+	return nil
+}
+
+// Update updates existing settings
+func (r *SQLiteSettingsRepository) Update(settings *models.Settings) error {
+	query := `UPDATE settings SET screenshots_enabled = ?, updated_at = ? WHERE id = ?`
+	
+	_, err := r.db.Exec(query, settings.ScreenshotsEnabled, settings.UpdatedAt, settings.ID)
+	if err != nil {
+		return fmt.Errorf("error updating settings: %w", err)
+	}
+	
+	return nil
+}

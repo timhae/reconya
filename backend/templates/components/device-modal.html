@@ -6,26 +6,7 @@
                 <span class="orbitron fw-bold fs-2">{{.IPv4}}</span>
             </div>
             <div class="d-flex align-items-center">
-                <!-- Port status icon -->
-                {{if .Ports}}
-                {{$hasOpenPorts := false}}
-                {{$hasFilteredPorts := false}}
-                {{range .Ports}}
-                    {{if eq .State "open"}}{{$hasOpenPorts = true}}{{end}}
-                    {{if eq .State "filtered"}}{{$hasFilteredPorts = true}}{{end}}
-                {{end}}
-                {{if $hasOpenPorts}}
-                    <i class="bi bi-circle-fill text-danger me-2" style="font-size: 1.2rem;"></i>
-                {{else if $hasFilteredPorts}}
-                    <i class="bi bi-circle-fill text-warning me-2" style="font-size: 1.2rem;"></i>
-                {{else}}
-                    <i class="bi bi-circle-fill text-success me-2" style="font-size: 1.2rem;"></i>
-                {{end}}
-                {{else}}
-                    <i class="bi bi-circle-fill text-success me-2" style="font-size: 1.2rem;"></i>
-                {{end}}
-                
-                <div class="d-flex gap-2 ms-3" id="edit-buttons">
+                <div class="d-flex gap-2" id="edit-buttons">
                     <button type="button" class="btn btn-outline-success btn-sm" onclick="toggleEditMode()" title="Edit device">
                         <i class="bi bi-pencil"></i>
                     </button>
@@ -184,7 +165,7 @@
             </tbody>
         </table>
 
-        {{if .WebServices}}
+        {{if and $.ScreenshotsEnabled .WebServices}}
         <h6>[ WEB SERVICES ]</h6>
         <div class="web-services-container">
             {{range .WebServices}}
@@ -226,18 +207,27 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        {{if .Screenshot}}
-                        <div class="screenshot-container text-center">
-                            <img src="data:image/png;base64,{{.Screenshot}}" alt="Screenshot of {{.URL}}" 
-                                 class="img-thumbnail" 
-                                 style="max-width: 150px; max-height: 100px; object-fit: contain; cursor: pointer;"
-                                 onclick="openScreenshotModal('{{.URL}}', '{{.Screenshot}}')">
-                            <div class="small text-muted mt-1">Click to enlarge</div>
-                        </div>
+                        {{if $.ScreenshotsEnabled}}
+                            {{if .Screenshot}}
+                            <div class="screenshot-container text-center">
+                                <img src="data:image/png;base64,{{.Screenshot}}" alt="Screenshot of {{.URL}}" 
+                                     class="img-thumbnail" 
+                                     style="max-width: 150px; max-height: 100px; object-fit: contain; cursor: pointer;"
+                                     onclick="openScreenshotModal('{{.URL}}', '{{.Screenshot}}')">
+                                <div class="small text-muted mt-1">Click to enlarge</div>
+                            </div>
+                            {{else}}
+                            <div class="text-center text-muted small">
+                                <div class="border border-secondary rounded p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
+                                    No screenshot available
+                                </div>
+                            </div>
+                            {{end}}
                         {{else}}
                         <div class="text-center text-muted small">
                             <div class="border border-secondary rounded p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
-                                No screenshot available
+                                <i class="bi bi-eye-slash me-2"></i>
+                                Screenshots disabled
                             </div>
                         </div>
                         {{end}}
@@ -251,17 +241,20 @@
 </div>
 
 <script>
-let isEditing = false;
+// Use window object to avoid redeclaration errors
+if (typeof window.deviceModalIsEditing === 'undefined') {
+    window.deviceModalIsEditing = false;
+}
 
 function toggleEditMode() {
-    isEditing = !isEditing;
+    window.deviceModalIsEditing = !window.deviceModalIsEditing;
     const editButtons = document.getElementById('edit-buttons');
     const nameDisplay = document.getElementById('name-display');
     const nameEdit = document.getElementById('name-edit');
     const commentDisplay = document.getElementById('comment-display');
     const commentEdit = document.getElementById('comment-edit');
     
-    if (isEditing) {
+    if (window.deviceModalIsEditing) {
         // Switch to edit mode
         nameDisplay.style.display = 'none';
         nameEdit.style.display = 'block';
@@ -446,5 +439,15 @@ function openScreenshotModal(url, screenshot) {
     
     document.body.appendChild(modal);
 }
+
+// Reset editing state when modal is closed
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function() {
+            window.deviceModalIsEditing = false;
+        });
+    }
+});
 </script>
 {{end}}

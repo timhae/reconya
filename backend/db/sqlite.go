@@ -351,6 +351,26 @@ func InitializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create index on geolocation_cache.expires_at: %w", err)
 	}
 
+	// Create settings table
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS settings (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		screenshots_enabled BOOLEAN NOT NULL DEFAULT 1,
+		created_at TIMESTAMP NOT NULL,
+		updated_at TIMESTAMP NOT NULL,
+		UNIQUE(user_id)
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create settings table: %w", err)
+	}
+
+	// Create index on user_id for settings
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create index on settings.user_id: %w", err)
+	}
+
 	log.Println("Database schema initialized successfully")
 	return nil
 }

@@ -23,16 +23,18 @@ type DeviceServicePortScanner interface {
 }
 
 type PortScanService struct {
-	DeviceService   DeviceServicePortScanner
-	EventLogService *eventlog.EventLogService
-	WebService      *webservice.WebService
+	DeviceService      DeviceServicePortScanner
+	EventLogService    *eventlog.EventLogService
+	WebService         *webservice.WebService
+	ScreenshotsEnabled bool // Global setting for automated scans - defaults to false for performance
 }
 
 func NewPortScanService(deviceService DeviceServicePortScanner, eventLogService *eventlog.EventLogService) *PortScanService {
 	return &PortScanService{
-		DeviceService:   deviceService,
-		EventLogService: eventLogService,
-		WebService:      webservice.NewWebService(),
+		DeviceService:      deviceService,
+		EventLogService:    eventLogService,
+		WebService:         webservice.NewWebService(),
+		ScreenshotsEnabled: false, // Default to disabled for automated scans to improve performance
 	}
 }
 
@@ -98,10 +100,15 @@ func (s *PortScanService) Run(requestedDevice models.Device) {
 	}
 	log.Printf("Port scan for IP [%s] completed. Found ports: %+v, Type: %s, Vendor: %s", device.IPv4, ports, device.DeviceType, vendor)
 	
-	// Start web service scanning if we found open ports (with screenshots during portscan)
+	// Start web service scanning if we found open ports
 	if len(ports) > 0 {
-		log.Printf("Starting web service scan with screenshots for IP [%s]", device.IPv4)
-		s.scanWebServicesWithScreenshots(updatedDevice)
+		if s.ScreenshotsEnabled {
+			log.Printf("Starting web service scan with screenshots for IP [%s]", device.IPv4)
+			s.scanWebServicesWithScreenshots(updatedDevice)
+		} else {
+			log.Printf("Starting web service scan without screenshots for IP [%s]", device.IPv4)
+			s.scanWebServices(updatedDevice)
+		}
 	}
 	
 	// Use retry logic for creating event log
@@ -197,7 +204,7 @@ func (s *PortScanService) scanWebServicesWithScreenshots(device *models.Device) 
 		return
 	}
 
-	webInfos := s.WebService.ScanWebServicesWithScreenshots(device, true)
+	webInfos := s.WebService.ScanWebServicesWithScreenshots(device, s.ScreenshotsEnabled)
 	s.saveWebServices(device, webInfos)
 }
 

@@ -55,12 +55,14 @@
             {{end}}
             
             <!-- Screenshots indicator -->
-            {{$hasScreenshots := false}}
-            {{range .WebServices}}
-                {{if .Screenshot}}{{$hasScreenshots = true}}{{end}}
-            {{end}}
-            {{if $hasScreenshots}}
-            <i class="bi bi-camera text-success" title="Screenshots Available"></i>
+            {{if $.ScreenshotsEnabled}}
+                {{$hasScreenshots := false}}
+                {{range .WebServices}}
+                    {{if .Screenshot}}{{$hasScreenshots = true}}{{end}}
+                {{end}}
+                {{if $hasScreenshots}}
+                <i class="bi bi-camera text-success" title="Screenshots Available"></i>
+                {{end}}
             {{end}}
         </div>
     </button>

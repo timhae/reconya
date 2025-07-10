@@ -24,6 +24,7 @@ import (
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/portscan"
 	"reconya-ai/internal/scan"
+	"reconya-ai/internal/settings"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/internal/web"
 	"reconya-ai/middleware"
@@ -180,6 +181,7 @@ func main() {
 	eventLogRepo := repoFactory.NewEventLogRepository()
 	systemStatusRepo := repoFactory.NewSystemStatusRepository()
 	geolocationRepo := repoFactory.NewGeolocationRepository()
+	settingsRepo := repoFactory.NewSettingsRepository()
 
 	// Create database manager for concurrent access control
 	dbManager := db.NewDBManager()
@@ -203,6 +205,7 @@ func main() {
 	deviceService := device.NewDeviceService(deviceRepo, networkService, cfg, dbManager, ouiService)
 	eventLogService := eventlog.NewEventLogService(eventLogRepo, deviceService, dbManager)
 	systemStatusService := systemstatus.NewSystemStatusService(systemStatusRepo)
+	settingsService := settings.NewSettingsService(settingsRepo)
 	portScanService := portscan.NewPortScanService(deviceService, eventLogService)
 	pingSweepService := pingsweep.NewPingSweepService(cfg, deviceService, eventLogService, networkService, portScanService)
 	
@@ -227,7 +230,7 @@ func main() {
 
 	// Initialize web handlers for HTMX frontend
 	sessionSecret := "your-secret-key-here-replace-in-production"
-	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, geolocationRepo, cfg, sessionSecret)
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, geolocationRepo, settingsService, cfg, sessionSecret)
 	router := webHandler.SetupRoutes()
 	loggedRouter := middleware.LoggingMiddleware(router)
 

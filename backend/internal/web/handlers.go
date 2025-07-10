@@ -19,6 +19,7 @@ import (
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
 	"reconya-ai/internal/scan"
+	"reconya-ai/internal/settings"
 	"reconya-ai/internal/systemstatus"
 	"reconya-ai/models"
 
@@ -36,6 +37,7 @@ type WebHandler struct {
 	systemStatusService   *systemstatus.SystemStatusService
 	scanManager           *scan.ScanManager
 	geolocationRepository *db.GeolocationRepository
+	settingsService       *settings.SettingsService
 	templates             *template.Template
 	sessionStore          *sessions.CookieStore
 	config                *config.Config
@@ -83,6 +85,7 @@ func NewWebHandler(
 	systemStatusService *systemstatus.SystemStatusService,
 	scanManager *scan.ScanManager,
 	geolocationRepository *db.GeolocationRepository,
+	settingsService *settings.SettingsService,
 	config *config.Config,
 	sessionSecret string,
 ) *WebHandler {
@@ -405,6 +408,7 @@ func NewWebHandler(
 		systemStatusService:   systemStatusService,
 		scanManager:           scanManager,
 		geolocationRepository: geolocationRepository,
+		settingsService:       settingsService,
 		templates:             tmpl,
 		sessionStore:          store,
 		config:                config,
@@ -664,13 +668,18 @@ func (h *WebHandler) APIDevices(w http.ResponseWriter, r *http.Request) {
 		devices[i] = &devicesSlice[i]
 	}
 
+	// Get user's screenshot setting
+	screenshotsEnabled := h.settingsService.AreScreenshotsEnabled(fmt.Sprintf("%d", user.ID))
+
 	viewMode := r.URL.Query().Get("view")
 	data := struct {
-		Devices  []*models.Device
-		ViewMode string
+		Devices            []*models.Device
+		ViewMode           string
+		ScreenshotsEnabled bool
 	}{
-		Devices:  devices,
-		ViewMode: viewMode,
+		Devices:            devices,
+		ViewMode:           viewMode,
+		ScreenshotsEnabled: screenshotsEnabled,
 	}
 
 	log.Printf("APIDevices: Found %d devices, viewMode: %s", len(devices), viewMode)
@@ -684,6 +693,13 @@ func (h *WebHandler) APIDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) APIDeviceModal(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	deviceID := vars["id"]
 
@@ -698,11 +714,23 @@ func (h *WebHandler) APIDeviceModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user's screenshot setting
+	screenshotsEnabled := h.settingsService.AreScreenshotsEnabled(fmt.Sprintf("%d", user.ID))
+
 	// Debug logging for IPv6 fields
 	log.Printf("Device %s IPv6 data: LinkLocal=%v, UniqueLocal=%v, Global=%v, Addresses=%v", 
 		device.ID, device.IPv6LinkLocal, device.IPv6UniqueLocal, device.IPv6Global, device.IPv6Addresses)
 
-	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", device); err != nil {
+	// Create template data with device and settings
+	data := struct {
+		*models.Device
+		ScreenshotsEnabled bool
+	}{
+		Device:             device,
+		ScreenshotsEnabled: screenshotsEnabled,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -1095,6 +1123,13 @@ func (h *WebHandler) parseNetworkCIDR(cidr string) (string, []int) {
 }
 
 func (h *WebHandler) APITargets(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	// Same as APIDevices - targets are devices
 	devices, err := h.deviceService.FindAll()
 	if err != nil {
@@ -1102,13 +1137,18 @@ func (h *WebHandler) APITargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user's screenshot setting
+	screenshotsEnabled := h.settingsService.AreScreenshotsEnabled(fmt.Sprintf("%d", user.ID))
+
 	viewMode := r.URL.Query().Get("view")
 	data := struct {
-		Devices  []*models.Device
-		ViewMode string
+		Devices            []*models.Device
+		ViewMode           string
+		ScreenshotsEnabled bool
 	}{
-		Devices:  devices,
-		ViewMode: viewMode,
+		Devices:            devices,
+		ViewMode:           viewMode,
+		ScreenshotsEnabled: screenshotsEnabled,
 	}
 
 	if err := h.templates.ExecuteTemplate(w, "components/device-grid.html", data); err != nil {
@@ -2024,5 +2064,66 @@ func (h *WebHandler) getFallbackGeolocation(ip string) *GeolocationResponse {
 			ISP:         "Internet Service Provider",
 		}
 	}
+}
+
+// APISettings returns the settings page
+func (h *WebHandler) APISettings(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get user settings
+	settings, err := h.settingsService.GetUserSettings(fmt.Sprintf("%d", user.ID))
+	if err != nil {
+		log.Printf("Error getting user settings: %v", err)
+		http.Error(w, "Failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Settings *models.Settings
+	}{
+		Settings: settings,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/settings.html", data); err != nil {
+		log.Printf("Error executing settings template: %v", err)
+		http.Error(w, "Failed to render settings", http.StatusInternalServerError)
+		return
+	}
+}
+
+// APISettingsScreenshots handles screenshot settings updates
+func (h *WebHandler) APISettingsScreenshots(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse the enabled parameter - checkbox sends value when checked, nothing when unchecked
+	enabledStr := r.FormValue("enabled")
+	enabled := enabledStr == "true"
+	
+	log.Printf("Screenshot settings update: enabled=%s, parsed=%v", enabledStr, enabled)
+
+	// Update settings
+	updates := map[string]interface{}{
+		"screenshots_enabled": enabled,
+	}
+
+	_, err := h.settingsService.UpdateUserSettings(fmt.Sprintf("%d", user.ID), updates)
+	if err != nil {
+		log.Printf("Error updating screenshot settings: %v", err)
+		http.Error(w, "Failed to update settings", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Updated screenshot settings for user %d: enabled=%v", user.ID, enabled)
+	w.WriteHeader(http.StatusOK)
 }
 

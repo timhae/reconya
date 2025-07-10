@@ -732,7 +732,16 @@
                         history.pushState({page: 'alerts'}, 'Alerts - reconYa', '/alerts');
                         document.title = 'Alerts - reconYa';
                     } else if (page === 'settings') {
-                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                        // Load settings page
+                        fetch('/api/settings')
+                            .then(response => response.text())
+                            .then(html => {
+                                document.getElementById('content').innerHTML = html;
+                            })
+                            .catch(error => {
+                                console.error('Error loading settings:', error);
+                                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-danger">Error loading settings. Please try again.</p></div>';
+                            });
                         
                         // Update URL and title
                         history.pushState({page: 'settings'}, 'Settings - reconYa', '/settings');
@@ -809,7 +818,16 @@
                 document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
                 document.title = 'Alerts - reconYa';
             } else if (initialPage === 'settings') {
-                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                // Load settings page
+                fetch('/api/settings')
+                    .then(response => response.text())
+                    .then(html => {
+                        document.getElementById('content').innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error loading settings:', error);
+                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-danger">Error loading settings. Please try again.</p></div>';
+                    });
                 document.title = 'Settings - reconYa';
             } else if (initialPage === 'about') {
                 document.getElementById('content').innerHTML = getAboutPageHTML();
@@ -899,7 +917,16 @@
                         document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ ALERTS ]</h3><p class="text-muted">Alerts functionality coming soon...</p></div>';
                     } else if (page === 'settings') {
                         document.title = 'Settings - reconYa';
-                        document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-muted">Settings functionality coming soon...</p></div>';
+                        // Load settings page
+                        fetch('/api/settings')
+                            .then(response => response.text())
+                            .then(html => {
+                                document.getElementById('content').innerHTML = html;
+                            })
+                            .catch(error => {
+                                console.error('Error loading settings:', error);
+                                document.getElementById('content').innerHTML = '<div class="container-fluid py-4"><h3 class="text-success">[ SETTINGS ]</h3><p class="text-danger">Error loading settings. Please try again.</p></div>';
+                            });
                     } else if (page === 'about') {
                         document.title = 'About - reconYa';
                         document.getElementById('content').innerHTML = getAboutPageHTML();
@@ -1114,6 +1141,85 @@
                 window.location.href = '/login';
             }
         });
+
+        // Settings functions - globally available
+        function handleScreenshotToggle(checkbox) {
+            console.log('handleScreenshotToggle called with:', checkbox.checked);
+            
+            const status = document.getElementById('screenshotsStatus');
+            if (!status) {
+                console.error('Status element not found');
+                return;
+            }
+            
+            // Show loading state
+            status.innerHTML = '<i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i> Saving...';
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('enabled', checkbox.checked ? 'true' : 'false');
+            
+            console.log('Sending request with enabled:', checkbox.checked);
+            
+            // Send the request
+            fetch('/api/settings/screenshots', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (response.ok) {
+                    // Update status
+                    if (checkbox.checked) {
+                        status.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Enabled';
+                    } else {
+                        status.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Disabled';
+                    }
+                    
+                    // Show success message
+                    showSettingsAlert('Settings updated successfully!', 'success');
+                } else {
+                    console.error('Request failed with status:', response.status);
+                    // Revert checkbox state on error
+                    checkbox.checked = !checkbox.checked;
+                    status.innerHTML = checkbox.checked 
+                        ? '<i class="bi bi-check-circle-fill me-1"></i>Enabled'
+                        : '<i class="bi bi-x-circle-fill me-1"></i>Disabled';
+                    showSettingsAlert('Failed to update settings. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating settings:', error);
+                // Revert checkbox state on error
+                checkbox.checked = !checkbox.checked;
+                status.innerHTML = checkbox.checked 
+                    ? '<i class="bi bi-check-circle-fill me-1"></i>Enabled'
+                    : '<i class="bi bi-x-circle-fill me-1"></i>Disabled';
+                showSettingsAlert('Failed to update settings. Please try again.', 'error');
+            });
+        }
+
+        function showSettingsAlert(message, type) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const icon = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+            
+            const alert = document.createElement('div');
+            alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; width: 300px;';
+            alert.innerHTML = `
+                <i class="bi ${icon} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            // Auto-dismiss
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, type === 'success' ? 3000 : 5000);
+        }
     </script>
 </body>
 </html>

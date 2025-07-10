@@ -67,6 +67,14 @@ type GeolocationRepositoryInterface interface {
 	IsValidCache(cache *models.GeolocationCache) bool
 }
 
+// SettingsRepository defines the interface for settings operations
+type SettingsRepository interface {
+	Repository
+	FindByUserID(userID string) (*models.Settings, error)
+	Create(settings *models.Settings) error
+	Update(settings *models.Settings) error
+}
+
 // RepositoryFactory creates repositories
 type RepositoryFactory struct {
 	SQLiteDB *sql.DB
@@ -104,6 +112,11 @@ func (f *RepositoryFactory) NewSystemStatusRepository() SystemStatusRepository {
 // NewGeolocationRepository creates a new geolocation repository
 func (f *RepositoryFactory) NewGeolocationRepository() *GeolocationRepository {
 	return NewGeolocationRepository(f.SQLiteDB)
+}
+
+// NewSettingsRepository creates a new settings repository
+func (f *RepositoryFactory) NewSettingsRepository() SettingsRepository {
+	return NewSQLiteSettingsRepository(f.SQLiteDB)
 }
 
 // GenerateID generates a unique ID for a record
