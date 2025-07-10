@@ -26,14 +26,6 @@
                     </td>
                 </tr>
                 <tr>
-                    <td class="w-25 ps-2 fw-bold">Comment</td>
-                    <td>
-                        <span id="comment-display">{{or (deref .Comment) "-"}}</span>
-                        <textarea id="comment-edit" class="form-control form-control-sm bg-dark text-success border-success" 
-                                  rows="3" placeholder="Add a comment about this device" style="display: none;">{{deref .Comment}}</textarea>
-                    </td>
-                </tr>
-                <tr>
                     <td class="w-25 ps-2 fw-bold">Hostname</td>
                     <td>{{deref .Hostname}}</td>
                 </tr>
@@ -125,6 +117,24 @@
             </tbody>
         </table>
 
+        <h6>[ COMMENTS ]</h6>
+        <div class="mb-4 p-3" style="border: 1px solid rgba(25, 135, 84, 0.3);">
+            <div id="comment-display-section" style="{{if not (deref .Comment)}}display: none;{{end}}">
+                <div class="text-success mb-2" style="white-space: pre-wrap;" id="comment-display">{{deref .Comment}}</div>
+            </div>
+            <div id="comment-edit-section" style="display: none;">
+                <textarea id="comment-edit" class="form-control text-success border border-success" 
+                          placeholder="Add a comment about this device..." 
+                          style="resize: vertical; min-height: 80px;" 
+                          oninput="autoExpandTextarea(this)">{{deref .Comment}}</textarea>
+            </div>
+            <div id="comment-empty-section" style="{{if (deref .Comment)}}display: none;{{end}}">
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-chat-text me-2"></i>No comments yet. Click edit to add one.
+                </div>
+            </div>
+        </div>
+
         <h6>[ PORTS ]</h6>
         <table class="text-success w-100 p-2 mb-4">
             <tbody class="p-2">
@@ -169,7 +179,7 @@
         <h6>[ WEB SERVICES ]</h6>
         <div class="web-services-container">
             {{range .WebServices}}
-            <div class="web-service-card mb-3 p-3 border border-success rounded">
+            <div class="web-service-card mb-3 p-3 border border-success">
                 <div class="row">
                     <div class="col-md-8">
                         <div class="d-flex align-items-center mb-2">
@@ -218,14 +228,14 @@
                             </div>
                             {{else}}
                             <div class="text-center text-muted small">
-                                <div class="border border-secondary rounded p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
+                                <div class="border border-secondary p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
                                     No screenshot available
                                 </div>
                             </div>
                             {{end}}
                         {{else}}
                         <div class="text-center text-muted small">
-                            <div class="border border-secondary rounded p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
+                            <div class="border border-secondary p-3" style="height: 100px; display: flex; align-items: center; justify-content: center;">
                                 <i class="bi bi-eye-slash me-2"></i>
                                 Screenshots disabled
                             </div>
@@ -246,20 +256,39 @@ if (typeof window.deviceModalIsEditing === 'undefined') {
     window.deviceModalIsEditing = false;
 }
 
+function autoExpandTextarea(textarea) {
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    // Set height to match content, with minimum height
+    const minHeight = 60; // minimum height in pixels
+    const newHeight = Math.max(minHeight, textarea.scrollHeight);
+    textarea.style.height = newHeight + 'px';
+}
+
 function toggleEditMode() {
     window.deviceModalIsEditing = !window.deviceModalIsEditing;
     const editButtons = document.getElementById('edit-buttons');
     const nameDisplay = document.getElementById('name-display');
     const nameEdit = document.getElementById('name-edit');
-    const commentDisplay = document.getElementById('comment-display');
+    const commentDisplaySection = document.getElementById('comment-display-section');
+    const commentEditSection = document.getElementById('comment-edit-section');
+    const commentEmptySection = document.getElementById('comment-empty-section');
     const commentEdit = document.getElementById('comment-edit');
     
     if (window.deviceModalIsEditing) {
         // Switch to edit mode
         nameDisplay.style.display = 'none';
         nameEdit.style.display = 'block';
-        commentDisplay.style.display = 'none';
-        commentEdit.style.display = 'block';
+        
+        // Hide display and empty sections, show edit section
+        commentDisplaySection.style.display = 'none';
+        commentEmptySection.style.display = 'none';
+        commentEditSection.style.display = 'block';
+        
+        // Auto-expand textarea to fit content
+        setTimeout(() => {
+            autoExpandTextarea(commentEdit);
+        }, 10);
         
         editButtons.innerHTML = `
             <button type="button" class="btn btn-success btn-sm" onclick="saveChanges()" title="Save changes">
@@ -273,8 +302,12 @@ function toggleEditMode() {
         // Switch to display mode
         nameDisplay.style.display = 'block';
         nameEdit.style.display = 'none';
-        commentDisplay.style.display = 'block';
-        commentEdit.style.display = 'none';
+        
+        // Hide edit section, show appropriate display section
+        commentEditSection.style.display = 'none';
+        const hasComment = commentEdit.value.trim() !== '';
+        commentDisplaySection.style.display = hasComment ? 'block' : 'none';
+        commentEmptySection.style.display = hasComment ? 'none' : 'block';
         
         editButtons.innerHTML = `
             <button type="button" class="btn btn-outline-success btn-sm" onclick="toggleEditMode()" title="Edit device">
@@ -346,12 +379,22 @@ function saveChanges() {
         // Success - update the display values
         const nameDisplay = document.getElementById('name-display');
         const commentDisplay = document.getElementById('comment-display');
+        const commentDisplaySection = document.getElementById('comment-display-section');
+        const commentEmptySection = document.getElementById('comment-empty-section');
         
         if (nameDisplay) {
             nameDisplay.textContent = nameEdit.value || '-';
         }
         if (commentDisplay) {
-            commentDisplay.textContent = commentEdit.value || '-';
+            // Use textContent to preserve line breaks with CSS white-space: pre-wrap
+            commentDisplay.textContent = commentEdit.value;
+        }
+        
+        // Show/hide appropriate comment sections
+        const hasComment = commentEdit.value.trim() !== '';
+        if (commentDisplaySection && commentEmptySection) {
+            commentDisplaySection.style.display = hasComment ? 'block' : 'none';
+            commentEmptySection.style.display = hasComment ? 'none' : 'block';
         }
         
         // Refresh the device list to show updated name

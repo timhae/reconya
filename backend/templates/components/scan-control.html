@@ -106,7 +106,9 @@
             <button class="btn btn-outline-secondary btn-sm"
                     hx-get="/api/network-modal"
                     hx-target="#network-modal-content"
-                    hx-trigger="click">
+                    hx-trigger="click"
+                    data-bs-toggle="modal"
+                    data-bs-target="#networkModal">
                 <i class="bi bi-plus-circle me-1"></i>Add Network
             </button>
         {{end}}

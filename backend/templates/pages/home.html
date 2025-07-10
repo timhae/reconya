@@ -115,7 +115,7 @@
 
 <!-- Network Modal -->
 <div class="modal fade" id="networkModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
         <div class="modal-content bg-dark border-success">
             <div id="network-modal-content">
                 <!-- Content loaded via HTMX -->
@@ -158,13 +158,7 @@
         }
     });
 
-    // Network modal handling
-    document.addEventListener('htmx:afterRequest', function(event) {
-        if (event.detail.target.id === 'network-modal-content') {
-            const modal = new bootstrap.Modal(document.getElementById('networkModal'));
-            modal.show();
-        }
-    });
+    // Network modal handling - removed duplicate handler (handled in network-list.html)
 
     // Handle network creation/update - listen for HX-Trigger events
     document.addEventListener('htmx:afterRequest', function(event) {
