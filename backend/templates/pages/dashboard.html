@@ -113,9 +113,9 @@
 
 <!-- Device Modal -->
 <div class="modal fade" id="deviceModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark border-success">
-            <div id="device-modal-content">
+    <div class="modal-dialog" style="max-width: none; width: 60%; margin: 1.75rem auto;">
+        <div class="modal-content bg-dark border-success d-flex flex-column" style="height: 90vh; max-height: 90vh;">
+            <div id="device-modal-content" class="flex-grow-1 overflow-auto">
                 <!-- Content loaded via HTMX -->
             </div>
         </div>

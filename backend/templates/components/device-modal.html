@@ -1,5 +1,5 @@
 {{define "components/device-modal.html"}}
-<div class="modal-body bg-black border border-success border-radius-0 text-success p-5" data-device-id="{{.ID}}" style="overflow-y: auto; flex-grow: 1;">
+<div class="modal-body bg-black border border-success border-radius-0 text-success p-5" data-device-id="{{.ID}}" style="height: 100%;">
     <div class="mb-3">
         <div class="border-bottom border-success pb-2 mb-3 d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
@@ -22,7 +22,7 @@
                     <td>
                         <span id="name-display">{{or .Name (deref .Hostname) "-"}}</span>
                         <input type="text" id="name-edit" class="form-control form-control-sm bg-dark text-success border-success" 
-                               value="{{or .Name (deref .Hostname)}}" placeholder="Device name" style="display: none;">
+                               value="{{or .Name (deref .Hostname)}}" data-original="{{or .Name (deref .Hostname)}}" placeholder="Device name" style="display: none;">
                     </td>
                 </tr>
                 <tr>
@@ -126,6 +126,7 @@
                 <textarea id="comment-edit" class="form-control text-success border border-success" 
                           placeholder="Add a comment about this device..." 
                           style="resize: vertical; min-height: 80px;" 
+                          data-original="{{deref .Comment}}"
                           oninput="autoExpandTextarea(this)">{{deref .Comment}}</textarea>
             </div>
             <div id="comment-empty-section" style="{{if (deref .Comment)}}display: none;{{end}}">
@@ -370,12 +371,21 @@ function saveChanges() {
         </button>
     `;
     
-    // Use HTMX to save changes with error handling
-    htmx.ajax('PUT', `/api/devices/${deviceId}`, {
-        values: updateData,
-        target: '#device-modal-content',
-        swap: 'innerHTML'
-    }).then(function() {
+    // Use fetch instead of HTMX to avoid triggering the global modal event listener
+    fetch(`/api/devices/${deviceId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(updateData)
+    }).then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    }).then(function(responseText) {
+        console.log('Save successful, response:', responseText);
         // Success - update the display values
         const nameDisplay = document.getElementById('name-display');
         const commentDisplay = document.getElementById('comment-display');
@@ -397,20 +407,63 @@ function saveChanges() {
             commentEmptySection.style.display = hasComment ? 'none' : 'block';
         }
         
-        // Refresh the device list to show updated name
-        const deviceListContainer = document.getElementById('device-list-container');
-        const devicesContainer = document.getElementById('devices-container');
-        if (deviceListContainer) {
-            htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
-        }
-        if (devicesContainer) {
-            htmx.ajax('GET', '/api/devices', { target: '#devices-container' });
+        // Switch back to display mode
+        window.deviceModalIsEditing = false;
+        toggleEditMode();
+        
+        // Only refresh if the name changed to avoid unnecessary layout shifts
+        if (nameEdit.value !== nameEdit.getAttribute('data-original')) {
+            const deviceListContainer = document.getElementById('device-list-container');
+            const devicesContainer = document.getElementById('devices-container');
+            if (deviceListContainer) {
+                htmx.ajax('GET', '/api/device-list', { target: '#device-list-container' });
+            }
+            if (devicesContainer) {
+                htmx.ajax('GET', '/api/devices', { target: '#devices-container' });
+            }
         }
         
         console.log('Device updated successfully');
+        
+        // Show success toast notification
+        const toastHtml = `
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div id="deviceSavedToast" class="toast bg-dark border-success" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header bg-dark text-success border-success">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong class="me-auto">Success</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body text-light">
+                        Device updated successfully!
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add toast to body and show it
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById('deviceSavedToast');
+        const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+        toast.show();
+        
+        // Remove toast from DOM after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.parentElement.remove();
+        });
+        
+        // Close the modal
+        const modalElement = document.getElementById('deviceModal');
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
     }).catch(function(error) {
         // Error handling
         console.error('Failed to update device:', error);
+        console.error('Error details:', error.message);
         
         // Reset edit buttons
         editButtons.innerHTML = `

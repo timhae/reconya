@@ -736,6 +736,13 @@ func (h *WebHandler) APIDeviceModal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	deviceID := vars["id"]
 
@@ -761,7 +768,19 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Successfully updated device %s", deviceID)
 
-	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", device); err != nil {
+	// Get user's screenshot setting to match APIDeviceModal template data structure
+	screenshotsEnabled := h.settingsService.AreScreenshotsEnabled(fmt.Sprintf("%d", user.ID))
+
+	// Create template data with device and settings (matching APIDeviceModal structure)
+	data := struct {
+		*models.Device
+		ScreenshotsEnabled bool
+	}{
+		Device:             device,
+		ScreenshotsEnabled: screenshotsEnabled,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/device-modal.html", data); err != nil {
 		log.Printf("Template execution error for device %s: %v", deviceID, err)
 		http.Error(w, "Failed to render device modal", http.StatusInternalServerError)
 	}

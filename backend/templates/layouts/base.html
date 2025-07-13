@@ -80,17 +80,37 @@
             border-color: var(--bs-success);
         }
         
-        button.device-box-btn:hover i[class*="bi-"] {
-            color: #000 !important;
-        }
-        
-        button.device-box-btn:hover .text-success {
-            color: #000 !important;
+        button.device-box-btn {
+            border: 2px solid transparent !important;
+            transition: border-color 0.3s ease !important;
         }
         
         button.device-box-btn:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
-            border: 1px solid rgba(25, 135, 84, 0.7) !important;
+            border: 2px solid #198754 !important;
+            animation: borderPulse 1.5s ease-in-out infinite !important;
+        }
+        
+        @keyframes borderPulse {
+            0%, 100% { border-color: #198754; }
+            50% { border-color: #20c997; }
+        }
+        
+        .modal-fullheight {
+            max-width: none !important;
+            width: 60% !important;
+            margin: 1.75rem auto !important;
+        }
+        
+        .modal-fullheight .modal-content {
+            height: 90vh !important;
+            max-height: 90vh !important;
+            width: 100% !important;
+        }
+        
+        #deviceModal .modal-dialog {
+            max-width: none !important;
+            width: 60% !important;
+            margin: 1.75rem auto !important;
         }
         
         .device-ip {
