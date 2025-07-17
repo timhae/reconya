@@ -9,7 +9,8 @@
     "start": "node scripts/start.js --daemon",
     "start:dev": "node scripts/start.js",
     "stop": "node scripts/stop.js",
-    "status": "node scripts/status.js"
+    "status": "node scripts/status.js",
+    "logs": "node scripts/logs.js"
   },
   "dependencies": {
     "chalk": "^4.1.2",

@@ -343,19 +343,34 @@ if (require.main === module) {
     // Run as daemon
     const { spawn } = require('child_process');
     const path = require('path');
+    const fs = require('fs');
     
     console.log('Starting reconYa backend as daemon...');
     
+    // Create logs directory if it doesn't exist
+    const logsDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    
+    // Setup log files
+    const logFile = path.join(logsDir, 'reconya.log');
+    const errorFile = path.join(logsDir, 'reconya.error.log');
+    
+    const out = fs.openSync(logFile, 'a');
+    const err = fs.openSync(errorFile, 'a');
+    
     const child = spawn(process.execPath, [__filename], {
       detached: true,
-      stdio: 'ignore'
+      stdio: ['ignore', out, err]
     });
     
     child.unref();
     console.log(`reconYa daemon started with PID: ${child.pid}`);
+    console.log(`Logs: ${logFile}`);
+    console.log(`Errors: ${errorFile}`);
     
     // Write PID file for daemon management
-    const fs = require('fs');
     const pidFile = path.join(process.cwd(), '.reconya.pid');
     fs.writeFileSync(pidFile, child.pid.toString());
     
