@@ -12,6 +12,10 @@ class ServiceStopper {
     try {
       let stoppedAny = false;
 
+      // Check for daemon PID file first
+      const daemonStopped = await this.stopDaemon();
+      if (daemonStopped) stoppedAny = true;
+
       // Stop backend (port 3008)
       const backendStopped = await Utils.killProcessByPort(3008, 'backend');
       if (backendStopped) stoppedAny = true;
@@ -29,6 +33,46 @@ class ServiceStopper {
       Utils.log.error('Failed to stop backend: ' + error.message);
       process.exit(1);
     }
+  }
+
+  async stopDaemon() {
+    const fs = require('fs');
+    const path = require('path');
+    const pidFile = path.join(process.cwd(), '.reconya.pid');
+    
+    if (fs.existsSync(pidFile)) {
+      try {
+        const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim());
+        
+        if (pid && !isNaN(pid)) {
+          // Check if process exists
+          try {
+            process.kill(pid, 0); // Check if process exists
+            process.kill(pid, 'SIGTERM'); // Kill the process
+            Utils.log.info(`Stopped daemon process ${pid}`);
+            
+            // Remove PID file
+            fs.unlinkSync(pidFile);
+            return true;
+          } catch (error) {
+            if (error.code === 'ESRCH') {
+              Utils.log.warning('Daemon PID file exists but process not found');
+              fs.unlinkSync(pidFile);
+            } else {
+              throw error;
+            }
+          }
+        }
+      } catch (error) {
+        Utils.log.warning('Failed to stop daemon: ' + error.message);
+        // Clean up PID file anyway
+        try {
+          fs.unlinkSync(pidFile);
+        } catch {}
+      }
+    }
+    
+    return false;
   }
 
   async killreconYaProcesses() {

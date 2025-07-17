@@ -6,7 +6,8 @@
   "scripts": {
     "install": "node scripts/install.js",
     "uninstall": "node scripts/uninstall.js",
-    "start": "node scripts/start.js",
+    "start": "node scripts/start.js --daemon",
+    "start:dev": "node scripts/start.js",
     "stop": "node scripts/stop.js",
     "status": "node scripts/status.js"
   },

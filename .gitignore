@@ -35,6 +35,10 @@ tmp/
 temp/
 .aider*
 
+# PID files
+*.pid
+.reconya.pid
+
 # Database files
 backend/data/
 *.db

@@ -333,15 +333,41 @@ if (require.main === module) {
   program
     .name('reconya-start')
     .description('Start reconYa services')
+    .option('-d, --daemon', 'run as daemon (detached)')
     .version('1.0.0');
 
   program.parse();
+  const options = program.opts();
 
-  const serviceManager = new ServiceManager();
-  serviceManager.start().catch(error => {
-    Utils.log.error('Failed to start services: ' + error.message);
-    process.exit(1);
-  });
+  if (options.daemon) {
+    // Run as daemon
+    const { spawn } = require('child_process');
+    const path = require('path');
+    
+    console.log('Starting reconYa backend as daemon...');
+    
+    const child = spawn(process.execPath, [__filename], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    
+    child.unref();
+    console.log(`reconYa daemon started with PID: ${child.pid}`);
+    
+    // Write PID file for daemon management
+    const fs = require('fs');
+    const pidFile = path.join(process.cwd(), '.reconya.pid');
+    fs.writeFileSync(pidFile, child.pid.toString());
+    
+    process.exit(0);
+  } else {
+    // Run in terminal (persistent)
+    const serviceManager = new ServiceManager();
+    serviceManager.start().catch(error => {
+      Utils.log.error('Failed to start services: ' + error.message);
+      process.exit(1);
+    });
+  }
 }
 
 module.exports = ServiceManager;
