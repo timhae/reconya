@@ -64,9 +64,32 @@ func (s *DeviceService) CreateOrUpdate(device *models.Device) (*models.Device, e
 		return nil, fmt.Errorf("network or broadcast address not allowed: %s", device.IPv4)
 	}
 
+	// First try to find device by IP address
 	existingDevice, err := s.FindByIPv4(device.IPv4)
 	if err != nil && err != db.ErrNotFound {
 		return nil, err
+	}
+
+	// If no device found by IP and we have a MAC address, try to find by MAC
+	// This handles cases where a device changes IP but keeps the same MAC (DHCP reassignment)
+	if existingDevice == nil && device.MAC != nil && *device.MAC != "" {
+		existingByMAC, err := s.FindDeviceByMAC(*device.MAC)
+		if err == nil && existingByMAC != nil {
+			log.Printf("Found existing device by MAC %s, updating IP from %s to %s", 
+				*device.MAC, existingByMAC.IPv4, device.IPv4)
+			
+			// Update the existing device's IP address and other fields
+			existingByMAC.IPv4 = device.IPv4
+			existingByMAC.Hostname = device.Hostname
+			existingByMAC.Vendor = device.Vendor
+			existingByMAC.NetworkID = device.NetworkID
+			existingByMAC.LastSeenOnlineAt = &currentTime
+			existingByMAC.Status = models.DeviceStatusOnline
+			
+			existingDevice = existingByMAC
+			// Set the device ID to the existing device to ensure we update rather than create
+			device.ID = existingDevice.ID
+		}
 	}
 
 	s.setTimestamps(device, existingDevice, currentTime)
@@ -484,8 +507,8 @@ func (s *DeviceService) UpdateDeviceStatuses() error {
 	defer cancel()
 
 	// Use DB manager to serialize database access
-	// Device status transitions: online -> idle after 1 minute, idle/online -> offline after 15 minutes
-	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 15*time.Minute)
+	// Device status transitions: online -> idle after 1 minute, idle/online -> offline after 3 minutes
+	return s.dbManager.UpdateDeviceStatuses(s.repository, ctx, 3*time.Minute)
 }
 
 // PerformDeviceFingerprinting analyzes device characteristics to determine type and OS
@@ -724,5 +747,89 @@ func (s *DeviceService) CleanupAllDeviceNames() error {
 	}
 	
 	log.Printf("Device name cleanup completed successfully for %d devices", len(devices))
+	return nil
+}
+
+// CleanupDuplicateDevices finds and removes duplicate devices with the same MAC address
+// Keeps the most recently updated device and preserves user-set names and comments
+func (s *DeviceService) CleanupDuplicateDevices() error {
+	ctx := context.Background()
+	
+	// Get all devices
+	devices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch devices: %v", err)
+	}
+	
+	log.Printf("Starting duplicate device cleanup for %d devices", len(devices))
+	
+	// Group devices by MAC address (skip devices without MAC)
+	macGroups := make(map[string][]*models.Device)
+	for _, device := range devices {
+		if device.MAC != nil && *device.MAC != "" {
+			macGroups[*device.MAC] = append(macGroups[*device.MAC], device)
+		}
+	}
+	
+	var deletedCount int
+	var errors []string
+	
+	// Process each MAC group
+	for mac, deviceGroup := range macGroups {
+		if len(deviceGroup) <= 1 {
+			continue // No duplicates
+		}
+		
+		log.Printf("Found %d devices with MAC %s", len(deviceGroup), mac)
+		
+		// Sort by UpdatedAt to find the most recent
+		sort.Slice(deviceGroup, func(i, j int) bool {
+			return deviceGroup[i].UpdatedAt.After(deviceGroup[j].UpdatedAt)
+		})
+		
+		keeper := deviceGroup[0] // Most recently updated
+		duplicates := deviceGroup[1:]
+		
+		// Preserve user-set data from duplicates
+		for _, duplicate := range duplicates {
+			if duplicate.Name != "" && keeper.Name == "" {
+				keeper.Name = duplicate.Name
+			}
+			if duplicate.Comment != nil && *duplicate.Comment != "" && 
+			   (keeper.Comment == nil || *keeper.Comment == "") {
+				keeper.Comment = duplicate.Comment
+			}
+		}
+		
+		// Update the keeper with preserved data
+		_, err := s.repository.CreateOrUpdate(ctx, keeper)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Failed to update keeper device %s: %v", keeper.IPv4, err))
+			continue
+		}
+		
+		// Delete duplicates
+		for _, duplicate := range duplicates {
+			log.Printf("Removing duplicate device %s (MAC: %s, keeping %s)", 
+				duplicate.IPv4, mac, keeper.IPv4)
+			
+			err := s.repository.DeleteByID(ctx, duplicate.ID)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to delete duplicate device %s: %v", duplicate.IPv4, err))
+				continue
+			}
+			deletedCount++
+		}
+	}
+	
+	if len(errors) > 0 {
+		log.Printf("Duplicate cleanup completed with %d duplicates removed and %d errors", deletedCount, len(errors))
+		for _, errMsg := range errors {
+			log.Printf("Error: %s", errMsg)
+		}
+		return fmt.Errorf("cleanup completed with %d errors", len(errors))
+	}
+	
+	log.Printf("Duplicate device cleanup completed successfully, removed %d duplicates", deletedCount)
 	return nil
 }

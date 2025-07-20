@@ -85,7 +85,7 @@ func (s *PingSweepService) executeWithFallback(network string) ([]models.Device,
 	log.Printf("Skipping native Go scanner, using nmap directly")
 
 	// Strategy 1: Try sudo with IP packets (works on most systems, gets MAC/vendor)
-	devices, err := s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "--send-ip", "-T4", "-R", "--system-dns", "-oX", "-", network})
+	devices, err := s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "--send-ip", "-T4", "-n", "-oX", "-", network})
 	if err == nil && len(devices) > 0 {
 		log.Printf("Sudo IP scan successful, found %d devices", len(devices))
 		return devices, nil
@@ -101,7 +101,7 @@ func (s *PingSweepService) executeWithFallback(network string) ([]models.Device,
 	log.Printf("IP scan without sudo failed or found no devices: %v", err)
 
 	// Strategy 4: Try ARP scan with sudo (best for local networks but needs interface access)
-	devices, err = s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "-PR", "-T4", "-R", "--system-dns", "-oX", "-", network})
+	devices, err = s.tryNmapCommand([]string{"sudo", "nmap", "-sn", "-PR", "-T4", "-n", "-oX", "-", network})
 	if err == nil && len(devices) > 0 {
 		log.Printf("Sudo ARP scan successful, found %d devices", len(devices))
 		return devices, nil
