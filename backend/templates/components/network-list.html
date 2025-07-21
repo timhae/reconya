@@ -59,9 +59,13 @@
                         </button>
                         <button class="btn btn-outline-danger btn-sm" 
                                 hx-delete="/api/networks/{{.ID}}" 
+                                hx-trigger="click"
                                 hx-confirm="Are you sure you want to delete this network?"
                                 hx-target="closest tr"
                                 hx-swap="outerHTML"
+                                hx-on::before-request="console.log('Delete request starting for network {{.ID}}')"
+                                hx-on::after-request="console.log('Delete request completed:', event.detail.xhr.status)"
+                                hx-on::response-error="alert('Error deleting network: ' + event.detail.xhr.responseText)"
                                 onclick="event.stopPropagation()"
                                 title="Delete Network">
                             <i class="bi bi-trash"></i>

@@ -786,6 +786,51 @@ func (h *WebHandler) APIUpdateDevice(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *WebHandler) APIDeleteDevice(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	deviceID := vars["id"]
+
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get device info before deletion for logging
+	device, err := h.deviceService.FindByID(deviceID)
+	if err != nil {
+		http.Error(w, "Device not found", http.StatusNotFound)
+		return
+	}
+
+	if device == nil {
+		http.Error(w, "Device not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete the device
+	err = h.deviceService.Delete(deviceID)
+	if err != nil {
+		log.Printf("Failed to delete device %s: %v", deviceID, err)
+		http.Error(w, fmt.Sprintf("Failed to delete device: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the event
+	h.eventLogService.Log(models.DeviceDeleted, fmt.Sprintf("Device %s deleted", device.IPv4), "")
+
+	log.Printf("Successfully deleted device %s (%s)", device.IPv4, deviceID)
+
+	// Return empty response to remove the table row
+	w.WriteHeader(http.StatusOK)
+}
+
 // Test endpoint to add IPv6 data to a device (for debugging)
 func (h *WebHandler) APITestIPv6(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -1620,6 +1665,11 @@ func (h *WebHandler) APIScanControl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set cache control headers to prevent browser caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
 	// Get networks and scan state
 	networksSlice, err := h.networkService.FindAll()
 	if err != nil {
@@ -1647,6 +1697,11 @@ func (h *WebHandler) APIScanControlWithError(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Set cache control headers to prevent browser caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 
 	// Get networks and scan state
 	networksSlice, err := h.networkService.FindAll()

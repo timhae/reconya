@@ -321,6 +321,30 @@ func (s *DeviceService) FindByID(deviceID string) (*models.Device, error) {
 	return device, nil
 }
 
+func (s *DeviceService) Delete(deviceID string) error {
+	ctx := context.Background()
+	
+	// Check if device exists before attempting deletion
+	device, err := s.repository.FindByID(ctx, deviceID)
+	if err == db.ErrNotFound {
+		return fmt.Errorf("device not found")
+	}
+	if err != nil {
+		log.Printf("Error finding device with ID %s for deletion: %v", deviceID, err)
+		return err
+	}
+	
+	// Delete the device (this will cascade to ports and web services)
+	err = s.repository.DeleteByID(ctx, deviceID)
+	if err != nil {
+		log.Printf("Error deleting device with ID %s: %v", deviceID, err)
+		return err
+	}
+	
+	log.Printf("Successfully deleted device %s (%s)", device.IPv4, deviceID)
+	return nil
+}
+
 func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
 	ctx := context.Background()
 	device, err := s.repository.FindByIP(ctx, ipv4)

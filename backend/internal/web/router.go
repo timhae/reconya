@@ -30,6 +30,7 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/devices", h.APIDevices).Methods("GET")
 	api.HandleFunc("/devices/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/modal", h.APIDeviceModal).Methods("GET")
 	api.HandleFunc("/devices/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIUpdateDevice).Methods("PUT")
+	api.HandleFunc("/devices/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIDeleteDevice).Methods("DELETE")
 	api.HandleFunc("/devices/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/rescan", h.APIRescanDevice).Methods("POST")
 	api.HandleFunc("/devices/new-scan", h.APINewScan).Methods("GET")
 	api.HandleFunc("/test-ipv6", h.APITestIPv6).Methods("POST")
