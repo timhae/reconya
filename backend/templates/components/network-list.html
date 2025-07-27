@@ -12,14 +12,13 @@
 
 <!-- Networks Table -->
 <div class="table-responsive">
-    <table class="table table-dark table-hover table-sm" id="networksTable">
+    <table class="table table-dark table-sm networks-table">
         <thead>
             <tr>
-                <th>Network Name</th>
+                <th>Network</th>
                 <th>CIDR</th>
                 <th>Status</th>
-                <th>Last Scanned</th>
-                <th>Devices Found</th>
+                <th>Devices</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -31,54 +30,41 @@
                 hx-trigger="click"
                 hx-swap="none"
                 data-network-id="{{.ID}}">
-                <td class="text-success">{{or .Name "Unnamed Network"}}</td>
-                <td class="text-success">{{.CIDR}}</td>
+                <td>{{or .Name "Unnamed Network"}}</td>
+                <td><code class="text-success">{{.CIDR}}</code></td>
                 <td>
                     {{if eq .Status "active"}}
-                        <span class="status-online">Active</span>
+                        <span class="badge bg-success">Active</span>
                     {{else if eq .Status "scanning"}}
-                        <span class="status-idle">Scanning</span>
+                        <span class="badge bg-warning">Scanning</span>
                     {{else}}
-                        <span class="status-offline">Inactive</span>
+                        <span class="badge bg-secondary">Inactive</span>
                     {{end}}
                 </td>
-                <td class="text-success">
-                    {{if .LastScannedAt}}
-                        {{formatTimeAgo .LastScannedAt}}
-                    {{else}}
-                        <span class="text-muted">Never</span>
-                    {{end}}
-                </td>
-                <td class="text-success">{{.DeviceCount}}</td>
+                <td>{{.DeviceCount}} devices</td>
                 <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-success btn-sm" 
-                                onclick="event.stopPropagation(); showNetworkModal('/api/network-modal/{{.ID}}')"
-                                title="Edit Network">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" 
-                                hx-delete="/api/networks/{{.ID}}" 
-                                hx-trigger="click"
-                                hx-confirm="Are you sure you want to delete this network?"
-                                hx-target="closest tr"
-                                hx-swap="outerHTML"
-                                hx-on::before-request="console.log('Delete request starting for network {{.ID}}')"
-                                hx-on::after-request="console.log('Delete request completed:', event.detail.xhr.status)"
-                                hx-on::response-error="alert('Error deleting network: ' + event.detail.xhr.responseText)"
-                                onclick="event.stopPropagation()"
-                                title="Delete Network">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-outline-success me-1" 
+                            onclick="event.stopPropagation(); showNetworkModal('/api/network-modal/{{.ID}}')"
+                            title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" 
+                            hx-delete="/api/networks/{{.ID}}" 
+                            hx-trigger="click"
+                            hx-confirm="Delete this network?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML"
+                            onclick="event.stopPropagation()"
+                            title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </td>
             </tr>
             {{else}}
             <tr>
-                <td colspan="6" class="text-center text-muted py-4">
-                    <i class="bi bi-diagram-3 me-2" style="font-size: 1.5rem;"></i>
-                    <br>
-                    No networks configured yet. Add your first network to start scanning.
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="bi bi-diagram-3 me-2"></i>
+                    No networks configured. Add your first network to start scanning.
                 </td>
             </tr>
             {{end}}
@@ -88,28 +74,25 @@
 
 
 <style>
-/* Custom hover effect with green border instead of gray background */
-#networksTable {
-    border-collapse: separate;
-    border-spacing: 0 2px;
-}
-
-#networksTable tbody tr {
-    border: 1px solid transparent;
-}
-
-#networksTable tbody tr:hover {
-    background-color: transparent !important;
-    border: 2px solid rgba(25, 135, 84, 0.8) !important;
+.networks-table tbody tr {
     cursor: pointer;
-    position: relative;
-    z-index: 10;
-    outline: 1px solid rgba(25, 135, 84, 0.8);
-    outline-offset: -1px;
+    transition: all 0.2s ease;
 }
 
-#networksTable tbody tr:hover td {
-    background-color: transparent !important;
+.networks-table tbody tr:hover {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.networks-table .selected-network {
+    background-color: rgba(25, 135, 84, 0.2) !important;
+    border-left: 4px solid var(--bs-success);
+}
+
+.networks-table code {
+    background-color: rgba(25, 135, 84, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
 }
 </style>
 {{end}}
