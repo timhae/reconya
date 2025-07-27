@@ -18,6 +18,7 @@ import (
 	"reconya-ai/internal/device"
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/network"
+	"reconya-ai/internal/nicidentifier"
 	"reconya-ai/internal/scan"
 	"reconya-ai/internal/settings"
 	"reconya-ai/internal/systemstatus"
@@ -38,6 +39,7 @@ type WebHandler struct {
 	scanManager           *scan.ScanManager
 	geolocationRepository *db.GeolocationRepository
 	settingsService       *settings.SettingsService
+	nicIdentifierService  *nicidentifier.NicIdentifierService
 	templates             *template.Template
 	sessionStore          *sessions.CookieStore
 	config                *config.Config
@@ -86,6 +88,7 @@ func NewWebHandler(
 	scanManager *scan.ScanManager,
 	geolocationRepository *db.GeolocationRepository,
 	settingsService *settings.SettingsService,
+	nicIdentifierService *nicidentifier.NicIdentifierService,
 	config *config.Config,
 	sessionSecret string,
 ) *WebHandler {
@@ -409,6 +412,7 @@ func NewWebHandler(
 		scanManager:           scanManager,
 		geolocationRepository: geolocationRepository,
 		settingsService:       settingsService,
+		nicIdentifierService:  nicIdentifierService,
 		templates:             tmpl,
 		sessionStore:          store,
 		config:                config,
@@ -2199,5 +2203,107 @@ func (h *WebHandler) APISettingsScreenshots(w http.ResponseWriter, r *http.Reque
 
 	log.Printf("Updated screenshot settings for user %d: enabled=%v", user.ID, enabled)
 	w.WriteHeader(http.StatusOK)
+}
+
+// APIDetectedNetworks returns detected networks that don't exist in the database
+func (h *WebHandler) APIDetectedNetworks(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	detectedNetworks := h.nicIdentifierService.GetDetectedNetworks()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(detectedNetworks); err != nil {
+		http.Error(w, "Failed to encode detected networks", http.StatusInternalServerError)
+	}
+}
+
+// APINetworkSuggestion creates a network from a suggestion
+func (h *WebHandler) APINetworkSuggestion(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	cidr := strings.TrimSpace(r.FormValue("cidr"))
+	if cidr == "" {
+		http.Error(w, "CIDR is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate CIDR format
+	_, _, err := net.ParseCIDR(cidr)
+	if err != nil {
+		http.Error(w, "Invalid CIDR format", http.StatusBadRequest)
+		return
+	}
+
+	// Create network with auto-generated name
+	name := fmt.Sprintf("Network %s", cidr)
+	description := "Auto-detected network"
+
+	network, err := h.networkService.Create(name, cidr, description)
+	if err != nil {
+		log.Printf("Failed to create suggested network %s: %v", cidr, err)
+		http.Error(w, fmt.Sprintf("Failed to create network: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the event
+	h.eventLogService.Log(models.NetworkCreated, fmt.Sprintf("Network %s created from suggestion", cidr), "")
+
+	log.Printf("Created network from suggestion: %s (ID: %s)", cidr, network.ID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"network": network,
+		"message": fmt.Sprintf("Network %s created successfully", cidr),
+	})
+}
+
+// APIDetectedNetworksDebug returns detected networks without authentication (for testing)
+func (h *WebHandler) APIDetectedNetworksDebug(w http.ResponseWriter, r *http.Request) {
+	detectedNetworks := h.nicIdentifierService.GetDetectedNetworks()
+	
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"detected_networks": detectedNetworks,
+		"count":            len(detectedNetworks),
+	}
+	
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode detected networks", http.StatusInternalServerError)
+	}
+}
+
+// APINetworksDebug returns all networks in database (for testing)
+func (h *WebHandler) APINetworksDebug(w http.ResponseWriter, r *http.Request) {
+	networks, err := h.networkService.FindAll()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get networks: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"existing_networks": networks,
+		"count":            len(networks),
+	}
+	
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode networks", http.StatusInternalServerError)
+	}
 }
 

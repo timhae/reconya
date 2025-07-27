@@ -20,6 +20,7 @@ import (
 	"reconya-ai/internal/eventlog"
 	"reconya-ai/internal/ipv6monitor"
 	"reconya-ai/internal/network"
+	"reconya-ai/internal/nicidentifier"
 	"reconya-ai/internal/oui"
 	"reconya-ai/internal/pingsweep"
 	"reconya-ai/internal/portscan"
@@ -104,6 +105,41 @@ func runGeolocationCacheCleanup(repo *db.GeolocationRepository, done <-chan bool
 				if err := repo.CleanupExpired(ctx); err != nil {
 					errorLogger.Printf("Geolocation cache cleanup failed: %v", err)
 				}
+			}()
+		}
+	}
+}
+
+func runNetworkDetection(nicService *nicidentifier.NicIdentifierService, done <-chan bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			errorLogger.Printf("Network detection panic recovered: %v", r)
+			errorLogger.Printf("Network detection stack trace: %s", debug.Stack())
+		}
+		infoLogger.Println("Network detection service stopped")
+	}()
+
+	// Run network detection every 30 seconds to catch new network connections
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	infoLogger.Println("Network detection service started")
+
+	for {
+		select {
+		case <-done:
+			infoLogger.Println("Network detection received shutdown signal")
+			return
+		case <-ticker.C:
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						errorLogger.Printf("Network detection iteration panic: %v", r)
+					}
+				}()
+				
+				// Check for new networks without creating devices/system status
+				nicService.CheckForNewNetworks()
 			}()
 		}
 	}
@@ -215,22 +251,27 @@ func main() {
 	// Initialize scan manager to control scanning
 	scanManager := scan.NewScanManager(pingSweepService, networkService, ipv6MonitorService)
 
-	// NIC identification commented out - networks are now user-configured
-	// nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
+	// NIC identification for network detection and suggestions
+	nicService := nicidentifier.NewNicIdentifierService(networkService, systemStatusService, eventLogService, deviceService, cfg)
 
 	// Create a done channel to coordinate graceful shutdown
 	done := make(chan bool)
 
-	// nicService.Identify()
+	// Trigger initial network identification and detection
+	nicService.Identify()
+	
 	// Remove automatic ping sweep - now controlled by scan manager
 	go runDeviceUpdater(deviceService, done)
+	
+	// Start periodic network detection
+	go runNetworkDetection(nicService, done)
 	
 	// Start geolocation cache cleanup routine
 	go runGeolocationCacheCleanup(geolocationRepo, done)
 
 	// Initialize web handlers for HTMX frontend
 	sessionSecret := "your-secret-key-here-replace-in-production"
-	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, geolocationRepo, settingsService, cfg, sessionSecret)
+	webHandler := web.NewWebHandler(deviceService, eventLogService, networkService, systemStatusService, scanManager, geolocationRepo, settingsService, nicService, cfg, sessionSecret)
 	router := webHandler.SetupRoutes()
 	loggedRouter := middleware.LoggingMiddleware(router)
 

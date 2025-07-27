@@ -46,6 +46,27 @@
             </div>
         </div>
         
+        <!-- Network Suggestions Alert -->
+        <div id="network-suggestions" class="mb-4" style="display: none;">
+            <div class="alert alert-info border-success bg-very-dark" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-info-circle-fill text-success me-3" style="font-size: 1.2rem;"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="text-success mb-1">New Network Detected</h6>
+                        <p class="mb-2" id="suggestion-text">A new network was detected. Do you want to create it?</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success btn-sm" id="create-network-btn">
+                                <i class="bi bi-plus-circle me-1"></i>Create Network
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="dismiss-suggestion-btn">
+                                <i class="bi bi-x-circle me-1"></i>Dismiss
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Network Map -->
         <div class="network-map-container mb-4 p0 sticky-top">
             <div id="network-map" hx-get="/api/network-map" hx-trigger="load, every 8s" hx-swap="innerHTML">
@@ -285,4 +306,167 @@
             setTimeout(updateSystemStatus, 100);
         }
     });
+
+    // Network Suggestion functionality
+    window.detectedNetworks = window.detectedNetworks || [];
+    window.currentSuggestionIndex = window.currentSuggestionIndex || 0;
+
+    function checkForNetworkSuggestions() {
+        console.log('Checking for network suggestions...');
+        fetch('/api/detected-networks')
+            .then(response => {
+                console.log('Network detection response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Detected networks data:', data);
+                window.detectedNetworks = data || [];
+                if (window.detectedNetworks.length > 0) {
+                    console.log('Showing network suggestion for', window.detectedNetworks.length, 'networks');
+                    showNetworkSuggestion(0);
+                } else {
+                    console.log('No networks detected, hiding suggestion');
+                    hideNetworkSuggestion();
+                }
+            })
+            .catch(error => {
+                console.error('Failed to fetch detected networks:', error);
+            });
+    }
+
+    function showNetworkSuggestion(index) {
+        if (index >= window.detectedNetworks.length) {
+            hideNetworkSuggestion();
+            return;
+        }
+
+        window.currentSuggestionIndex = index;
+        const network = window.detectedNetworks[index];
+        const suggestionElement = document.getElementById('network-suggestions');
+        const textElement = document.getElementById('suggestion-text');
+
+        if (suggestionElement && textElement) {
+            textElement.textContent = `A new network ${network.cidr} was detected on interface ${network.interface}. Do you want to create it?`;
+            suggestionElement.style.display = 'block';
+        }
+    }
+
+    function hideNetworkSuggestion() {
+        const suggestionElement = document.getElementById('network-suggestions');
+        if (suggestionElement) {
+            suggestionElement.style.display = 'none';
+        }
+    }
+
+    function createSuggestedNetwork() {
+        if (window.currentSuggestionIndex >= window.detectedNetworks.length) {
+            return;
+        }
+
+        const network = window.detectedNetworks[window.currentSuggestionIndex];
+        const formData = new FormData();
+        formData.append('cidr', network.cidr);
+
+        fetch('/api/network-suggestion', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const toast = document.createElement('div');
+                toast.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toast.innerHTML = `
+                    <div class="toast bg-dark border-success show" role="alert">
+                        <div class="toast-header bg-dark text-success border-success">
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            <strong class="me-auto">Success</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body text-light">
+                            ${data.message}
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+
+                // Auto-remove toast after 3 seconds
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 3000);
+
+                // Move to next suggestion or hide if none left
+                window.detectedNetworks.splice(window.currentSuggestionIndex, 1);
+                if (window.detectedNetworks.length > 0) {
+                    showNetworkSuggestion(Math.min(window.currentSuggestionIndex, window.detectedNetworks.length - 1));
+                } else {
+                    hideNetworkSuggestion();
+                }
+
+                // Refresh scan control to update network dropdown
+                setTimeout(() => {
+                    const scanControlContainer = document.getElementById('scan-control-container');
+                    if (scanControlContainer) {
+                        htmx.trigger(scanControlContainer, 'htmx:load');
+                    }
+                }, 500);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to create network:', error);
+            alert('Failed to create network. Please try again.');
+        });
+    }
+
+    function dismissSuggestion() {
+        // Move to next suggestion or hide if none left
+        window.currentSuggestionIndex++;
+        if (window.currentSuggestionIndex < window.detectedNetworks.length) {
+            showNetworkSuggestion(window.currentSuggestionIndex);
+        } else {
+            hideNetworkSuggestion();
+        }
+    }
+
+    // Initialize network suggestion functionality
+    function initNetworkSuggestions() {
+        console.log('Initializing network suggestions...');
+        
+        const createBtn = document.getElementById('create-network-btn');
+        const dismissBtn = document.getElementById('dismiss-suggestion-btn');
+
+        if (createBtn) {
+            createBtn.addEventListener('click', createSuggestedNetwork);
+            console.log('Create button event listener added');
+        }
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', dismissSuggestion);
+            console.log('Dismiss button event listener added');
+        }
+
+        // Check for network suggestions immediately and periodically
+        console.log('Starting network suggestion polling...');
+        checkForNetworkSuggestions();
+        
+        // Clear any existing interval to avoid duplicates
+        if (window.networkSuggestionInterval) {
+            clearInterval(window.networkSuggestionInterval);
+        }
+        window.networkSuggestionInterval = setInterval(checkForNetworkSuggestions, 15000);
+    }
+
+    // Run initialization immediately (for HTMX loaded content)
+    initNetworkSuggestions();
+    
+    // Also run on DOMContentLoaded for direct page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNetworkSuggestions);
+    }
 </script>

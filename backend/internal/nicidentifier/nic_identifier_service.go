@@ -42,9 +42,8 @@ func (s *NicIdentifierService) Identify() {
 	nic := s.getLocalNic()
 	fmt.Printf("NIC: %v\n", nic)
 	
-	// Use configured network CIDR instead of detected interface CIDR
-	cidr := s.Config.NetworkCIDR
-	log.Printf("Using configured network CIDR: %s", cidr)
+	// Check for new networks and suggest creation
+	s.CheckForNewNetworks()
 	
 	publicIP, err := s.getPublicIp()
 	if err != nil {
@@ -53,10 +52,30 @@ func (s *NicIdentifierService) Identify() {
 	}
 	log.Printf("Public IP Address found: [%v]", publicIP)
 
-	networkEntity, err := s.NetworkService.FindOrCreate(cidr)
-	if err != nil {
-		log.Printf("Failed to find or create network: %v", err)
-		return
+	// Try to find an existing network for the primary NIC for system status
+	var networkEntity *models.Network
+	if nic.IPv4 != "" {
+		// Calculate the /24 network for this IP
+		ip := net.ParseIP(nic.IPv4)
+		if ip != nil {
+			ip4 := ip.To4()
+			if ip4 != nil {
+				// Calculate /24 network
+				cidr := fmt.Sprintf("%d.%d.%d.0/24", ip4[0], ip4[1], ip4[2])
+				log.Printf("Looking for existing network for primary NIC: %s", cidr)
+				
+				// Only look for existing network, don't create automatically
+				existing, err := s.NetworkService.FindByCIDR(cidr)
+				if err != nil {
+					log.Printf("Error searching for network %s: %v", cidr, err)
+				} else if existing != nil {
+					log.Printf("Found existing network: %s", existing.CIDR)
+					networkEntity = existing
+				} else {
+					log.Printf("No existing network found for %s - will be suggested via UI", cidr)
+				}
+			}
+		}
 	}
 
 	localDevice := models.Device{
@@ -73,8 +92,12 @@ func (s *NicIdentifierService) Identify() {
 
 	systemStatus := models.SystemStatus{
 		LocalDevice: *savedDevice,
-		NetworkID:   networkEntity.ID,
 		PublicIP:    &publicIP,
+	}
+	
+	// Set NetworkID if we have a valid network entity
+	if networkEntity != nil {
+		systemStatus.NetworkID = networkEntity.ID
 	}
 
 	_, err = s.SystemStatusService.CreateOrUpdate(&systemStatus)
@@ -241,4 +264,159 @@ func (s *NicIdentifierService) getPublicIp() (string, error) {
 		return "", err
 	}
 	return string(ip), nil
+}
+
+// CheckForNewNetworks detects new networks from active NICs and suggests creation
+func (s *NicIdentifierService) CheckForNewNetworks() {
+	log.Printf("Checking for new networks...")
+	
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Printf("Error getting network interfaces for network detection: %v", err)
+		return
+	}
+
+	var detectedNetworks []string
+	
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			
+			ip := ipNet.IP.To4()
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			// Skip Docker/container networks
+			if s.isDockerOrContainerNetwork(ip.String()) {
+				continue
+			}
+
+			// Calculate network CIDR
+			networkCIDR := ipNet.String()
+			detectedNetworks = append(detectedNetworks, networkCIDR)
+			
+			log.Printf("Detected active network: %s on interface %s", networkCIDR, iface.Name)
+		}
+	}
+	
+	// Check if detected networks exist in database
+	for _, networkCIDR := range detectedNetworks {
+		s.checkAndSuggestNetwork(networkCIDR)
+	}
+}
+
+// checkAndSuggestNetwork checks if a network exists and creates suggestion if not
+func (s *NicIdentifierService) checkAndSuggestNetwork(networkCIDR string) {
+	// Parse the network to get the base network address
+	_, ipNet, err := net.ParseCIDR(networkCIDR)
+	if err != nil {
+		log.Printf("Error parsing network CIDR %s: %v", networkCIDR, err)
+		return
+	}
+	
+	// Get the network address (not the host IP)
+	networkAddr := ipNet.IP.String()
+	ones, _ := ipNet.Mask.Size()
+	baseNetworkCIDR := fmt.Sprintf("%s/%d", networkAddr, ones)
+	
+	log.Printf("Checking if network %s exists (derived from %s)", baseNetworkCIDR, networkCIDR)
+	
+	// Check if this network already exists
+	existing, err := s.NetworkService.FindByCIDR(baseNetworkCIDR)
+	if err != nil {
+		log.Printf("Error checking existing network %s: %v", baseNetworkCIDR, err)
+		return
+	}
+	
+	if existing != nil {
+		log.Printf("Network %s already exists, skipping suggestion", baseNetworkCIDR)
+		return
+	}
+	
+	// Network doesn't exist - log suggestion event
+	log.Printf("New network detected: %s", baseNetworkCIDR)
+	s.EventLogService.CreateOne(&models.EventLog{
+		Type:        models.NewNetworkDetected,
+		Description: fmt.Sprintf("New network %s detected. Consider creating it for scanning.", baseNetworkCIDR),
+	})
+}
+
+// GetDetectedNetworks returns a list of detected networks that don't exist in the database
+func (s *NicIdentifierService) GetDetectedNetworks() []DetectedNetwork {
+	var detected []DetectedNetwork
+	
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Printf("Error getting network interfaces: %v", err)
+		return detected
+	}
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			
+			ip := ipNet.IP.To4()
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			// Skip Docker/container networks
+			if s.isDockerOrContainerNetwork(ip.String()) {
+				continue
+			}
+
+			// Calculate base network CIDR (network address, not host IP)
+			ones, _ := ipNet.Mask.Size()
+			// Apply mask to get network address
+			networkIP := ipNet.IP.Mask(ipNet.Mask)
+			baseNetworkCIDR := fmt.Sprintf("%s/%d", networkIP.String(), ones)
+			
+			// Check if this network exists
+			existing, err := s.NetworkService.FindByCIDR(baseNetworkCIDR)
+			if err != nil || existing != nil {
+				continue
+			}
+			
+			// Add to detected networks
+			detected = append(detected, DetectedNetwork{
+				CIDR:      baseNetworkCIDR,
+				Interface: iface.Name,
+				IP:        ip.String(),
+			})
+		}
+	}
+	
+	return detected
+}
+
+// DetectedNetwork represents a detected network that doesn't exist in the database
+type DetectedNetwork struct {
+	CIDR      string `json:"cidr"`
+	Interface string `json:"interface"`
+	IP        string `json:"ip"`
 }

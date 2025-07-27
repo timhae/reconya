@@ -17,6 +17,7 @@ const (
 	NetworkDeleted    EEventLogType = "Network deleted"
 	ScanStarted       EEventLogType = "Scan started"
 	ScanStopped       EEventLogType = "Scan stopped"
+	NewNetworkDetected EEventLogType = "New network detected"
 	Warning           EEventLogType = "Warning"
 	Alert             EEventLogType = "Alert"
 )
