@@ -49,12 +49,7 @@
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-danger" 
-                            hx-delete="/api/networks/{{.ID}}" 
-                            hx-trigger="click"
-                            hx-confirm="Delete this network?"
-                            hx-target="closest tr"
-                            hx-swap="outerHTML"
-                            onclick="event.stopPropagation()"
+                            onclick="event.stopPropagation(); showNetworkDeleteModal('{{.ID}}')"
                             title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -95,4 +90,73 @@
     font-size: 0.85em;
 }
 </style>
+
+<script>
+// Debug: Check what's available
+console.log('Network list component loaded. Global functions available:', {
+    showNetworkDeleteModal: typeof window.showNetworkDeleteModal,
+    showNetworkModal: typeof window.showNetworkModal
+});
+
+// Ensure functions are always available on window object
+window.showNetworkDeleteModal = function(networkId) {
+    console.log('Network delete modal called for:', networkId);
+    
+    // Check if modal container exists
+    const modalContainer = document.getElementById('networkDeleteModal');
+    if (!modalContainer) {
+        console.error('networkDeleteModal container not found!');
+        alert('Modal container not available. Please refresh the page.');
+        return;
+    }
+    
+    // Load the modal content
+    htmx.ajax('GET', `/api/network-delete-modal/${networkId}`, { 
+        target: '#network-delete-modal-content' 
+    });
+};
+
+window.showNetworkModal = function(url) {
+    console.log('Network modal called for:', url);
+    
+    // Check if modal container exists  
+    const modalContainer = document.getElementById('networkModal');
+    if (!modalContainer) {
+        console.error('networkModal container not found!');
+        alert('Modal container not available. Please refresh the page.');
+        return;
+    }
+    
+    // Load the modal content
+    htmx.ajax('GET', url, { target: '#network-modal-content' });
+};
+
+// Ensure modal event handlers are available (avoid duplicate listeners)
+if (!window.networkModalHandlersAttached) {
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.target.id === 'network-delete-modal-content') {
+            const modalEl = document.getElementById('networkDeleteModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            } else {
+                console.error('networkDeleteModal element not found when trying to show modal');
+            }
+        }
+        
+        if (event.detail.target.id === 'network-modal-content') {
+            const modalEl = document.getElementById('networkModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            } else {
+                console.error('networkModal element not found when trying to show modal');
+            }
+        }
+    });
+    
+    window.networkModalHandlersAttached = true;
+    console.log('Network modal event handlers attached');
+}
+</script>
 {{end}}

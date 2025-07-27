@@ -94,9 +94,17 @@ class ServiceStopper {
           }
         }
       } else {
-        // Unix-like: Kill processes by name pattern
+        // Unix-like: Kill processes by specific reconYa pattern
         try {
-          await Utils.runCommand('pkill', ['-f', 'go run.*cmd'], { silent: true });
+          // More specific pattern to avoid killing other applications
+          await Utils.runCommand('pkill', ['-f', 'go run.*reconya.*cmd'], { silent: true });
+        } catch {
+          // Ignore errors - process might not exist
+        }
+        
+        try {
+          // Also try killing processes with the binary name
+          await Utils.runCommand('pkill', ['-f', 'reconya'], { silent: true });
         } catch {
           // Ignore errors - process might not exist
         }

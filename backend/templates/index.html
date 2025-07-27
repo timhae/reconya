@@ -675,6 +675,17 @@
         </div>
     </div>
 
+    <!-- Network Delete Modal (available globally) -->
+    <div class="modal fade" id="networkDeleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark border-danger">
+                <div id="network-delete-modal-content">
+                    <!-- Content loaded via HTMX -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- HTMX -->
@@ -1314,6 +1325,68 @@
                 }
             }, type === 'success' ? 3000 : 5000);
         }
+
+        // Global network modal functions - attach to window object
+        window.showNetworkModal = function(url) {
+            console.log('Global: Showing network modal:', url);
+            htmx.ajax('GET', url, { target: '#network-modal-content' });
+        };
+
+        window.showNetworkDeleteModal = function(networkId) {
+            console.log('Global: Showing network delete modal for:', networkId);
+            htmx.ajax('GET', `/api/network-delete-modal/${networkId}`, { 
+                target: '#network-delete-modal-content' 
+            });
+        };
+        
+        console.log('Global network modal functions initialized');
+
+        // Global modal event handlers
+        document.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.target.id === 'network-modal-content') {
+                const modal = new bootstrap.Modal(document.getElementById('networkModal'));
+                modal.show();
+            }
+            
+            if (event.detail.target.id === 'network-delete-modal-content') {
+                const modal = new bootstrap.Modal(document.getElementById('networkDeleteModal'));
+                modal.show();
+            }
+        });
+
+        // Handle network creation/update - listen for HX-Trigger events
+        document.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.target.id === 'network-modal-content' && 
+                event.detail.xhr.status === 200 && 
+                (event.detail.requestConfig.verb === 'post' || event.detail.requestConfig.verb === 'put')) {
+                
+                // Check if this is a successful network save
+                const triggerHeader = event.detail.xhr.getResponseHeader('HX-Trigger');
+                if (triggerHeader && triggerHeader.includes('network-saved')) {
+                    // Close modal immediately and show a toast notification instead
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('networkModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // Show toast notification
+                    showAlert('Network saved successfully!', 'success');
+                    
+                    // Refresh the networks container and scan control
+                    setTimeout(() => {
+                        const networksContainer = document.getElementById('networks-container');
+                        if (networksContainer) {
+                            htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
+                        }
+                        
+                        const scanControlContainer = document.getElementById('scan-control-container');
+                        if (scanControlContainer) {
+                            htmx.trigger(scanControlContainer, 'htmx:load');
+                        }
+                    }, 500);
+                }
+            }
+        });
     </script>
 </body>
 </html>

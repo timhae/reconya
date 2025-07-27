@@ -345,6 +345,44 @@ func (s *DeviceService) Delete(deviceID string) error {
 	return nil
 }
 
+// DeleteByNetworkID deletes all devices belonging to a specific network
+func (s *DeviceService) DeleteByNetworkID(networkID string) error {
+	ctx := context.Background()
+	
+	// Find all devices for this network
+	devices, err := s.FindByNetworkID(networkID)
+	if err != nil {
+		return fmt.Errorf("failed to find devices for network %s: %v", networkID, err)
+	}
+	
+	log.Printf("Deleting %d devices from network %s", len(devices), networkID)
+	
+	// Delete each device
+	var errors []string
+	deletedCount := 0
+	
+	for _, device := range devices {
+		err := s.repository.DeleteByID(ctx, device.ID)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Failed to delete device %s (%s): %v", device.IPv4, device.ID, err))
+			continue
+		}
+		deletedCount++
+		log.Printf("Deleted device %s (%s)", device.IPv4, device.ID)
+	}
+	
+	if len(errors) > 0 {
+		log.Printf("Deleted %d devices with %d errors", deletedCount, len(errors))
+		for _, errMsg := range errors {
+			log.Printf("Error: %s", errMsg)
+		}
+		return fmt.Errorf("deleted %d devices but encountered %d errors", deletedCount, len(errors))
+	}
+	
+	log.Printf("Successfully deleted all %d devices from network %s", deletedCount, networkID)
+	return nil
+}
+
 func (s *DeviceService) FindByIPv4(ipv4 string) (*models.Device, error) {
 	ctx := context.Background()
 	device, err := s.repository.FindByIP(ctx, ipv4)

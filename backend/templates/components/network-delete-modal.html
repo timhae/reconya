@@ -1,0 +1,155 @@
+{{define "components/network-delete-modal.html"}}
+<div class="modal-header bg-dark border-danger">
+    <h5 class="modal-title text-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        Delete Network
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body bg-dark text-light">
+    <div class="mb-3">
+        <h6 class="text-success">Network: {{.Network.Name}} ({{.Network.CIDR}})</h6>
+    </div>
+
+    {{if .IsScanning}}
+        <div class="alert alert-warning border-warning bg-very-dark">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            {{.Message}}
+        </div>
+    {{else}}
+        <div class="alert alert-info border-info bg-very-dark">
+            <i class="bi bi-info-circle me-2"></i>
+            {{.Message}}
+        </div>
+
+        {{if gt .DeviceCount 0}}
+            <div class="mt-3">
+                <h6 class="text-warning">
+                    <i class="bi bi-router me-2"></i>
+                    Affected Devices ({{.DeviceCount}})
+                </h6>
+                <div class="bg-very-dark border border-secondary rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                    {{range .Devices}}
+                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-secondary">
+                            <div>
+                                <span class="text-success">{{.IPv4}}</span>
+                                {{if .Name}}
+                                    <span class="text-muted ms-2">({{.Name}})</span>
+                                {{end}}
+                            </div>
+                            <div>
+                                {{if eq .Status "online"}}
+                                    <span class="badge bg-success">Online</span>
+                                {{else if eq .Status "idle"}}
+                                    <span class="badge bg-warning">Idle</span>
+                                {{else}}
+                                    <span class="badge bg-secondary">Offline</span>
+                                {{end}}
+                            </div>
+                        </div>
+                    {{end}}
+                </div>
+            </div>
+
+            <div class="alert alert-warning border-warning bg-very-dark mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Warning:</strong> All devices listed above will be permanently removed from the system when you delete this network.
+            </div>
+        {{end}}
+    {{end}}
+</div>
+
+<div class="modal-footer bg-dark border-top border-secondary">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    {{if .CanDelete}}
+        <button type="button" 
+                class="btn btn-danger" 
+                id="confirm-delete-network-btn"
+                onclick="confirmNetworkDelete('{{.Network.ID}}')">
+            <i class="bi bi-trash me-2"></i>
+            {{if gt .DeviceCount 0}}Delete Network & {{.DeviceCount}} Device(s){{else}}Delete Network{{end}}
+        </button>
+    {{end}}
+</div>
+
+<script>
+function confirmNetworkDelete(networkId) {
+    const confirmBtn = document.getElementById('confirm-delete-network-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+    
+    fetch(`/api/networks/${networkId}/force-delete`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => Promise.reject(text));
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('networkDeleteModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Show success toast
+        showToast('success', 'Network deleted successfully', data.message);
+        
+        // Refresh the networks list
+        setTimeout(() => {
+            htmx.ajax('GET', '/api/networks', { target: '#networks-container' });
+            
+            // Also refresh scan control to update dropdown
+            const scanControlContainer = document.getElementById('scan-control-container');
+            if (scanControlContainer) {
+                htmx.trigger(scanControlContainer, 'htmx:load');
+            }
+        }, 500);
+    })
+    .catch(error => {
+        console.error('Error deleting network:', error);
+        showToast('error', 'Deletion Failed', error);
+        
+        // Re-enable button
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-trash me-2"></i>Delete Network';
+    });
+}
+
+function showToast(type, title, message) {
+    const toastId = 'networkDeleteToast_' + Date.now();
+    const bgClass = type === 'success' ? 'bg-dark border-success' : 'bg-dark border-danger';
+    const iconClass = type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-exclamation-triangle-fill text-danger';
+    
+    const toastHtml = `
+        <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div id="${toastId}" class="toast ${bgClass}" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-dark text-${type === 'success' ? 'success' : 'danger'} border-${type === 'success' ? 'success' : 'danger'}">
+                    <i class="${iconClass} me-2"></i>
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body text-light">
+                    ${message}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 4000 });
+    toast.show();
+    
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.parentElement.remove();
+    });
+}
+</script>
+{{end}}

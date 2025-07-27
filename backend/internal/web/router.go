@@ -49,8 +49,11 @@ func (h *WebHandler) SetupRoutes() *mux.Router {
 	api.HandleFunc("/networks", h.APICreateNetwork).Methods("POST")
 	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIUpdateNetwork).Methods("PUT")
 	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APIDeleteNetwork).Methods("DELETE")
+	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/delete-info", h.APINetworkDeleteInfo).Methods("GET")
+	api.HandleFunc("/networks/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/force-delete", h.APIForceDeleteNetwork).Methods("DELETE")
 	api.HandleFunc("/network-modal", h.APINetworkModal).Methods("GET")
 	api.HandleFunc("/network-modal/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APINetworkModal).Methods("GET")
+	api.HandleFunc("/network-delete-modal/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}", h.APINetworkDeleteModal).Methods("GET")
 
 	// Scan management endpoints
 	api.HandleFunc("/scan/status", h.APIScanStatus).Methods("GET")

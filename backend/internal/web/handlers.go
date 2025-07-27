@@ -1570,6 +1570,216 @@ func (h *WebHandler) APIDeleteNetwork(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// APINetworkDeleteInfo returns information about network deletion including affected devices
+func (h *WebHandler) APINetworkDeleteInfo(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	// Get network info
+	network, err := h.networkService.FindByID(networkID)
+	if err != nil {
+		http.Error(w, "Network not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if a scan is currently running on this network
+	isScanning := false
+	if h.scanManager.IsRunning() {
+		currentNetwork := h.scanManager.GetCurrentNetwork()
+		if currentNetwork != nil && currentNetwork.ID == networkID {
+			isScanning = true
+		}
+	}
+
+	// Get device count
+	deviceCount, err := h.networkService.GetDeviceCount(networkID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to check network devices: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Get devices for this network to show in confirmation
+	devices, err := h.deviceService.FindByNetworkID(networkID)
+	if err != nil {
+		log.Printf("Error fetching devices for network %s: %v", networkID, err)
+		devices = []models.Device{} // Empty slice if error
+	}
+
+	deleteInfo := struct {
+		Network     *models.Network `json:"network"`
+		DeviceCount int             `json:"deviceCount"`
+		Devices     []models.Device `json:"devices"`
+		IsScanning  bool            `json:"isScanning"`
+		CanDelete   bool            `json:"canDelete"`
+		Message     string          `json:"message"`
+	}{
+		Network:     network,
+		DeviceCount: deviceCount,
+		Devices:     devices,
+		IsScanning:  isScanning,
+		CanDelete:   !isScanning,
+		Message:     "",
+	}
+
+	if isScanning {
+		deleteInfo.Message = "Cannot delete network: a scan is currently running on this network. Please stop the scan first."
+	} else if deviceCount > 0 {
+		deleteInfo.Message = fmt.Sprintf("This network contains %d device(s). Deleting the network will also remove these devices from the system.", deviceCount)
+	} else {
+		deleteInfo.Message = "Are you sure you want to delete this network?"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(deleteInfo)
+}
+
+// APIForceDeleteNetwork deletes a network and all its devices with confirmation
+func (h *WebHandler) APIForceDeleteNetwork(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	// Check if a scan is currently running on this network
+	if h.scanManager.IsRunning() {
+		currentNetwork := h.scanManager.GetCurrentNetwork()
+		if currentNetwork != nil && currentNetwork.ID == networkID {
+			http.Error(w, "Cannot delete network: a scan is currently running on this network. Please stop the scan first.", http.StatusConflict)
+			return
+		}
+	}
+
+	// Get network info before deletion for logging
+	network, err := h.networkService.FindByID(networkID)
+	if err != nil {
+		http.Error(w, "Network not found", http.StatusNotFound)
+		return
+	}
+
+	// Get device count for logging
+	deviceCount, err := h.networkService.GetDeviceCount(networkID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to check network devices: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Delete devices first if they exist
+	if deviceCount > 0 {
+		err = h.deviceService.DeleteByNetworkID(networkID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to delete network devices: %v", err), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Deleted %d devices from network %s before network deletion", deviceCount, networkID)
+	}
+
+	// Now delete the network
+	err = h.networkService.Delete(networkID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to delete network: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the event
+	if network != nil {
+		message := fmt.Sprintf("Network %s (%s) deleted", network.CIDR, network.Name)
+		if deviceCount > 0 {
+			message += fmt.Sprintf(" along with %d device(s)", deviceCount)
+		}
+		h.eventLogService.Log(models.NetworkDeleted, message, "")
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Network deleted successfully",
+	})
+}
+
+// APINetworkDeleteModal returns the network deletion confirmation modal
+func (h *WebHandler) APINetworkDeleteModal(w http.ResponseWriter, r *http.Request) {
+	session, _ := h.sessionStore.Get(r, "reconya-session")
+	user := h.getUserFromSession(session)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	networkID := vars["id"]
+
+	// Get network info
+	network, err := h.networkService.FindByID(networkID)
+	if err != nil {
+		http.Error(w, "Network not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if a scan is currently running on this network
+	isScanning := false
+	if h.scanManager.IsRunning() {
+		currentNetwork := h.scanManager.GetCurrentNetwork()
+		if currentNetwork != nil && currentNetwork.ID == networkID {
+			isScanning = true
+		}
+	}
+
+	// Get device count
+	deviceCount, err := h.networkService.GetDeviceCount(networkID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to check network devices: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Get devices for this network to show in confirmation
+	devices, err := h.deviceService.FindByNetworkID(networkID)
+	if err != nil {
+		log.Printf("Error fetching devices for network %s: %v", networkID, err)
+		devices = []models.Device{} // Empty slice if error
+	}
+
+	deleteInfo := struct {
+		Network     *models.Network `json:"network"`
+		DeviceCount int             `json:"deviceCount"`
+		Devices     []models.Device `json:"devices"`
+		IsScanning  bool            `json:"isScanning"`
+		CanDelete   bool            `json:"canDelete"`
+		Message     string          `json:"message"`
+	}{
+		Network:     network,
+		DeviceCount: deviceCount,
+		Devices:     devices,
+		IsScanning:  isScanning,
+		CanDelete:   !isScanning,
+		Message:     "",
+	}
+
+	if isScanning {
+		deleteInfo.Message = "Cannot delete network: a scan is currently running on this network. Please stop the scan first."
+	} else if deviceCount > 0 {
+		deleteInfo.Message = fmt.Sprintf("This network contains %d device(s). Deleting the network will also remove these devices from the system.", deviceCount)
+	} else {
+		deleteInfo.Message = "Are you sure you want to delete this network?"
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "components/network-delete-modal.html", deleteInfo); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // APIScanStatus returns the current scan status
 func (h *WebHandler) APIScanStatus(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, "reconya-session")
