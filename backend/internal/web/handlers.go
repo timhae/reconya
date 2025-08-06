@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -348,26 +349,33 @@ func NewWebHandler(
 		},
 	}
 
+	// Get the absolute path to the directory containing the executable
+	execPath, err := os.Executable()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get executable path: %v", err))
+	}
+	execDir := filepath.Dir(execPath)
+
 	// Parse templates from filesystem
 	tmpl := template.New("").Funcs(funcMap)
 
 	// Parse templates with unique names to avoid conflicts
-	baseFiles, err := filepath.Glob("templates/layouts/*.html")
+	baseFiles, err := filepath.Glob(filepath.Join(execDir, "templates/layouts/*.html"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob base templates: %v", err))
 	}
 
-	pageFiles, err := filepath.Glob("templates/pages/*.html")
+	pageFiles, err := filepath.Glob(filepath.Join(execDir, "templates/pages/*.html"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob page templates: %v", err))
 	}
 
-	componentFiles, err := filepath.Glob("templates/components/*.html")
+	componentFiles, err := filepath.Glob(filepath.Join(execDir, "templates/components/*.html"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to glob component templates: %v", err))
 	}
 
-	indexFile := "templates/index.html"
+	indexFile := filepath.Join(execDir, "templates/index.html")
 
 	files := append(baseFiles, append(pageFiles, componentFiles...)...)
 	files = append(files, indexFile)
@@ -580,8 +588,14 @@ func (h *WebHandler) About(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
+		// Get the absolute path to the directory containing the executable
+		execPath, err := os.Executable()
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get executable path: %v", err))
+		}
+		execDir := filepath.Dir(execPath)
 		// Use standalone login template to avoid conflicts
-		loginTmpl, err := template.ParseFiles("templates/standalone/login.html")
+		loginTmpl, err := template.ParseFiles(filepath.Join(execDir, ("templates/standalone/login.html")))
 		if err != nil {
 			log.Printf("Failed to parse standalone login template: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
