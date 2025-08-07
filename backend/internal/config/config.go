@@ -20,7 +20,7 @@ type Config struct {
 	Port         string
 	DatabaseType DatabaseType
 	// SQLite config
-	SQLitePath   string
+	SQLitePath string
 	// Common configs
 	Username     string
 	Password     string
