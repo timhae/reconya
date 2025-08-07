@@ -171,7 +171,7 @@ func main() {
 	infoLogger.Printf("Runtime: %s/%s, Go version: %s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 	infoLogger.Printf("🛡️ Backend is protected against external termination")
 
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(infoLogger)
 	if err != nil {
 		infoLogger.Printf("Failed to load configuration: %v", err)
 		infoLogger.Printf("CRITICAL ERROR - RESTARTING IN 2 SECONDS...")

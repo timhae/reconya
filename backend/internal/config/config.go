@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -26,10 +27,19 @@ type Config struct {
 	DatabaseName string
 }
 
-func LoadConfig() (*Config, error) {
+func LoadConfig(infoLogger *log.Logger) (*Config, error) {
 	// Try to load .env file but don't fail if it doesn't exist
 	// This allows using environment variables directly in Docker
-	_ = godotenv.Load()
+	envFileName := os.Getenv("RECONYA_ENV_FILE")
+	if envFileName == "" {
+		infoLogger.Printf("RECONYA_ENV_FILE environment variable is not set, loading from current directory\n")
+		_ = godotenv.Load()
+	} else {
+		infoLogger.Printf("Loading environment variables from RECONYA_ENV_FILE=%s\n", envFileName)
+		if err := godotenv.Load(envFileName); err != nil {
+			return nil, err
+		}
+	}
 
 	databaseName := os.Getenv("DATABASE_NAME")
 	if databaseName == "" {
