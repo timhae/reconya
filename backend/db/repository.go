@@ -123,4 +123,3 @@ func (f *RepositoryFactory) NewSettingsRepository() SettingsRepository {
 func GenerateID() string {
 	return uuid.New().String()
 }
-

@@ -16,18 +16,18 @@ import (
 func SetupTestDatabase(t *testing.T) (*sql.DB, func()) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test.db")
-	
+
 	testDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_timeout=10000&_foreign_keys=on")
 	require.NoError(t, err)
-	
+
 	err = db.InitializeSchema(testDB)
 	require.NoError(t, err)
-	
+
 	cleanup := func() {
 		testDB.Close()
 		os.RemoveAll(tempDir)
 	}
-	
+
 	return testDB, cleanup
 }
 

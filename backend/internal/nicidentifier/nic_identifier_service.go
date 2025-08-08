@@ -41,10 +41,10 @@ func (s *NicIdentifierService) Identify() {
 	log.Printf("Attempting network identification")
 	nic := s.getLocalNic()
 	fmt.Printf("NIC: %v\n", nic)
-	
+
 	// Check for new networks and suggest creation
 	s.CheckForNewNetworks()
-	
+
 	publicIP, err := s.getPublicIp()
 	if err != nil {
 		log.Printf("Failed to get public IP: %v", err)
@@ -63,7 +63,7 @@ func (s *NicIdentifierService) Identify() {
 				// Calculate /24 network
 				cidr := fmt.Sprintf("%d.%d.%d.0/24", ip4[0], ip4[1], ip4[2])
 				log.Printf("Looking for existing network for primary NIC: %s", cidr)
-				
+
 				// Only look for existing network, don't create automatically
 				existing, err := s.NetworkService.FindByCIDR(cidr)
 				if err != nil {
@@ -94,7 +94,7 @@ func (s *NicIdentifierService) Identify() {
 		LocalDevice: *savedDevice,
 		PublicIP:    &publicIP,
 	}
-	
+
 	// Set NetworkID if we have a valid network entity
 	if networkEntity != nil {
 		systemStatus.NetworkID = networkEntity.ID
@@ -153,7 +153,7 @@ func (s *NicIdentifierService) getLocalNic() models.NIC {
 
 			if !ip.IsLoopback() {
 				nic := models.NIC{Name: iface.Name, IPv4: ip.String()}
-				
+
 				// Check if this is a Docker or container network
 				if s.isDockerOrContainerNetwork(ip.String()) {
 					fmt.Printf("Found Docker/container interface: %s with IPv4: %s\n", iface.Name, ip.String())
@@ -193,8 +193,8 @@ func (s *NicIdentifierService) getLocalNic() models.NIC {
 func (s *NicIdentifierService) isDockerOrContainerNetwork(ip string) bool {
 	// Common Docker and container network ranges
 	dockerRanges := []string{
-		"172.17.0.0/16",    // Default Docker bridge
-		"172.18.0.0/16",    // Docker custom networks
+		"172.17.0.0/16", // Default Docker bridge
+		"172.18.0.0/16", // Docker custom networks
 		"172.19.0.0/16",
 		"172.20.0.0/16",
 		"172.21.0.0/16",
@@ -231,8 +231,8 @@ func (s *NicIdentifierService) isDockerOrContainerNetwork(ip string) bool {
 func (s *NicIdentifierService) isCommonPrivateNetwork(ip string) bool {
 	// Common home/office network ranges
 	commonRanges := []string{
-		"192.168.0.0/16",   // Most common home networks
-		"10.0.0.0/8",       // Corporate networks
+		"192.168.0.0/16", // Most common home networks
+		"10.0.0.0/8",     // Corporate networks
 	}
 
 	parsedIP := net.ParseIP(ip)
@@ -269,7 +269,7 @@ func (s *NicIdentifierService) getPublicIp() (string, error) {
 // CheckForNewNetworks detects new networks from active NICs and suggests creation
 func (s *NicIdentifierService) CheckForNewNetworks() {
 	log.Printf("Checking for new networks...")
-	
+
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		log.Printf("Error getting network interfaces for network detection: %v", err)
@@ -277,7 +277,7 @@ func (s *NicIdentifierService) CheckForNewNetworks() {
 	}
 
 	var detectedNetworks []string
-	
+
 	for _, iface := range interfaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
@@ -293,7 +293,7 @@ func (s *NicIdentifierService) CheckForNewNetworks() {
 			if !ok {
 				continue
 			}
-			
+
 			ip := ipNet.IP.To4()
 			if ip == nil || ip.IsLoopback() {
 				continue
@@ -307,11 +307,11 @@ func (s *NicIdentifierService) CheckForNewNetworks() {
 			// Calculate network CIDR
 			networkCIDR := ipNet.String()
 			detectedNetworks = append(detectedNetworks, networkCIDR)
-			
+
 			log.Printf("Detected active network: %s on interface %s", networkCIDR, iface.Name)
 		}
 	}
-	
+
 	// Check if detected networks exist in database
 	for _, networkCIDR := range detectedNetworks {
 		s.checkAndSuggestNetwork(networkCIDR)
@@ -326,26 +326,26 @@ func (s *NicIdentifierService) checkAndSuggestNetwork(networkCIDR string) {
 		log.Printf("Error parsing network CIDR %s: %v", networkCIDR, err)
 		return
 	}
-	
+
 	// Get the network address (not the host IP)
 	networkAddr := ipNet.IP.String()
 	ones, _ := ipNet.Mask.Size()
 	baseNetworkCIDR := fmt.Sprintf("%s/%d", networkAddr, ones)
-	
+
 	log.Printf("Checking if network %s exists (derived from %s)", baseNetworkCIDR, networkCIDR)
-	
+
 	// Check if this network already exists
 	existing, err := s.NetworkService.FindByCIDR(baseNetworkCIDR)
 	if err != nil {
 		log.Printf("Error checking existing network %s: %v", baseNetworkCIDR, err)
 		return
 	}
-	
+
 	if existing != nil {
 		log.Printf("Network %s already exists, skipping suggestion", baseNetworkCIDR)
 		return
 	}
-	
+
 	// Network doesn't exist - log suggestion event
 	log.Printf("New network detected: %s", baseNetworkCIDR)
 	s.EventLogService.CreateOne(&models.EventLog{
@@ -357,7 +357,7 @@ func (s *NicIdentifierService) checkAndSuggestNetwork(networkCIDR string) {
 // GetDetectedNetworks returns a list of detected networks that don't exist in the database
 func (s *NicIdentifierService) GetDetectedNetworks() []DetectedNetwork {
 	var detected []DetectedNetwork
-	
+
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		log.Printf("Error getting network interfaces: %v", err)
@@ -379,7 +379,7 @@ func (s *NicIdentifierService) GetDetectedNetworks() []DetectedNetwork {
 			if !ok {
 				continue
 			}
-			
+
 			ip := ipNet.IP.To4()
 			if ip == nil || ip.IsLoopback() {
 				continue
@@ -395,13 +395,13 @@ func (s *NicIdentifierService) GetDetectedNetworks() []DetectedNetwork {
 			// Apply mask to get network address
 			networkIP := ipNet.IP.Mask(ipNet.Mask)
 			baseNetworkCIDR := fmt.Sprintf("%s/%d", networkIP.String(), ones)
-			
+
 			// Check if this network exists
 			existing, err := s.NetworkService.FindByCIDR(baseNetworkCIDR)
 			if err != nil || existing != nil {
 				continue
 			}
-			
+
 			// Add to detected networks
 			detected = append(detected, DetectedNetwork{
 				CIDR:      baseNetworkCIDR,
@@ -410,7 +410,7 @@ func (s *NicIdentifierService) GetDetectedNetworks() []DetectedNetwork {
 			})
 		}
 	}
-	
+
 	return detected
 }
 

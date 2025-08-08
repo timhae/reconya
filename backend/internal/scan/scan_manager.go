@@ -3,46 +3,46 @@ package scan
 import (
 	"fmt"
 	"log"
+	"reconya-ai/internal/ipv6monitor"
+	"reconya-ai/internal/network"
+	"reconya-ai/internal/pingsweep"
+	"reconya-ai/models"
 	"sync"
 	"time"
-	"reconya-ai/models"
-	"reconya-ai/internal/pingsweep"
-	"reconya-ai/internal/network"
-	"reconya-ai/internal/ipv6monitor"
 )
 
 // ScanState represents the current state of the scanning system
 type ScanState struct {
-	IsRunning       bool              `json:"is_running"`
-	IsStopping      bool              `json:"is_stopping"`
-	CurrentNetwork  *models.Network   `json:"current_network"`
-	SelectedNetwork *models.Network   `json:"selected_network"`
-	StartTime       *time.Time        `json:"start_time"`
-	LastScanTime    *time.Time        `json:"last_scan_time"`
-	ScanCount       int               `json:"scan_count"`
-	IPv6Monitoring  bool              `json:"ipv6_monitoring"`
+	IsRunning       bool            `json:"is_running"`
+	IsStopping      bool            `json:"is_stopping"`
+	CurrentNetwork  *models.Network `json:"current_network"`
+	SelectedNetwork *models.Network `json:"selected_network"`
+	StartTime       *time.Time      `json:"start_time"`
+	LastScanTime    *time.Time      `json:"last_scan_time"`
+	ScanCount       int             `json:"scan_count"`
+	IPv6Monitoring  bool            `json:"ipv6_monitoring"`
 }
 
 // ScanManager manages the network scanning state and operations
 type ScanManager struct {
-	state           ScanState
-	mutex           sync.RWMutex
-	pingSweepService *pingsweep.PingSweepService
-	networkService  *network.NetworkService
+	state              ScanState
+	mutex              sync.RWMutex
+	pingSweepService   *pingsweep.PingSweepService
+	networkService     *network.NetworkService
 	ipv6MonitorService *ipv6monitor.IPv6MonitorService
-	stopChannel     chan bool
-	done            chan bool
+	stopChannel        chan bool
+	done               chan bool
 }
 
 // NewScanManager creates a new scan manager
 func NewScanManager(pingSweepService *pingsweep.PingSweepService, networkService *network.NetworkService, ipv6MonitorService *ipv6monitor.IPv6MonitorService) *ScanManager {
 	return &ScanManager{
 		state: ScanState{
-			IsRunning: false,
+			IsRunning:      false,
 			IPv6Monitoring: false,
 		},
-		pingSweepService: pingSweepService,
-		networkService:  networkService,
+		pingSweepService:   pingSweepService,
+		networkService:     networkService,
 		ipv6MonitorService: ipv6MonitorService,
 	}
 }
@@ -52,13 +52,13 @@ func (sm *ScanManager) GetState() ScanState {
 	sm.mutex.RLock()
 	state := sm.state
 	sm.mutex.RUnlock()
-	
+
 	// If not currently running, get last scan time from database
 	if !state.IsRunning {
 		state.ScanCount = sm.getTotalScanCount()
 		state.LastScanTime = sm.getLastScanTime()
 	}
-	
+
 	return state
 }
 
@@ -69,7 +69,7 @@ func (sm *ScanManager) getTotalScanCount() int {
 	if err != nil {
 		return 0
 	}
-	
+
 	count := 0
 	for _, event := range events {
 		if event.Type == models.PingSweep && event.DurationSeconds != nil {
@@ -87,7 +87,7 @@ func (sm *ScanManager) getLastScanTime() *time.Time {
 	if err != nil {
 		return nil
 	}
-	
+
 	for _, event := range events {
 		if event.Type == models.PingSweep && event.DurationSeconds != nil {
 			// Return the time of the most recent completed ping sweep
@@ -134,7 +134,7 @@ func (sm *ScanManager) SetSelectedNetwork(networkID string) error {
 func (sm *ScanManager) GetSelectedOrCurrentNetwork() *models.Network {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
-	
+
 	if sm.state.IsRunning && sm.state.CurrentNetwork != nil {
 		return sm.state.CurrentNetwork
 	}
@@ -163,7 +163,7 @@ func (sm *ScanManager) StartScan(networkID string) error {
 	now := time.Now()
 	sm.state.IsRunning = true
 	sm.state.CurrentNetwork = network
-	sm.state.SelectedNetwork = network  // Also update selected network
+	sm.state.SelectedNetwork = network // Also update selected network
 	sm.state.StartTime = &now
 	sm.state.ScanCount = 0
 
@@ -211,21 +211,21 @@ func (sm *ScanManager) StopScan() error {
 
 	// Set stopping state
 	sm.state.IsStopping = true
-	
+
 	// Signal the scan loop to stop
 	close(sm.stopChannel)
-	
+
 	// Wait for the scan loop to finish
 	go func() {
 		<-sm.done
-		
+
 		// Stop the IPv6 monitoring service
 		if err := sm.ipv6MonitorService.Stop(); err != nil {
 			log.Printf("Error stopping IPv6 monitoring service: %v", err)
 		} else {
 			log.Printf("Stopped IPv6 monitoring service")
 		}
-		
+
 		sm.mutex.Lock()
 		defer sm.mutex.Unlock()
 		sm.state.IsRunning = false
@@ -273,7 +273,7 @@ func (sm *ScanManager) runSingleScan() {
 	}
 
 	log.Printf("Running scan on network: %s", network.CIDR)
-	
+
 	// Log ping sweep started event
 	err := sm.pingSweepService.EventLogService.CreateOne(&models.EventLog{
 		Type: models.PingSweep,
@@ -281,7 +281,7 @@ func (sm *ScanManager) runSingleScan() {
 	if err != nil {
 		log.Printf("Error creating ping sweep started event log: %v", err)
 	}
-	
+
 	// Execute the ping sweep with the current network
 	devices, err := sm.pingSweepService.ExecuteSweepScanCommand(network.CIDR)
 	if err != nil {
@@ -294,10 +294,10 @@ func (sm *ScanManager) runSingleScan() {
 	// Process the devices (similar to the original Run method)
 	for i, device := range devices {
 		log.Printf("Processing device %d/%d: %s", i+1, len(devices), device.IPv4)
-		
+
 		// Set the network ID for the device
 		device.NetworkID = network.ID
-		
+
 		// Update device in database
 		updatedDevice, err := sm.pingSweepService.DeviceService.CreateOrUpdate(&device)
 		if err != nil {
@@ -337,7 +337,7 @@ func (sm *ScanManager) runSingleScan() {
 	// Create event log for ping sweep completion
 	durationInSeconds := float64(duration.Seconds())
 	err = sm.pingSweepService.EventLogService.CreateOne(&models.EventLog{
-		Type: models.PingSweep,
+		Type:            models.PingSweep,
 		DurationSeconds: &durationInSeconds,
 	})
 	if err != nil {
@@ -349,10 +349,10 @@ func (sm *ScanManager) runSingleScan() {
 type ScanErrorType string
 
 const (
-	AlreadyRunning   ScanErrorType = "already_running"
-	NotRunning       ScanErrorType = "not_running"
-	NetworkNotFound  ScanErrorType = "network_not_found"
-	NoNetworks       ScanErrorType = "no_networks"
+	AlreadyRunning  ScanErrorType = "already_running"
+	NotRunning      ScanErrorType = "not_running"
+	NetworkNotFound ScanErrorType = "network_not_found"
+	NoNetworks      ScanErrorType = "no_networks"
 )
 
 // ScanError represents a scan-related error
